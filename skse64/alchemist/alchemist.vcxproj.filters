@@ -20,6 +20,12 @@
     <ClInclude Include="include\version.h">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="include\skillLevels.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\main.h">
+      <Filter>include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="version.rc" />
