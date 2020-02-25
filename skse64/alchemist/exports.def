@@ -1,0 +1,4 @@
+LIBRARY	"alchemist"
+EXPORTS
+SKSEPlugin_Query
+SKSEPlugin_Load
