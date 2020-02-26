@@ -469,6 +469,141 @@ namespace alchemist {
 			return effects;
 		}
 
+		bool hasEffect(IngredientItem *ingredient, string eName) {
+			for (int i = 0; i < ingredient->effectItemList.count; ++i) {
+				IngredientItem::EffectItem *effect;
+				ingredient->effectItemList.GetNthItem(i, effect);
+				string iName = effect->mgef->fullName.name;
+				if (iName == eName) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		bool isProtected(IngredientItem *ingredient, set<Ingredient> ingredients) {
+			string name = ingredient->fullName.name;
+			auto countIt = ingredients.find(Ingredient(name, 0));
+			int count = countIt->inventoryCount;
+			if (name == "Berit's Ashes") {
+				return true; // quest
+			} else if (name == "Bone Hawk Claw") {
+				return true; // crafting
+			} else if (name == "Briar Heart") {
+				if (count <= 3) {
+					return true; // quest
+				}
+			} else if (name == "Crimson Nirnroot") {
+				if (count <= 31) {
+					return true; // quest
+				}
+			} else if (name == "Daedra Heart") {
+				return true;
+			} else if (name == "Deathbell") {
+				if (count <= 32) {
+					return true; // atronach forge (10) + quest (21)
+				}
+			} else if (name == "Dragon's Tongue") {
+				if (count <= 11) {
+					return true; // atronach forge
+				}
+			} else if (name == "Ectoplasm") {
+				if (count <= 11) {
+					return true; // atronach forge
+				}
+			} else if (name == "Fire Salts") {
+				if (count <= 21) {
+					return true; // atronach forge (10) + quest (10)
+				}
+			} else if (name == "Frost Mirriam") {
+				if (count <= 11) {
+					return true; // atronach forge
+				}
+			} else if (name == "Frost Salts") {
+				if (count <= 11) {
+					return true; // atronach forge
+				}
+			} else if (name == "Giant's Toe") {
+				if (count <= 3) {
+					return true; // quest
+				}
+			} else if (name == "Hagraven Claw") {
+				if (count <= 2) {
+					return true; // quest
+				}
+			} else if (name == "Hagraven Feathers") {
+				if (count <= 2) {
+					return true; // quest
+				}
+			} else if (name == "Human Heart") {
+				return true; // atronach forge
+			} else if (name == "Ice Wraith Teeth") {
+				if (count <= 6) {
+					return true; // quest
+				}
+			} else if (name == "Jarrin Root") {
+				return true; // quest
+			} else if (name == "Jazbay Grapes") {
+				if (count <= 21) {
+					return true; // quest
+				}
+			} else if (name == "Juniper Berries") {
+				if (count <= 2) {
+					return true; // quest
+				}
+			} else if (name == "Large Antlers") {
+				return true; // hearthfire
+			} else if (name == "Mudcrab Chitin") {
+				return true; // hearthfire
+			} else if (name == "Netch Jelly") {
+				if (count <= 6) {
+					return true; // quest
+				}
+			} else if (name == "Nightshade") {
+				if (count <= 21) {
+					return true; // quest
+				}
+			} else if (name == "Nirnroot") {
+				if (count <= 21) {
+					return true; // quest
+				}
+			} else if (name == "Salt Pile") {
+				if (count <= 11) {
+					return true; // atronach forge
+				}
+			} else if (name == "Scathecraw") {
+				if (count <= 11) {
+					return true; // quest
+				}
+			} else if (name == "Slaughterfish Scales") {
+				return true; // hearthfire
+			} else if (name == "Taproot") {
+				if (count <= 4) {
+					return true; // quest
+				}
+			} else if (name == "Torchbug Abdomen" || name == "Torchbug Thorax") {
+				if (count <= 11) {
+					return true; // atronach forge
+				}
+			} else if (name == "Troll Fat") {
+				if (count <= 2) {
+					return true; // quest
+				}
+			} else if (name == "Vampire Dust") {
+				if (count <= 3) {
+					return true; // quest
+				}
+			} else if (name == "Void Salts") {
+				if (count <= 12) {
+					return true; // atronach forge (10) + quest (1)
+				}
+			}
+			if (hasEffect(ingredient, "Fortify Enchanting") || hasEffect(ingredient, "Fortify Smithing")) {
+				return true;
+			}
+			return false;
+		}
+
 		string printEffects(IngredientItem* ingredient) {
 			string data = "";
 			tArray<IngredientItem::EffectItem*> effects = getEffects(ingredient);

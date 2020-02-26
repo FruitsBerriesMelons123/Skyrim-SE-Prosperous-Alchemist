@@ -181,7 +181,9 @@ namespace alchemist {
 		for (TESForm *form : playerForms) {
 			if (form->GetFormType() == kFormType_Ingredient) {
 				IngredientItem *ingredient = DYNAMIC_CAST(form, TESForm, IngredientItem);
-				ingredients.insert(Ingredient(ingredient));
+				if (!ingredient::isProtected(ingredient, ingredientCount)) {
+					ingredients.insert(Ingredient(ingredient));
+				}
 			}
 		}
 	}
