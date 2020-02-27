@@ -186,6 +186,7 @@ namespace alchemist {
 				}
 			}
 		}
+		player.setState();
 	}
 	
 	// DEBUG tests lol
@@ -216,21 +217,24 @@ namespace alchemist {
 	class Scaleform_RegisterGetBestRecipeNameHandler : public GFxFunctionHandler {
 	public:
 		virtual void Invoke(Args *args) {
-			if (g_thePlayer) {
-				//time_t start = time(NULL);
-				initAlchemist();
-				//stressTest();
-				if (ingredients != lastIngredientList || player.state != player.lastState) {
-					costliestPotion = Potion(0, "No potion recipes are currently available.");
-					lastIngredientList = set<Ingredient>(ingredients);
-					player.lastState = player.state;
-					makePotions();
-				}
-				//time_t end = time(NULL);
-				//_LOG(str::fromInt(end - start) + " seconds");
-				//_LOG(str::fromInt(ingredients.size()) + " ingredients");
-			}
 			if (args->args[0].GetType() == GFxValue::kType_String) {
+				string craft_description = *(args->args[0].data.managedString);
+				if (craft_description == "Alchemy: Combine ingredients to make potions" && g_thePlayer) {
+					//time_t start = time(NULL);
+					initAlchemist();
+					//stressTest();
+					if (ingredients != lastIngredientList || player.state != player.lastState) {
+						costliestPotion = Potion(0, "No potion recipes are currently available.");
+						lastIngredientList = set<Ingredient>(ingredients);
+						player.lastState = player.state;
+						makePotions();
+					}
+					//time_t end = time(NULL);
+					//_LOG(str::fromInt(end - start) + " seconds");
+					//_LOG(str::fromInt(ingredients.size()) + " ingredients");
+				} else {
+					costliestPotion = Potion(0, "");
+				}
 				args->result->CleanManaged();
 				args->result->type = GFxValue::kType_String;
 				args->result->data.string = costliestPotion.description.c_str();

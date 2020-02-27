@@ -212,13 +212,16 @@ namespace alchemist {
 		void init() {
 			setAlchemyLevel();
 			fortifyAlchemyLevel = 0;
-			hasPerkPurity = getPerkRank("Purity");
 			alchemistPerkLevel = getPerkRank("Alchemist");
+			hasPerkPurity = getPerkRank("Purity");
 			hasPerkPhysician = getPerkRank("Physician");
 			hasPerkBenefactor = getPerkRank("Benefactor");
 			hasPerkPoisoner = getPerkRank("Poisoner");
 			hasSeekerOfShadows = hasSpell("Seeker of Shadows");
-			state = str::fromInt(alchemyLevel) + str::fromInt(fortifyAlchemyLevel) + str::fromInt(hasPerkPurity) +
+		}
+
+		void setState() {
+			state = str::fromInt(alchemyLevel) + str::fromInt(fortifyAlchemyLevel) + str::fromInt(alchemistPerkLevel) + str::fromInt(hasPerkPurity) +
 				str::fromInt(hasPerkPhysician) + str::fromInt(hasPerkBenefactor) + str::fromInt(hasPerkPoisoner) + str::fromInt(hasSeekerOfShadows);
 		}
 
