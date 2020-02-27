@@ -25,6 +25,10 @@ namespace alchemist {
 		_MESSAGE(s.c_str());
 	}
 
+	float round_toward_zero(float f) {
+		return ceil(f - 0.5);
+	}
+
 	class Effect {
 	public:
 		string name;
@@ -249,14 +253,14 @@ namespace alchemist {
 
 		float getCalcMagnitude(IngredientItem::EffectItem *effect) {
 			float magnitude = effect->magnitude;
-			//return round(magnitude);
+			//return round_toward_zero(magnitude);
 			return magnitude;
 		}
 
 		float getPerkCalcMagnitude(Effect effect, bool potion) {
 			float magnitude = effect.magnitude;
 			if (!effect.powerAffectsMagnitude) {
-				return round(magnitude);
+				return round_toward_zero(magnitude);
 			}
 			float calcMagnitude = magnitude * (player.alchemyLevel / 5 * 0.1 + 4) * (1 + player.alchemistPerkLevel * 20 / 100) * (1 + player.fortifyAlchemyLevel / 100);
 			if (player.hasPerkPhysician && (effect.name == "Restore Health" || effect.name == "Restore Magicka" || effect.name == "Restore Stamina")) {
@@ -270,7 +274,7 @@ namespace alchemist {
 			if (player.hasSeekerOfShadows) {
 				calcMagnitude = calcMagnitude * 1.1;
 			}
-			return round(calcMagnitude);
+			return round_toward_zero(calcMagnitude);
 		}
 
 		bool powerAffectsDuration(IngredientItem::EffectItem* effect) {
@@ -283,14 +287,14 @@ namespace alchemist {
 
 		float getCalcDuration(IngredientItem::EffectItem *effect) {
 			float duration = effect->duration;
-			//return round(duration);
+			//return round_toward_zero(duration);
 			return duration;
 		}
 
 		float getPerkCalcDuration(Effect effect, bool potion) {
 			float duration = effect.duration;
 			if (!effect.powerAffectsDuration) {
-				return round(duration);
+				return round_toward_zero(duration);
 			}
 			float calcDuration = duration * (player.alchemyLevel / 5 * 0.1 + 4) * (1 + player.alchemistPerkLevel * 20 / 100) * (1 + player.fortifyAlchemyLevel / 100);
 			if (player.hasPerkPhysician && (effect.name == "Restore Health" || effect.name == "Restore Magicka" || effect.name == "Restore Stamina")) {
@@ -304,7 +308,7 @@ namespace alchemist {
 			if (player.hasSeekerOfShadows) {
 				calcDuration = calcDuration * 1.1;
 			}
-			return round(calcDuration);
+			return round_toward_zero(calcDuration);
 		}
 
 		float getCost(IngredientItem::EffectItem *effect) {
