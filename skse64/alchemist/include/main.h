@@ -249,10 +249,8 @@ namespace alchemist {
 
 		float getCalcMagnitude(IngredientItem::EffectItem *effect) {
 			float magnitude = effect->magnitude;
-			if (!powerAffectsMagnitude(effect)) {
-				return round(magnitude);
-			}
-			return round(magnitude * (player.alchemyLevel / 5 * 0.1 + 4) * (1 + player.alchemistPerkLevel * 20 / 100) * (1 + player.fortifyAlchemyLevel / 100));
+			//return round(magnitude);
+			return magnitude;
 		}
 
 		float getPerkCalcMagnitude(Effect effect, bool potion) {
@@ -285,10 +283,8 @@ namespace alchemist {
 
 		float getCalcDuration(IngredientItem::EffectItem *effect) {
 			float duration = effect->duration;
-			if (!powerAffectsDuration(effect)) {
-				return round(duration);
-			}
-			return round(duration * (player.alchemyLevel / 5 * 0.1 + 4) * (1 + player.alchemistPerkLevel * 20 / 100) * (1 + player.fortifyAlchemyLevel / 100));
+			//return round(duration);
+			return duration;
 		}
 
 		float getPerkCalcDuration(Effect effect, bool potion) {
