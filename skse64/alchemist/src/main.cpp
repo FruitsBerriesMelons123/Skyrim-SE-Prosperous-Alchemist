@@ -3,11 +3,36 @@
 
 #include "main.h"
 
+#include <thread>
+#include <mutex>
+#include <vector>
+
+using std::vector;
+using std::mutex;
+using std::thread;
+
 namespace alchemist {
+	Potion costliestPotion;
 	set<Ingredient> lastIngredientList;
 	set<Ingredient> ingredients;
+	set<Ingredient>::iterator ingredients_it1;
+	set<Ingredient>::iterator ingredients_it2;
 	set<Potion> potions;
-	Potion costliestPotion;
+	set<Potion>::iterator potion_it;
+	mutex alchemist_mutex;
+	vector<thread> threads;
+
+	void improvePotion(Potion potion);
+	void getNextPotion() {
+		alchemist_mutex.lock();
+		if (potion_it != potions.end()) {
+			Potion potion = *potion_it;
+			++potion_it;
+			alchemist_mutex.unlock();
+			return improvePotion(potion);
+		}
+		alchemist_mutex.unlock();
+	}
 
 	void improvePotion(Potion potion) {
 		for (auto ingredientIt = ingredients.begin(); ingredientIt != ingredients.end(); ++ingredientIt) {
@@ -16,11 +41,11 @@ namespace alchemist {
 			}
 			set<Effect> effects = potion.effects;
 			Effect controlEffect = potion.controlEffect;
-			float controlCost = potion.controlEffect.calcCost;
+			double controlCost = potion.controlEffect.calcCost;
 			for (Effect effect : potion.possibleEffects) {
 				auto effectIt = ingredientIt->effects.find(effect);
 				if (effectIt != ingredientIt->effects.end()) {
-					float costCheck = 0;
+					double costCheck = 0;
 					Effect effectCheck;
 					if (effectIt->calcCost > effect.calcCost) {
 						costCheck = effectIt->calcCost;
@@ -40,7 +65,7 @@ namespace alchemist {
 			if (effects.size() == potion.effects.size()) {
 				continue;
 			}
-			float cost = 0;
+			double cost = 0;
 			for (Effect effect : effects) {
 				if (!(player.hasPerkPurity && effect.beneficial && !controlEffect.beneficial) &&
 					!(player.hasPerkPurity && !effect.beneficial && controlEffect.beneficial)) {
@@ -48,27 +73,46 @@ namespace alchemist {
 				}
 			}
 			Potion improvedPotion = Potion(3, potion.ingredient1, potion.ingredient2, *ingredientIt, effects, controlEffect, cost);
+			alchemist_mutex.lock();
 			potions.insert(improvedPotion);
 			if (floor(cost) > costliestPotion.cost) {
 				costliestPotion = improvedPotion;
 			}
+			alchemist_mutex.unlock();
 		}
+		getNextPotion();
+	}
+
+	void makePotions2(Ingredient ingredient1, Ingredient ingredient2);
+	void getNextIngredients() {
+		alchemist_mutex.lock();
+		if (ingredients_it1 != ingredients.end()) {
+			Ingredient ingredient1 = *ingredients_it1;
+			ingredients_it2 = ++ingredients_it1;
+			if (ingredients_it2 != ingredients.end()) {
+				Ingredient ingredient2 = *ingredients_it2;
+				++ingredients_it2;
+				alchemist_mutex.unlock();
+				return makePotions2(ingredient1, ingredient2);
+			}
+		}
+		alchemist_mutex.unlock();
 	}
 
 	void makePotions2(Ingredient ingredient1, Ingredient ingredient2) {
 		if (ingredient1 == ingredient2) {
-			return;
+			getNextIngredients();
 		}
 		set<Effect> effects;
 		set<Effect> possibleEffects = ingredient1.effects;
 		possibleEffects.merge(ingredient2.effects);
 		Effect controlEffect;
-		float controlCost = 0;
+		double controlCost = 0;
 		for (auto it1 = ingredient1.effects.begin(); it1 != ingredient1.effects.end(); ++it1) {
 			auto it2 = ingredient2.effects.find(*it1);
 			if (it2 != ingredient2.effects.end()) {
 				possibleEffects.erase(*it1);
-				float costCheck = 0;
+				double costCheck = 0;
 				Effect effectCheck;
 				if (it1->calcCost > it2->calcCost) {
 					costCheck = it1->calcCost;
@@ -86,9 +130,9 @@ namespace alchemist {
 			}
 		}
 		if (controlCost == 0) {
-			return;
+			getNextIngredients();
 		}
-		float cost = 0;
+		double cost = 0;
 		for (Effect effect : effects) {
 			if (!(player.hasPerkPurity && effect.beneficial && !controlEffect.beneficial) &&
 				!(player.hasPerkPurity && !effect.beneficial && controlEffect.beneficial)) {
@@ -96,24 +140,63 @@ namespace alchemist {
 			}
 		}
 		Potion potion = Potion(2, ingredient1, ingredient2, effects, possibleEffects, controlEffect, cost);
+		alchemist_mutex.lock();
 		potions.insert(potion);
 		if (floor(cost) > costliestPotion.cost) {
 			costliestPotion = potion;
 		}
+		alchemist_mutex.unlock();
+		getNextIngredients();
 	}
 
 	void makePotions() {
 		potions.clear();
-		auto it_end = ingredients.end();
-		for (auto it1 = ingredients.begin(); it1 != it_end;) {
-			Ingredient ingredient1 = *it1;
-			for (auto it2 = ++it1; it2 != it_end; ++it2) {
-				Ingredient ingredient2 = *it2;
-				makePotions2(ingredient1, ingredient2);
+
+		int max_threads = thread::hardware_concurrency();
+		int num_threads = 1;
+		if (max_threads > 2) {
+			num_threads = max_threads - 1;
+		} else if (max_threads == 2) {
+			num_threads = 2;
+		}
+		alchemist_mutex.lock();
+		ingredients_it1 = ingredients.begin();
+		for (int i = 0; i < num_threads; ++i) {
+			if (ingredients_it1 != ingredients.end()) {
+				Ingredient ingredient1 = *ingredients_it1;
+				ingredients_it2 = ++ingredients_it1;
+				if (ingredients_it2 != ingredients.end()) {
+					Ingredient ingredient2 = *ingredients_it2;
+					++ingredients_it2;
+					threads.push_back(thread(makePotions2, ingredient1, ingredient2));
+				}
 			}
 		}
-		for (Potion potion : potions) {
-			improvePotion(potion);
+		alchemist_mutex.unlock();
+
+		for (auto &thread : threads) {
+			if (thread.joinable()) {
+				thread.join();
+			}
+		}
+
+		threads.clear();
+
+		alchemist_mutex.lock();
+		potion_it = potions.begin();
+		for (int i = 0; i < num_threads; ++i) {
+			if (potion_it != potions.end()) {
+				Potion potion = *potion_it;
+				++potion_it;
+				threads.push_back(thread(improvePotion, potion));
+			}
+		}
+		alchemist_mutex.unlock();
+
+		for (auto &thread : threads) {
+			if (thread.joinable()) {
+				thread.join();
+			}
 		}
 
 		string effectDescriptions = "";
@@ -125,10 +208,10 @@ namespace alchemist {
 		}
 		if (costliestPotion.size == 2) {
 			costliestPotion.description = costliestPotion.name + ":" + effectDescriptions +
-				"\n Value: " + str::fromFloat(floor(costliestPotion.cost)) + "\n" + str::printSort2(costliestPotion.ingredient1.name, costliestPotion.ingredient2.name);
+				"\n Value: " + str::fromDouble(floor(costliestPotion.cost)) + "\n" + str::printSort2(costliestPotion.ingredient1.name, costliestPotion.ingredient2.name);
 		} else if (costliestPotion.size == 3) {
 			costliestPotion.description = costliestPotion.name + ":" + effectDescriptions +
-				"\n Value: " + str::fromFloat(floor(costliestPotion.cost)) + "\n" + str::printSort3(costliestPotion.ingredient1.name, costliestPotion.ingredient2.name, costliestPotion.ingredient3.name);
+				"\n Value: " + str::fromDouble(floor(costliestPotion.cost)) + "\n" + str::printSort3(costliestPotion.ingredient1.name, costliestPotion.ingredient2.name, costliestPotion.ingredient3.name);
 		}
 	}
 
@@ -205,6 +288,8 @@ namespace alchemist {
 	// 103 ingredients = 3 seconds
 	// 91 ingredients = 2 seconds
 	// 71 ingredients = 1 second
+	// MULTITHREAD tests
+	// 115 ingredients = 0 seconds
 	void stressTest() {
 		ingredients.clear();
 		auto allIngredients = DataHandler::GetSingleton()->ingredients;
@@ -217,7 +302,8 @@ namespace alchemist {
 	class Scaleform_RegisterGetBestRecipeNameHandler : public GFxFunctionHandler {
 	public:
 		virtual void Invoke(Args *args) {
-			if (args->args[0].GetType() == GFxValue::kType_String) {
+			string alchemist_result = "";
+			if (args && args->numArgs && args->numArgs > 0) {
 				string craft_description = *(args->args[0].data.managedString);
 				if (craft_description == "Alchemy: Combine ingredients to make potions" && g_thePlayer) {
 					//time_t start = time(NULL);
@@ -229,15 +315,16 @@ namespace alchemist {
 						player.lastState = player.state;
 						makePotions();
 					}
+					alchemist_result = costliestPotion.description;
 					//time_t end = time(NULL);
 					//_LOG(str::fromInt(end - start) + " seconds");
 					//_LOG(str::fromInt(ingredients.size()) + " ingredients");
-				} else {
-					costliestPotion = Potion(0, "");
 				}
+			}
+			if (args && args->result) {
 				args->result->CleanManaged();
 				args->result->type = GFxValue::kType_String;
-				args->result->data.string = costliestPotion.description.c_str();
+				args->result->data.string = alchemist_result.c_str();
 			}
 		}
 	};
@@ -245,7 +332,7 @@ namespace alchemist {
 	class Scaleform_RegisterGetBestRecipeDescriptionHandler : public GFxFunctionHandler	{
 	public:
 		virtual void Invoke(Args *args) {
-			if (args->args[0].GetType() == GFxValue::kType_String) {
+			if (args && args->result) {
 				args->result->CleanManaged();
 				args->result->type = GFxValue::kType_String;
 				args->result->data.string = "";

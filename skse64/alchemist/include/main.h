@@ -25,8 +25,11 @@ namespace alchemist {
 		_MESSAGE(s.c_str());
 	}
 
-	float round_toward_zero(float f) {
-		return ceil(f - 0.5);
+	double round_skyrim(double f) {
+		//if (...figure out why skyrim sometimes rounds toward zero) {
+			//return ceil(f - 0.5); // round toward zero
+		//} // else
+		return floor(f + 0.5); // round away from zero
 	}
 
 	class Effect {
@@ -34,13 +37,13 @@ namespace alchemist {
 		string name;
 		bool beneficial;
 		bool powerAffectsMagnitude;
-		float magnitude;
-		float calcMagnitude;
+		double magnitude;
+		double calcMagnitude;
 		bool powerAffectsDuration;
-		float duration;
-		float calcDuration;
-		float baseCost;
-		float calcCost;
+		double duration;
+		double calcDuration;
+		double baseCost;
+		double calcCost;
 		string description;
 		bool operator< (const Effect & effect) const {
 			return name < effect.name;
@@ -84,7 +87,7 @@ namespace alchemist {
 			return n_str;
 		}
 
-		string fromFloat(float f) {
+		string fromDouble(double f) {
 			if (abs(f - int(f)) == 0) {
 				return fromInt(f);
 			}
@@ -172,9 +175,9 @@ namespace alchemist {
 
 	class Player {
 	public:
-		float alchemyLevel;
-		float fortifyAlchemyLevel;
-		float alchemistPerkLevel;
+		double alchemyLevel;
+		double fortifyAlchemyLevel;
+		double alchemistPerkLevel;
 		bool hasPerkPurity;
 		bool hasPerkPhysician;
 		bool hasPerkBenefactor;
@@ -182,6 +185,7 @@ namespace alchemist {
 		bool hasSeekerOfShadows;
 		string state;
 		string lastState;
+		string miniState;
 
 		int getPerkRank(string name) {
 			int rank = 0;
@@ -205,7 +209,7 @@ namespace alchemist {
 		void setAlchemyLevel() {
 			PlayerSkills* skills = (*g_thePlayer)->skills;
 			int alchemySkillID = skills->ResolveAdvanceableSkillId(16);
-			float level = skillLevel::fromExp(skills->data->levelData[alchemySkillID].pointsMax);
+			double level = skillLevel::fromExp(skills->data->levelData[alchemySkillID].pointsMax);
 			alchemyLevel = level;
 		}
 
@@ -220,9 +224,14 @@ namespace alchemist {
 			hasSeekerOfShadows = hasSpell("Seeker of Shadows");
 		}
 
+		void setMiniState() {
+			miniState = str::fromInt(alchemyLevel) + "," + str::fromInt(fortifyAlchemyLevel) + "," + str::fromInt(alchemistPerkLevel) + "," +
+				"," + str::fromInt(hasPerkPhysician) + "," + str::fromInt(hasPerkBenefactor) + "," + str::fromInt(hasPerkPoisoner) + "," + str::fromInt(hasSeekerOfShadows);
+		}
+
 		void setState() {
-			state = str::fromInt(alchemyLevel) + str::fromInt(fortifyAlchemyLevel) + str::fromInt(alchemistPerkLevel) + str::fromInt(hasPerkPurity) +
-				str::fromInt(hasPerkPhysician) + str::fromInt(hasPerkBenefactor) + str::fromInt(hasPerkPoisoner) + str::fromInt(hasSeekerOfShadows);
+			state = str::fromInt(alchemyLevel) + "," + str::fromInt(fortifyAlchemyLevel) + "," + str::fromInt(alchemistPerkLevel) + "," + str::fromInt(hasPerkPurity) +
+				"," + str::fromInt(hasPerkPhysician) + "," + str::fromInt(hasPerkBenefactor) + "," + str::fromInt(hasPerkPoisoner) + "," + str::fromInt(hasSeekerOfShadows);
 		}
 
 		Player() {};
@@ -250,22 +259,45 @@ namespace alchemist {
 			return false;
 		}
 
-		float getMagnitude(IngredientItem::EffectItem *effect) {
+		double getMagnitude(IngredientItem::EffectItem *effect) {
 			return effect->magnitude;
 		}
 
-		float getCalcMagnitude(IngredientItem::EffectItem *effect) {
-			float magnitude = effect->magnitude;
-			//return round_toward_zero(magnitude);
+		double getCalcMagnitude(IngredientItem::EffectItem *effect) {
+			double magnitude = effect->magnitude;
+			//return round_skyrim(magnitude);
 			return magnitude;
 		}
 
-		float getPerkCalcMagnitude(Effect effect, bool potion) {
-			float magnitude = effect.magnitude;
+		double getPerkCalcMagnitudeDebug(Effect effect, bool potion, Player player_debug) {
+			double magnitude = effect.magnitude;
 			if (!effect.powerAffectsMagnitude) {
-				return round_toward_zero(magnitude);
+				//return round_skyrim(magnitude);
+				return magnitude;
 			}
-			float calcMagnitude = magnitude * (player.alchemyLevel / 5 * 0.1 + 4) * (1 + player.alchemistPerkLevel * 20 / 100) * (1 + player.fortifyAlchemyLevel / 100);
+			double calcMagnitude = magnitude * (player_debug.alchemyLevel / 5 * 0.1 + 4) * (1 + player_debug.alchemistPerkLevel * 20 / 100) * (1 + player_debug.fortifyAlchemyLevel / 100);
+			if (player_debug.hasPerkPhysician && (effect.name == "Restore Health" || effect.name == "Restore Magicka" || effect.name == "Restore Stamina")) {
+				calcMagnitude = calcMagnitude * 1.25;
+			}
+			if (effect.beneficial && player_debug.hasPerkBenefactor && potion) {
+				calcMagnitude = calcMagnitude * 1.25;
+			} else if (!effect.beneficial && player_debug.hasPerkPoisoner && !potion) {
+				calcMagnitude = calcMagnitude * 1.25;
+			}
+			if (player_debug.hasSeekerOfShadows) {
+				calcMagnitude = calcMagnitude * 1.1;
+			}
+			//return round_skyrim(calcMagnitude);
+			return calcMagnitude;
+		}
+
+		double getPerkCalcMagnitude(Effect effect, bool potion) {
+			double magnitude = effect.magnitude;
+			if (!effect.powerAffectsMagnitude) {
+				return round_skyrim(magnitude);
+				//return magnitude;
+			}
+			double calcMagnitude = magnitude * (player.alchemyLevel / 5 * 0.1 + 4) * (1 + player.alchemistPerkLevel * 20 / 100) * (1 + player.fortifyAlchemyLevel / 100);
 			if (player.hasPerkPhysician && (effect.name == "Restore Health" || effect.name == "Restore Magicka" || effect.name == "Restore Stamina")) {
 				calcMagnitude = calcMagnitude * 1.25;
 			}
@@ -277,7 +309,8 @@ namespace alchemist {
 			if (player.hasSeekerOfShadows) {
 				calcMagnitude = calcMagnitude * 1.1;
 			}
-			return round_toward_zero(calcMagnitude);
+			return round_skyrim(calcMagnitude);
+			//return calcMagnitude;
 		}
 
 		bool powerAffectsDuration(IngredientItem::EffectItem* effect) {
@@ -288,18 +321,41 @@ namespace alchemist {
 			return effect->duration;
 		}
 
-		float getCalcDuration(IngredientItem::EffectItem *effect) {
-			float duration = effect->duration;
-			//return round_toward_zero(duration);
+		double getCalcDuration(IngredientItem::EffectItem *effect) {
+			double duration = effect->duration;
+			//return round_skyrim(duration);
 			return duration;
 		}
 
-		float getPerkCalcDuration(Effect effect, bool potion) {
-			float duration = effect.duration;
+		double getPerkCalcDurationDebug(Effect effect, bool potion, Player player_debug) {
+			double duration = effect.duration;
 			if (!effect.powerAffectsDuration) {
-				return round_toward_zero(duration);
+				//return round_skyrim(duration);
+				return duration;
 			}
-			float calcDuration = duration * (player.alchemyLevel / 5 * 0.1 + 4) * (1 + player.alchemistPerkLevel * 20 / 100) * (1 + player.fortifyAlchemyLevel / 100);
+			double calcDuration = duration * (player_debug.alchemyLevel / 5 * 0.1 + 4) * (1 + player_debug.alchemistPerkLevel * 20 / 100) * (1 + player_debug.fortifyAlchemyLevel / 100);
+			if (player_debug.hasPerkPhysician && (effect.name == "Restore Health" || effect.name == "Restore Magicka" || effect.name == "Restore Stamina")) {
+				calcDuration = calcDuration * 1.25;
+			}
+			if (effect.beneficial && player_debug.hasPerkBenefactor && potion) {
+				calcDuration = calcDuration * 1.25;
+			} else if (!effect.beneficial && player_debug.hasPerkPoisoner && !potion) {
+				calcDuration = calcDuration * 1.25;
+			}
+			if (player_debug.hasSeekerOfShadows) {
+				calcDuration = calcDuration * 1.1;
+			}
+			//return round_skyrim(calcDuration);
+			return calcDuration;
+		}
+
+		double getPerkCalcDuration(Effect effect, bool potion) {
+			double duration = effect.duration;
+			if (!effect.powerAffectsDuration) {
+				return round_skyrim(duration);
+				//return duration;
+			}
+			double calcDuration = duration * (player.alchemyLevel / 5 * 0.1 + 4) * (1 + player.alchemistPerkLevel * 20 / 100) * (1 + player.fortifyAlchemyLevel / 100);
 			if (player.hasPerkPhysician && (effect.name == "Restore Health" || effect.name == "Restore Magicka" || effect.name == "Restore Stamina")) {
 				calcDuration = calcDuration * 1.25;
 			}
@@ -311,21 +367,22 @@ namespace alchemist {
 			if (player.hasSeekerOfShadows) {
 				calcDuration = calcDuration * 1.1;
 			}
-			return round_toward_zero(calcDuration);
+			return round_skyrim(calcDuration);
+			//return calcDuration;
 		}
 
-		float getCost(IngredientItem::EffectItem *effect) {
+		double getCost(IngredientItem::EffectItem *effect) {
 			return effect->cost;
 		}
 
-		float getBaseCost(IngredientItem::EffectItem *effect) {
+		double getBaseCost(IngredientItem::EffectItem *effect) {
 			return effect->mgef->properties.baseCost;
 		}
 
-		float getCalcCost(IngredientItem::EffectItem* effect) {
-			float baseCost = getBaseCost(effect);
-			float magnitude = getCalcMagnitude(effect);
-			float duration = getCalcDuration(effect);
+		double getCalcCost(IngredientItem::EffectItem* effect) {
+			double baseCost = getBaseCost(effect);
+			double magnitude = getCalcMagnitude(effect);
+			double duration = getCalcDuration(effect);
 			if (magnitude > 0 && duration > 0) {
 				return baseCost * pow(magnitude, 1.1) * pow(duration / 10, 1.1);
 			} else if (magnitude > 0) {
@@ -335,9 +392,9 @@ namespace alchemist {
 			}
 		}
 
-		float getPerkCalcCost(Effect effect, bool potion) {
-			float magnitude = getPerkCalcMagnitude(effect, potion);
-			float duration = getPerkCalcDuration(effect, potion);
+		double getPerkCalcCost(Effect effect, bool potion) {
+			double magnitude = getPerkCalcMagnitude(effect, potion);
+			double duration = getPerkCalcDuration(effect, potion);
 			if (magnitude > 0 && duration > 0) {
 				return effect.baseCost * pow(magnitude, 1.1) * pow(duration / 10, 1.1);
 			} else if (magnitude > 0) {
@@ -349,12 +406,12 @@ namespace alchemist {
 
 		IngredientItem::EffectItem* getBestEffectDuplicate(tArray<IngredientItem::EffectItem*> effects1, tArray<IngredientItem::EffectItem*> effects2, IngredientItem::EffectItem *effect3) {
 			IngredientItem::EffectItem *bestEffect = NULL;
-			float cost3 = getCalcCost(effect3);
-			float bestCost = 0;
+			double cost3 = getCalcCost(effect3);
+			double bestCost = 0;
 			string name3 = getName(effect3);
 			for (int i = 0; i < effects1.count; ++i) {
 				if (getName(effects1[i]) == name3) {
-					float cost = getCalcCost(effects1[i]);
+					double cost = getCalcCost(effects1[i]);
 					if (cost >= cost3 && cost > bestCost) {
 						bestCost = cost;
 						bestEffect = effects1[i];
@@ -366,7 +423,7 @@ namespace alchemist {
 			}
 			for (int i = 0; i < effects2.count; ++i) {
 				if (getName(effects2[i]) == name3) {
-					float cost = getCalcCost(effects2[i]);
+					double cost = getCalcCost(effects2[i]);
 					if (cost >= cost3 && cost > bestCost) {
 						bestCost = cost;
 						bestEffect = effects2[i];
@@ -399,8 +456,18 @@ namespace alchemist {
 
 		string getDescription(IngredientItem::EffectItem *effect) {
 			string description = effect->mgef->description;
-			description = str::replace(description, "<mag>", str::fromFloat(getMagnitude(effect)));
+			description = str::replace(description, "<mag>", str::fromDouble(getMagnitude(effect)));
 			description = str::replace(description, "<dur>", str::fromInt(getDuration(effect)));
+			//description = str::replace(description, "%", "%%");
+			description = str::replace(description, "<", "");
+			description = str::replace(description, ">", "");
+			return description;
+		}
+
+		string getPerkCalcDescriptionDebug(Effect effect, bool potion) {
+			string description = effect.description;
+			description = str::replace(description, "<mag>", str::fromDouble(getPerkCalcMagnitudeDebug(effect, potion, player)));
+			description = str::replace(description, "<dur>", str::fromDouble(getPerkCalcDurationDebug(effect, potion, player)));
 			//description = str::replace(description, "%", "%%");
 			description = str::replace(description, "<", "");
 			description = str::replace(description, ">", "");
@@ -409,7 +476,7 @@ namespace alchemist {
 
 		string getPerkCalcDescription(Effect effect, bool potion) {
 			string description = effect.description;
-			description = str::replace(description, "<mag>", str::fromFloat(getPerkCalcMagnitude(effect, potion)));
+			description = str::replace(description, "<mag>", str::fromDouble(getPerkCalcMagnitude(effect, potion)));
 			description = str::replace(description, "<dur>", str::fromInt(getPerkCalcDuration(effect, potion)));
 			//description = str::replace(description, "%", "%%");
 			description = str::replace(description, "<", "");
@@ -419,10 +486,10 @@ namespace alchemist {
 
 		string printEffect(IngredientItem::EffectItem *effect) {
 			string data = getName(effect) + "," +
-				str::fromFloat(getMagnitude(effect)) + "," +
+				str::fromDouble(getMagnitude(effect)) + "," +
 				str::fromInt(getDuration(effect)) + "," +
-				str::fromFloat(getCost(effect)) + "," +
-				str::fromFloat(getBaseCost(effect));
+				str::fromDouble(getCost(effect)) + "," +
+				str::fromDouble(getBaseCost(effect));
 			tArray<string> keywords = getKeywords(effect);
 			for (int i = 0; i < 3; ++i) {
 				if (i < keywords.count) {
@@ -674,7 +741,7 @@ namespace alchemist {
 		Ingredient ingredient3;
 		set<Effect> effects;
 		set<Effect> possibleEffects;
-		float cost;
+		double cost;
 		Effect controlEffect;
 		string description;
 		string getName() {
@@ -690,7 +757,7 @@ namespace alchemist {
 		bool operator== (const Potion & potion) const {
 			return id == potion.id;
 		}
-		Potion(int s, Ingredient i1, Ingredient i2, set<Effect> e, set<Effect> pe, Effect ce, float c) {
+		Potion(int s, Ingredient i1, Ingredient i2, set<Effect> e, set<Effect> pe, Effect ce, double c) {
 			size = s;
 			id = i1.name + "," + i2.name;
 			ingredient1 = i1;
@@ -701,7 +768,7 @@ namespace alchemist {
 			cost = c;
 			name = getName();
 		};
-		Potion(int s, Ingredient i1, Ingredient i2, Ingredient i3, set<Effect> e, Effect ce, float c) {
+		Potion(int s, Ingredient i1, Ingredient i2, Ingredient i3, set<Effect> e, Effect ce, double c) {
 			size = s;
 			id = i1.name + "," + i2.name + "," + i3.name;
 			ingredient1 = i1;
@@ -712,7 +779,7 @@ namespace alchemist {
 			cost = c;
 			name = getName();
 		};
-		Potion(float c, string d) {
+		Potion(double c, string d) {
 			cost = c;
 			description = d;
 		};
