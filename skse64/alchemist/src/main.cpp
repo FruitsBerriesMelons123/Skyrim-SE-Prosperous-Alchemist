@@ -74,7 +74,7 @@ namespace alchemist {
 			}
 			Potion improvedPotion = Potion(3, potion.ingredient1, potion.ingredient2, *ingredientIt, effects, controlEffect, cost);
 			alchemist_mutex.lock();
-			potions.insert(improvedPotion);
+			//potions.insert(improvedPotion);
 			if (floor(cost) > costliestPotion.cost) {
 				costliestPotion = improvedPotion;
 			}
@@ -101,7 +101,7 @@ namespace alchemist {
 
 	void makePotions2(Ingredient ingredient1, Ingredient ingredient2) {
 		if (ingredient1 == ingredient2) {
-			getNextIngredients();
+			return getNextIngredients();
 		}
 		set<Effect> effects;
 		set<Effect> possibleEffects = ingredient1.effects;
@@ -130,7 +130,7 @@ namespace alchemist {
 			}
 		}
 		if (controlCost == 0) {
-			getNextIngredients();
+			return getNextIngredients();
 		}
 		double cost = 0;
 		for (Effect effect : effects) {
@@ -153,11 +153,9 @@ namespace alchemist {
 		potions.clear();
 
 		int max_threads = thread::hardware_concurrency();
-		int num_threads = 1;
+		int num_threads = 2;
 		if (max_threads > 2) {
 			num_threads = max_threads - 1;
-		} else if (max_threads == 2) {
-			num_threads = 2;
 		}
 		alchemist_mutex.lock();
 		ingredients_it1 = ingredients.begin();
