@@ -303,7 +303,7 @@ namespace alchemist {
 			string alchemist_result = "";
 			if (args && args->numArgs && args->numArgs > 0) {
 				string craft_description = *(args->args[0].data.managedString);
-				if (craft_description == "Alchemy: Combine ingredients to make potions" && g_thePlayer) {
+				if (craft_description.find("Alchemy") != string::npos && g_thePlayer) {
 					//time_t start = time(NULL);
 					initAlchemist();
 					//stressTest();
