@@ -19,3 +19,4 @@
 *.exp
 *.iobj
 *.ipdb
+*.vcxproj.FileListAbsolute.txt

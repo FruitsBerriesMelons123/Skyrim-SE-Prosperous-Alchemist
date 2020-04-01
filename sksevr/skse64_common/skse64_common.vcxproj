@@ -19,41 +19,30 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="IBufferStream.h" />
-    <ClInclude Include="IDataStream.h" />
-    <ClInclude Include="IDebugLog.h" />
-    <ClInclude Include="IDirectoryIterator.h" />
-    <ClInclude Include="IErrors.h" />
-    <ClInclude Include="IEvent.h" />
-    <ClInclude Include="IFileStream.h" />
-    <ClInclude Include="IInterlockedLong.h" />
-    <ClInclude Include="IMutex.h" />
-    <ClInclude Include="IPrefix.h" />
-    <ClInclude Include="ISegmentStream.h" />
-    <ClInclude Include="ISingleton.h" />
-    <ClInclude Include="ITimer.h" />
-    <ClInclude Include="ITypes.h" />
+    <ClCompile Include="BranchTrampoline.cpp" />
+    <ClCompile Include="Relocation.cpp" />
+    <ClCompile Include="SafeWrite.cpp" />
+    <ClCompile Include="Utilities.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="IBufferStream.cpp" />
-    <ClCompile Include="IDataStream.cpp" />
-    <ClCompile Include="IDebugLog.cpp" />
-    <ClCompile Include="IDirectoryIterator.cpp" />
-    <ClCompile Include="IErrors.cpp" />
-    <ClCompile Include="IEvent.cpp" />
-    <ClCompile Include="IFileStream.cpp" />
-    <ClCompile Include="IInterlockedLong.cpp" />
-    <ClCompile Include="IMutex.cpp" />
-    <ClCompile Include="IPrefix.cpp" />
-    <ClCompile Include="ISegmentStream.cpp" />
-    <ClCompile Include="ISingleton.cpp" />
-    <ClCompile Include="ITimer.cpp" />
-    <ClCompile Include="ITypes.cpp" />
+    <ClInclude Include="BranchTrampoline.h" />
+    <ClInclude Include="Relocation.h" />
+    <ClInclude Include="SafeWrite.h" />
+    <ClInclude Include="skse_version.h" />
+    <ClInclude Include="Utilities.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="skse_version.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\common\common_vc14.vcxproj">
+      <Project>{472e19ab-def0-42df-819b-18722e8dc822}</Project>
+    </ProjectReference>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{472E19AB-DEF0-42DF-819B-18722E8DC822}</ProjectGuid>
+    <ProjectGuid>{5FD1C08D-DB80-480C-A1C6-F0920005CD13}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>common_vc14</RootNamespace>
+    <RootNamespace>skse64_common</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <SccProjectName>SAK</SccProjectName>
     <SccAuxPath>SAK</SccAuxPath>
@@ -105,22 +94,8 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(SolutionDir)$(Platform)_$(PlatformToolset)\$(Configuration)\</OutDir>
-    <IntDir>$(Platform)_$(PlatformToolset)\$(Configuration)\</IntDir>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_VC142|x64'">
-    <OutDir>$(SolutionDir)$(Platform)_$(PlatformToolset)\$(Configuration)\</OutDir>
-    <IntDir>$(Platform)_$(PlatformToolset)\$(Configuration)\</IntDir>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)$(Platform)_$(PlatformToolset)\$(Configuration)\</OutDir>
-    <IntDir>$(Platform)_$(PlatformToolset)\$(Configuration)\</IntDir>
     <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_VC142|x64'">
-    <OutDir>$(SolutionDir)$(Platform)_$(PlatformToolset)\$(Configuration)\</OutDir>
-    <IntDir>$(Platform)_$(PlatformToolset)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -130,8 +105,8 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <ForcedIncludeFiles>common/IPrefix.h</ForcedIncludeFiles>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -145,8 +120,8 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <ForcedIncludeFiles>common/IPrefix.h</ForcedIncludeFiles>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -162,8 +137,8 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <ForcedIncludeFiles>common/IPrefix.h</ForcedIncludeFiles>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -181,8 +156,8 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <ForcedIncludeFiles>common/IPrefix.h</ForcedIncludeFiles>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
