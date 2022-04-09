@@ -18,8 +18,6 @@ BOOL WINAPI DllMain(HANDLE procHandle, DWORD reason, LPVOID reserved)
 	if(reason == DLL_PROCESS_ATTACH)
 	{
 		g_dllHandle = procHandle;
-
-		OnAttach();
 	}
 
 	return TRUE;
@@ -42,32 +40,33 @@ static void OnAttach(void)
 	HookIAT();
 }
 
-typedef void (* ___telemetry_main_invoke_trigger)(void * arg);
-___telemetry_main_invoke_trigger __telemetry_main_invoke_trigger_Original = NULL;
+// api-ms-win-crt-runtime-l1-1-0.dll
+typedef char * (*__get_narrow_winmain_command_line)();
+__get_narrow_winmain_command_line _get_narrow_winmain_command_line_Original = NULL;
 
-static void __telemetry_main_invoke_trigger_Hook(void * arg)
+static char * _get_narrow_winmain_command_line_Hook()
 {
 	HookMain(_ReturnAddress());
 
-	__telemetry_main_invoke_trigger_Original(arg);
+	return _get_narrow_winmain_command_line_Original();
 }
 
 static void HookIAT()
 {
-	___telemetry_main_invoke_trigger * iat = (___telemetry_main_invoke_trigger *)GetIATAddr(GetModuleHandle(NULL), "VCRUNTIME140.dll", "__telemetry_main_invoke_trigger");
+	__get_narrow_winmain_command_line * iat = (__get_narrow_winmain_command_line *)GetIATAddr(GetModuleHandle(NULL), "api-ms-win-crt-runtime-l1-1-0.dll", "_get_narrow_winmain_command_line");
 	if(iat)
 	{
 		_MESSAGE("found iat at %016I64X", iat);
 
-		__telemetry_main_invoke_trigger_Original = *iat;
-		_MESSAGE("original thunk %016I64X", __telemetry_main_invoke_trigger_Original);
+		_get_narrow_winmain_command_line_Original = *iat;
+		_MESSAGE("original thunk %016I64X", _get_narrow_winmain_command_line_Original);
 
-		SafeWrite64(uintptr_t(iat), (UInt64)__telemetry_main_invoke_trigger_Hook);
+		SafeWrite64(uintptr_t(iat), (UInt64)_get_narrow_winmain_command_line_Hook);
 		_MESSAGE("patched iat");
 	}
 	else
 	{
-		_MESSAGE("couldn't find __telemetry_main_invoke_trigger");
+		_MESSAGE("couldn't find _get_narrow_winmain_command_line");
 	}
 }
 
@@ -103,5 +102,30 @@ static void HookMain(void * retAddr)
 	g_dllPath = GetRuntimeDirectory() + dllPrefix + dllSuffix + ".dll";
 	_MESSAGE("dll = %s", g_dllPath.c_str());
 
-	LoadLibrary(g_dllPath.c_str());
+	HMODULE dll = LoadLibrary(g_dllPath.c_str());
+	if(dll)
+	{
+		typedef void (* EntryPoint)(void);
+		EntryPoint entryPoint = (EntryPoint)GetProcAddress(dll, "StartSKSE");
+		if(entryPoint)
+		{
+			entryPoint();
+		}
+		else
+		{
+			_ERROR("entry point not found");
+		}
+	}
+	else
+	{
+		_ERROR("couldn't load DLL");
+	}
+}
+
+extern "C"
+{
+	void InitSKSESteamLoader()
+	{
+		OnAttach();
+	}
 }

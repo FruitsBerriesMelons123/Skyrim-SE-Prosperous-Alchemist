@@ -360,7 +360,7 @@ extern "C" {
 		if (a_skse->isEditor) {
 			_FATALERROR("[FATAL ERROR] Loaded in editor, marking as incompatible!\n");
 			return false;
-		} else if (a_skse->runtimeVersion != RUNTIME_VERSION_1_5_97) {
+		} else if (a_skse->runtimeVersion != RUNTIME_VERSION_1_6_353) {
 			_FATALERROR("[FATAL ERROR] Unsupported runtime version %08X!\n", a_skse->runtimeVersion);
 			return false;
 		}
@@ -382,4 +382,21 @@ extern "C" {
 
 		return true;
 	}
+
+	//Skyrim AE induced SKSE versioning
+	SKSEPluginVersionData SKSEPlugin_Version =
+	{
+		SKSEPluginVersionData::kVersion,
+
+		1,
+		"Prosperous Alchemist",
+
+		"my name",
+		"support@example.com",
+
+		0,	// not version independent
+		{ RUNTIME_VERSION_1_6_353, 0 },	// compatible with 1.6.318
+
+		0,	// works with any version of the script extender. you probably do not need to put anything here
+	};
 };
