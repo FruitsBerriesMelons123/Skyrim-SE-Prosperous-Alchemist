@@ -24,7 +24,7 @@
 #include "InternalSerialization.h"
 
 IDebugLog gLog;
-void * g_moduleHandle = nullptr;
+HINSTANCE g_moduleHandle = nullptr;
 
 void WaitForDebugger(void)
 {
@@ -129,8 +129,7 @@ extern "C" {
 		switch(dwReason)
 		{
 		case DLL_PROCESS_ATTACH:
-			g_moduleHandle = (void *)hDllHandle;
-			SKSE64_Initialize();
+			g_moduleHandle = (HINSTANCE)hDllHandle;
 			break;
 
 		case DLL_PROCESS_DETACH:

@@ -146,6 +146,11 @@ bool IsUPXImage(const UInt8 * base)
 	return GetImageSection(base, "UPX0") != NULL;
 }
 
+bool IsWinStoreImage(const UInt8 * base)
+{
+	return GetImageSection(base, ".xbld") != NULL;
+}
+
 bool ScanEXE(const char * path, ProcHookInfo * hookInfo)
 {
 	// open and map the file in to memory
@@ -167,6 +172,7 @@ bool ScanEXE(const char * path, ProcHookInfo * hookInfo)
 			// scan for packing type
 			bool	isSteam = IsSteamImage(fileBase);
 			bool	isUPX = IsUPXImage(fileBase);
+			bool	isWinStore = IsWinStoreImage(fileBase);
 
 			if(isUPX)
 			{
@@ -175,6 +181,10 @@ bool ScanEXE(const char * path, ProcHookInfo * hookInfo)
 			else if(isSteam)
 			{
 				hookInfo->procType = kProcType_Steam;
+			}
+			else if(isWinStore)
+			{
+				hookInfo->procType = kProcType_WinStore;
 			}
 			else
 			{
@@ -238,16 +248,26 @@ bool IdentifyEXE(const char * procName, bool isEditor, std::string * dllSuffix, 
 
 	switch(hookInfo->procType)
 	{
-	case kProcType_Steam:	_MESSAGE("steam exe"); break;
-	case kProcType_Normal:	_MESSAGE("normal exe"); break;
-	case kProcType_Packed:	_MESSAGE("packed exe"); break;
+	case kProcType_Steam:		_MESSAGE("steam exe"); break;
+	case kProcType_Normal:		_MESSAGE("normal exe"); break;
+	case kProcType_Packed:		_MESSAGE("packed exe"); break;
+	case kProcType_WinStore:	_MESSAGE("winstore exe"); break;
 	case kProcType_Unknown:
-	default:				_MESSAGE("unknown exe type"); break;
+	default:					_MESSAGE("unknown exe type"); break;
+	}
+
+	if(hookInfo->procType == kProcType_WinStore)
+	{
+		PrintLoaderError("The Windows Store (gamepass) version of Skyrim is not supported.");
+		return false;
 	}
 
 	bool result = false;
 
-	const UInt64 kCurVersion = 0x0001000500610000;	// 1.5.97.0
+	const UInt64 kCurVersion =
+		(UInt64(GET_EXE_VERSION_MAJOR(RUNTIME_VERSION)) << 48) |
+		(UInt64(GET_EXE_VERSION_MINOR(RUNTIME_VERSION)) << 32) |
+		(UInt64(GET_EXE_VERSION_BUILD(RUNTIME_VERSION)) << 16);
 
 	// convert version resource to internal version format
 	UInt32 versionInternal = MAKE_EXE_VERSION(version >> 48, version >> 32, version >> 16);
@@ -262,12 +282,14 @@ bool IdentifyEXE(const char * procName, bool isEditor, std::string * dllSuffix, 
 				SKSE_VERSION_INTEGER, SKSE_VERSION_INTEGER_MINOR, SKSE_VERSION_INTEGER_BETA, CURRENT_RELEASE_SKSE_STR);
 		else
 			PrintLoaderError(
-				"You are using Skyrim version %d.%d.%d, which is out of date and incompatible with this version of SKSE64. Update to the latest beta version.",
-				GET_EXE_VERSION_MAJOR(versionInternal), GET_EXE_VERSION_MINOR(versionInternal), GET_EXE_VERSION_BUILD(versionInternal));
+				"You are using Skyrim version %d.%d.%d, which is out of date and incompatible with this version of SKSE64 (%d.%d.%d). Update to the latest beta version.",
+				GET_EXE_VERSION_MAJOR(versionInternal), GET_EXE_VERSION_MINOR(versionInternal), GET_EXE_VERSION_BUILD(versionInternal),
+				SKSE_VERSION_INTEGER, SKSE_VERSION_INTEGER_MINOR, SKSE_VERSION_INTEGER_BETA);
 #else
 		PrintLoaderError(
-			"You are using Skyrim version %d.%d.%d, which is out of date and incompatible with this version of SKSE64. Update to the latest version.",
-			GET_EXE_VERSION_MAJOR(versionInternal), GET_EXE_VERSION_MINOR(versionInternal), GET_EXE_VERSION_BUILD(versionInternal));
+			"You are using Skyrim version %d.%d.%d, which is out of date and incompatible with this version of SKSE64 (%d.%d.%d). Update to the latest version.",
+			GET_EXE_VERSION_MAJOR(versionInternal), GET_EXE_VERSION_MINOR(versionInternal), GET_EXE_VERSION_BUILD(versionInternal),
+			SKSE_VERSION_INTEGER, SKSE_VERSION_INTEGER_MINOR, SKSE_VERSION_INTEGER_BETA);
 #endif
 	}
 	else if(version > kCurVersion)
@@ -288,6 +310,7 @@ bool IdentifyEXE(const char * procName, bool isEditor, std::string * dllSuffix, 
 		{
 		case kProcType_Steam:
 		case kProcType_Normal:
+		case kProcType_WinStore:
 			*dllSuffix = "";
 
 			result = true;
@@ -301,11 +324,22 @@ bool IdentifyEXE(const char * procName, bool isEditor, std::string * dllSuffix, 
 	}
 	else
 	{
+		char versionStr[256];
+		sprintf_s(versionStr, "%d_%d_%d", GET_EXE_VERSION_MAJOR(versionInternal), GET_EXE_VERSION_MINOR(versionInternal), GET_EXE_VERSION_BUILD(versionInternal));
+
 		switch(hookInfo->procType)
 		{
 		case kProcType_Steam:
 		case kProcType_Normal:
-			*dllSuffix = "1_5_97";
+			*dllSuffix = versionStr;
+
+			result = true;
+
+			break;
+
+		case kProcType_WinStore:
+			*dllSuffix = versionStr;
+			*dllSuffix += "_winstore";
 
 			result = true;
 
