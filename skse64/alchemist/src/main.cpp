@@ -51,7 +51,8 @@ namespace alchemist {
 						costCheck = effectIt->calcCost;
 						effectCheck = *effectIt;
 						effects.insert(*effectIt);
-					} else {
+					}
+					else {
 						costCheck = effect.calcCost;
 						effectCheck = effect;
 						effects.insert(effect);
@@ -118,7 +119,8 @@ namespace alchemist {
 					costCheck = it1->calcCost;
 					effectCheck = *it1;
 					effects.insert(*it1);
-				} else {
+				}
+				else {
 					costCheck = it2->calcCost;
 					effectCheck = *it2;
 					effects.insert(*it2);
@@ -172,7 +174,7 @@ namespace alchemist {
 		}
 		alchemist_mutex.unlock();
 
-		for (auto &thread : threads) {
+		for (auto& thread : threads) {
 			if (thread.joinable()) {
 				thread.join();
 			}
@@ -191,7 +193,7 @@ namespace alchemist {
 		}
 		alchemist_mutex.unlock();
 
-		for (auto &thread : threads) {
+		for (auto& thread : threads) {
 			if (thread.joinable()) {
 				thread.join();
 			}
@@ -207,7 +209,8 @@ namespace alchemist {
 		if (costliestPotion.size == 2) {
 			costliestPotion.description = costliestPotion.name + ":" + effectDescriptions +
 				"\n Value: " + str::fromDouble(floor(costliestPotion.cost)) + "\n" + str::printSort2(costliestPotion.ingredient1.name, costliestPotion.ingredient2.name);
-		} else if (costliestPotion.size == 3) {
+		}
+		else if (costliestPotion.size == 3) {
 			costliestPotion.description = costliestPotion.name + ":" + effectDescriptions +
 				"\n Value: " + str::fromDouble(floor(costliestPotion.cost)) + "\n" + str::printSort3(costliestPotion.ingredient1.name, costliestPotion.ingredient2.name, costliestPotion.ingredient3.name);
 		}
@@ -215,12 +218,12 @@ namespace alchemist {
 
 	void initAlchemist() {
 		player.init();
-		ExtraContainerChanges *containerChanges = static_cast<ExtraContainerChanges*>((*g_thePlayer)->extraData.GetByType(kExtraData_ContainerChanges));
-		ExtraContainerChanges::Data *containerData = containerChanges ? containerChanges->data : NULL;
-		EntryDataList *objList = containerData->objList;
+		ExtraContainerChanges* containerChanges = static_cast<ExtraContainerChanges*>((*g_thePlayer)->extraData.GetByType(kExtraData_ContainerChanges));
+		ExtraContainerChanges::Data* containerData = containerChanges ? containerChanges->data : NULL;
+		EntryDataList* objList = containerData->objList;
 		set<Ingredient> ingredientCount;
 		for (int i = 0; i < objList->Count(); ++i) {
-			InventoryEntryData *obj = objList->GetNthItem(i);
+			InventoryEntryData* obj = objList->GetNthItem(i);
 			if (obj->type->formType == kFormType_Ingredient) {
 				string name = CALL_MEMBER_FN(obj, GenerateName)();
 				ingredientCount.insert(Ingredient(name, obj->countDelta));
@@ -228,29 +231,30 @@ namespace alchemist {
 		}
 		VMResultArray<TESForm*> playerForms = papyrusObjectReference::GetContainerForms(*g_thePlayer);
 		ingredients.clear();
-		for (TESForm *form : playerForms) {
+		for (TESForm* form : playerForms) {
 			if (form->GetFormType() == kFormType_Weapon) {
-				TESObjectWEAP *item = DYNAMIC_CAST(form, TESForm, TESObjectWEAP);
+				TESObjectWEAP* item = DYNAMIC_CAST(form, TESForm, TESObjectWEAP);
 				InventoryEntryData::EquipData itemData;
 				containerData->GetEquipItemData(itemData, item, item->formID);
 				if (itemData.isTypeWorn) {
 					if (item->enchantable.enchantment) {
 						for (int i = 0; i < item->enchantable.enchantment->effectItemList.count; ++i) {
-							MagicItem::EffectItem *effect = item->enchantable.enchantment->effectItemList[i];
+							MagicItem::EffectItem* effect = item->enchantable.enchantment->effectItemList[i];
 							if (effect::getName(effect) == "Fortify Alchemy") {
 								player.fortifyAlchemyLevel += effect::getMagnitude(effect);
 							}
 						}
 					}
 				}
-			} else if (form->GetFormType() == kFormType_Armor) {
-				TESObjectARMO *item = DYNAMIC_CAST(form, TESForm, TESObjectARMO);
+			}
+			else if (form->GetFormType() == kFormType_Armor) {
+				TESObjectARMO* item = DYNAMIC_CAST(form, TESForm, TESObjectARMO);
 				InventoryEntryData::EquipData itemData;
 				containerData->GetEquipItemData(itemData, item, item->formID);
 				if (itemData.isTypeWorn) {
 					if (item->enchantable.enchantment) {
 						for (int i = 0; i < item->enchantable.enchantment->effectItemList.count; ++i) {
-							MagicItem::EffectItem *effect = item->enchantable.enchantment->effectItemList[i];
+							MagicItem::EffectItem* effect = item->enchantable.enchantment->effectItemList[i];
 							if (effect::getName(effect) == "Fortify Alchemy") {
 								player.fortifyAlchemyLevel += effect::getMagnitude(effect);
 							}
@@ -259,9 +263,9 @@ namespace alchemist {
 				}
 			}
 		}
-		for (TESForm *form : playerForms) {
+		for (TESForm* form : playerForms) {
 			if (form->GetFormType() == kFormType_Ingredient) {
-				IngredientItem *ingredient = DYNAMIC_CAST(form, TESForm, IngredientItem);
+				IngredientItem* ingredient = DYNAMIC_CAST(form, TESForm, IngredientItem);
 				if (!ingredient::isProtected(ingredient, ingredientCount)) {
 					ingredients.insert(Ingredient(ingredient));
 				}
@@ -269,7 +273,7 @@ namespace alchemist {
 		}
 		player.setState();
 	}
-	
+
 	// DEBUG tests lol
 	// 115 ingredients = 56 seconds
 	// 99 ingredients = 32 seconds
@@ -292,14 +296,14 @@ namespace alchemist {
 		ingredients.clear();
 		auto allIngredients = DataHandler::GetSingleton()->ingredients;
 		for (int i = 0; i < allIngredients.count; ++i) {
-		//for (int i = 0; i < 71; ++i) {
+			//for (int i = 0; i < 71; ++i) {
 			ingredients.insert(Ingredient(allIngredients[i]));
 		}
 	}
 
 	class Scaleform_RegisterGetBestRecipeNameHandler : public GFxFunctionHandler {
 	public:
-		virtual void Invoke(Args *args) {
+		virtual void Invoke(Args* args) {
 			string alchemist_result = "";
 			if (args && args->numArgs && args->numArgs > 0) {
 				string craft_description = *(args->args[0].data.managedString);
@@ -327,9 +331,9 @@ namespace alchemist {
 		}
 	};
 
-	class Scaleform_RegisterGetBestRecipeDescriptionHandler : public GFxFunctionHandler	{
+	class Scaleform_RegisterGetBestRecipeDescriptionHandler : public GFxFunctionHandler {
 	public:
-		virtual void Invoke(Args *args) {
+		virtual void Invoke(Args* args) {
 			if (args && args->result) {
 				args->result->CleanManaged();
 				args->result->type = GFxValue::kType_String;
@@ -338,7 +342,7 @@ namespace alchemist {
 		}
 	};
 
-	bool RegisterScaleformHandlers(GFxMovieView *view, GFxValue *plugin) {
+	bool RegisterScaleformHandlers(GFxMovieView* view, GFxValue* plugin) {
 		RegisterFunction<Scaleform_RegisterGetBestRecipeNameHandler>(plugin, view, "GetBestRecipeName");
 		RegisterFunction<Scaleform_RegisterGetBestRecipeDescriptionHandler>(plugin, view, "GetBestRecipeDescription");
 		return true;
@@ -346,7 +350,7 @@ namespace alchemist {
 }
 
 extern "C" {
-	bool SKSEPlugin_Query(const SKSEInterface *a_skse, PluginInfo *a_info) {
+	bool SKSEPlugin_Query(const SKSEInterface* a_skse, PluginInfo* a_info) {
 		gLog.OpenRelative(CSIDL_MYDOCUMENTS, "\\My Games\\Skyrim Special Edition\\SKSE\\alchemist.log");
 		gLog.SetPrintLevel(IDebugLog::kLevel_DebugMessage);
 		gLog.SetLogLevel(IDebugLog::kLevel_DebugMessage);
@@ -360,7 +364,8 @@ extern "C" {
 		if (a_skse->isEditor) {
 			_FATALERROR("[FATAL ERROR] Loaded in editor, marking as incompatible!\n");
 			return false;
-		} else if (a_skse->runtimeVersion != RUNTIME_VERSION_1_6_353) {
+		}
+		else if (a_skse->runtimeVersion != RUNTIME_VERSION_1_6_353) {
 			_FATALERROR("[FATAL ERROR] Unsupported runtime version %08X!\n", a_skse->runtimeVersion);
 			return false;
 		}
@@ -368,10 +373,10 @@ extern "C" {
 		return true;
 	}
 
-	bool SKSEPlugin_Load(const SKSEInterface *a_skse) {
+	bool SKSEPlugin_Load(const SKSEInterface* a_skse) {
 		_MESSAGE("[MESSAGE] alchemist loaded");
 
-		SKSEScaleformInterface *scaleformInterface = (SKSEScaleformInterface*)a_skse->QueryInterface(kInterface_Scaleform);
+		SKSEScaleformInterface* scaleformInterface = (SKSEScaleformInterface*)a_skse->QueryInterface(kInterface_Scaleform);
 
 		bool registerScaleformHandlers = scaleformInterface->Register("alchemist", alchemist::RegisterScaleformHandlers);
 
