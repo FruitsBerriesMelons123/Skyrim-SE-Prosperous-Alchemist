@@ -400,7 +400,7 @@ extern "C" {
 		"support@example.com",
 
 		0,	// not version independent
-		{ RUNTIME_VERSION_1_6_353, 0 },	// compatible with 1.6.318
+		{ RUNTIME_VERSION_1_6_640 },
 
 		0,	// works with any version of the script extender. you probably do not need to put anything here
 	};
