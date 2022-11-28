@@ -678,7 +678,7 @@ public:
 	MEMBER_FN_PREFIX(PersistentFormManager);
 	DEFINE_MEMBER_FN(CreateOffensiveEnchantment, EnchantmentItem *, 0x0059F0F0, tArray<MagicItem::EffectItem> * effectArray);
 	DEFINE_MEMBER_FN(CreateDefensiveEnchantment, EnchantmentItem *, 0x0059F190, tArray<MagicItem::EffectItem> * effectArray);
-	DEFINE_MEMBER_FN(CreatePoison, void, 0x0059F2E0, AlchemyItem ** poison, tArray<MagicItem::EffectItem> * effectArray);
+	DEFINE_MEMBER_FN(CreatePoison, void, 0x0059F2E0, tArray<MagicItem::EffectItem> * effectArray, AlchemyItem ** poison);
 	DEFINE_MEMBER_FN(CreatePotion, void, 0x0059F230, AlchemyItem ** potion, tArray<MagicItem::EffectItem> * effectArray);
 	//DEFINE_MEMBER_FN(AddPersistentForm, void, 0x0068A0F0, TESForm *);
 	DEFINE_MEMBER_FN(ScheduleForDeletion, void, 0x0059F6E0, TESForm *);

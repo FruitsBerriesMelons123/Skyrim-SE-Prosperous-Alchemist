@@ -457,7 +457,6 @@ public:
 	UInt64				unk88;	// 88
 
 	MEMBER_FN_PREFIX(MagicItem);
-	DEFINE_MEMBER_FN(CalculateCost, float, 0x00101A30, Actor* actor);
 	DEFINE_MEMBER_FN(GetCostliestEffectItem, EffectItem *, 0x00101CC0, int arg1, bool arg2);
 	DEFINE_MEMBER_FN(GetEffectiveMagickaCost, float, 0x00101A30, Character* caster);
 };
