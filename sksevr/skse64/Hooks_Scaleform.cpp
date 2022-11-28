@@ -1669,6 +1669,25 @@ namespace alchemyMenuDataHook
 	}
 }
 
+// Use a specialized loader to provide fixup for SkyUI HUD widgets because the root HUD got moved into Interface/VR
+class SKSEFileLoader : public BSScaleformFileOpener
+{
+public:
+	virtual GFxFile* OpenFileEx(const char* url, GFxLog* plog, int flags, int mode)
+	{
+		GFxFile* file = __super::OpenFileEx(url, plog, flags, mode);
+		if (!file && _strnicmp("Interface/VR/", url, 13) == 0)
+		{
+			char buffer[MAX_PATH];
+			strcpy_s(buffer, "Interface/");
+			strcat_s(buffer, url + 13);
+			file = __super::OpenFileEx(buffer, plog, flags, mode);
+		}
+
+		return file;
+	}
+};
+
 namespace GFxLoaderHook
 {
 	RelocPtr<UInt64> kCtor_Base(0x005B5880 + 0xACE);
@@ -1683,9 +1702,10 @@ namespace GFxLoaderHook
 		Translation::ImportTranslationFiles(loader->stateBag->GetTranslator());
 
 		if (g_logScaleform) {
-			SKSEGFxLogger * logger = new SKSEGFxLogger();
-			loader->stateBag->SetState(GFxState::kInterface_Log, (void*)logger);
+			loader->stateBag->SetState(GFxState::kInterface_Log, new SKSEGFxLogger());
 		}
+
+		loader->stateBag->SetState(GFxState::kInterface_FileOpener, new SKSEFileLoader());
 
 		return result;
 	}

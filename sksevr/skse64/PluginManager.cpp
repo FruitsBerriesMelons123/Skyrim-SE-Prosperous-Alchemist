@@ -661,7 +661,7 @@ PluginHandle PluginManager::LookupHandleFromName(const char* pluginName)
 	return kPluginHandle_Invalid;
 }
 
-void * BranchTrampolineManager::Allocate(PluginHandle plugin, size_t size)
+inline void * BranchTrampolineManager::Allocate(PluginHandle plugin, size_t size)
 {
 	auto mem = m_trampoline.Allocate(size);
 	if (mem) {

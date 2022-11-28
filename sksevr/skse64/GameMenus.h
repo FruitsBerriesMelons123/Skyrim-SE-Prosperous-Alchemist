@@ -27,36 +27,93 @@ class IMenu : public FxDelegateHandler
 {
 public:
 	IMenu();
-	virtual ~IMenu() { CALL_MEMBER_FN(this, dtor)(); } // TODO
+	virtual ~IMenu() { dtor(); } // TODO
 
-	enum {
-		kType_PauseGame = 1,
-		kType_ShowCursor = 2
+	enum
+	{
+		kFlag_None = 0,
+		kFlag_PausesGame = 1 << 0,
+		kFlag_AlwaysOpen = 1 << 1,
+		kFlag_UsesCursor = 1 << 2,
+		kFlag_UsesMenuContext = 1 << 3,
+		kFlag_Modal = 1 << 4,  // prevents lower movies with this flag from advancing
+		kFlag_FreezeFrameBackground = 1 << 5,
+		kFlag_OnStack = 1 << 6,
+		kFlag_DisablePauseMenu = 1 << 7,
+		kFlag_RequiresUpdate = 1 << 8,
+		kFlag_TopmostRenderedMenu = 1 << 9,
+		kFlag_UpdateUsesCursor = 1 << 10,
+		kFlag_AllowSaving = 1 << 11,
+		kFlag_RendersOffscreenTargets = 1 << 12,
+		kFlag_InventoryItemMenu = 1 << 13,
+		kFlag_DontHideCursorWhenTopmost = 1 << 14,
+		kFlag_CustomRendering = 1 << 15,
+		kFlag_AssignCursorToRenderer = 1 << 16,
+		kFlag_ApplicationMenu = 1 << 17,
+		kFlag_HasButtonBar = 1 << 18,
+		kFlag_IsTopButtonBar = 1 << 19,
+		kFlag_AdvancesUnderPauseMenu = 1 << 20,
+		kFlag_RendersUnderPauseMenu = 1 << 21,
+		kFlag_UsesBlurredBackground = 1 << 22,
+		kFlag_CompanionAppAllowed = 1 << 23,
+		kFlag_FreezeFramePause = 1 << 24,
+		kFlag_SkipRenderDuringFreezeFrameScreenshot = 1 << 25,
+		kFlag_LargeScaleformRenderCacheMode = 1 << 26,
+		kFlag_UsesMovementToDirection = 1 << 27
 	};
 
 	virtual void	Accept(CallbackProcessor * processor) {}
 	virtual void	Unk_02(void) {}
 	virtual void	Unk_03(void) {}
 	virtual UInt32	ProcessMessage(UIMessage* a_message);
-	virtual void	NextFrame(UInt32 arg0, UInt32 arg1) { CALL_MEMBER_FN(this, NextFrame_internal)(arg0, arg1); }
+	virtual void	NextFrame(UInt32 arg0, UInt32 arg1) { NextFrame_internal(arg0, arg1); }
 	virtual void	Render(void);
 	virtual void	Unk_07(void) {}
-	virtual void	InitMovie(void) { CALL_MEMBER_FN(this, InitMovie_internal)(view); }
+	virtual void	InitMovie(void) { InitMovie_internal(view); }
+	virtual void	Unk_09(SInt32 arg0) { unk30 = arg0; }
+	virtual void	ResetOnShow() { ResetOnShow_internal(); }
 
 	GFxMovieView	* view;		// 10 - init'd to 0, a class, virtual fn 0x228 called in dtor
-	UInt8			unk0C;		// 18 - init'd to 3
+	UInt8			unk18;		// 18 - init'd to 3
 	UInt8			pad19[3];	// 19
 	UInt32			flags;		// 1C - init'd to 0
-	UInt32			unk14;		// 20 - init'd to 0x12
+	UInt32			unk20;		// 20 - init'd to 0x12
 	UInt32			pad24;		// 24 
-	GRefCountBase	* unk18;	// 28 - holds a reference
+	GRefCountBase	* unk28;	// 28 - holds a reference
+	SInt32			unk30;		// 30
+	UInt32			unk34;		// 34
+	BSFixedString	unk38;		// 38
 
-	MEMBER_FN_PREFIX(IMenu);
-	DEFINE_MEMBER_FN(InitMovie_internal, void, 0x00F2A510, GFxMovieView* view);
-	DEFINE_MEMBER_FN(NextFrame_internal, void, 0x00F2A440, UInt32 arg0, UInt32 arg1);
-	DEFINE_MEMBER_FN(dtor, void, 0x00F2A380);
+	DEFINE_MEMBER_FN_1(InitMovie_internal, void, 0x00F2A510, GFxMovieView* view);
+	DEFINE_MEMBER_FN_2(NextFrame_internal, void, 0x00F2A440, UInt32 arg0, UInt32 arg1);
+	DEFINE_MEMBER_FN_0(ResetOnShow_internal, void, 0x00F2A8B0);
+	DEFINE_MEMBER_FN_0(dtor, void, 0x00F2A380);
 };
+STATIC_ASSERT(offsetof(IMenu, unk30) == 0x30);
 STATIC_ASSERT(offsetof(IMenu, view) == 0x10);
+STATIC_ASSERT(sizeof(IMenu) == 0x40);
+
+// 58
+class WorldSpaceMenu : public IMenu
+{
+public:
+	BSTEventSink<struct HudModeChangeEvent>	unk40;
+
+	virtual void	Unk_09(SInt32 arg0) override { Unk_09_internal(arg0); }
+	virtual void	Unk_0B() { Unk_0B_internal(); }
+	virtual UInt32	Unk_0C() { return 0; }; // Returns 0 when no player, 1 when Player+Offset = 0
+	virtual void	Unk_0D() { }; // Looks related to positioning the actual NiNode?
+
+	UInt64	unk48;	// 48
+	UInt8	unk50;	// 50
+	UInt8	unk51;	// 51
+	UInt8	unk52;	// 52
+
+	DEFINE_MEMBER_FN_0(ctor, void, 0x00F2A300);
+	DEFINE_MEMBER_FN_1(Unk_09_internal, void, 0x0053C220, SInt32 arg0);
+	DEFINE_MEMBER_FN_0(Unk_0B_internal, void, 0x0053C450);
+};
+STATIC_ASSERT(sizeof(WorldSpaceMenu) == 0x58);
 
 // 58 
 class Console : public IMenu
@@ -166,11 +223,9 @@ public:
 	// unk0C - 3
 	// Flags - 0x709
 	// unk14 - 3
-	void					* menuHandler;	// 30
-	UInt64					unk38;
-	UInt64					unk40;
+	void					* menuHandler;	// 40
 	UInt64					unk48;
-	tArray<BGSHeadPart*>	headParts[kNumHeadPartLists];	// 40
+	tArray<BGSHeadPart*>	headParts[kNumHeadPartLists];	// 50
 	tArray<RaceComponent>	sliderData[2];	// F8
 	UInt64					unk128;
 	UInt64					unk130;
@@ -192,7 +247,7 @@ STATIC_ASSERT(offsetof(RaceSexMenu, raceIndex) == 0x140);
 STATIC_ASSERT(sizeof(RaceSexMenu) == 0x160);
 
 // 305F0
-class MapMenu : public IMenu
+class MapMenu : public WorldSpaceMenu
 {
 public:
 	// unk0C - 3
@@ -247,28 +302,34 @@ public:
 		void					* localMapInputHandler;			// 303F0
 		UInt32					unk303F8;						// 303F8 - init'd to FFFFFFFF
 		UInt8					unk303FC[4];					// 303FC
+		UInt64					unk30400[0x80 >> 3];
 	};
 
-	void				* eventSinkMenuOpenCloseEvent; 			// 030
-	void				* mapCameraCallback;					// 038
-	UInt64				mapMoveHandler; 						// 040
-	UInt64				mapLookHandler; 						// 048
-	UInt64				mapZoomHandler; 						// 050
-	UInt32				unk058; 								// 058
-	UInt32				unk05C; 								// 05C
-	LocalMap			localMap;								// 060
-	UInt32				unk30460;								// 30460
-	float				unk30464;								// 30464
-	float				unk30468;								// 30468
-	float				unk3046C;								// 3046C
-	tArray<MarkerData>	markers;								// 30470	
-	UInt8				todo[0x305F0 - 0x30488];				// 30488
+	void				* eventSinkMenuOpenCloseEvent; 			// 058
+	void				* mapCameraCallback;					// 060
+	UInt64				mapMoveHandler; 						// 068
+	UInt64				mapLookHandler; 						// 070
+	UInt64				mapZoomHandler; 						// 078
+	UInt32				unk080; 								// 080
+	UInt32				unk084; 								// 084
+	UInt64				unk088;									// 088
+	UInt64				unk090;									// 090
+	UInt64				unk098;									// 098
+	UInt64				unk0A0;									// 0A0
+	UInt64				unk0A8;									// 0A8
+	LocalMap			localMap;								// 0B0
+	UInt32				unk30530;								// 30530
+	float				unk30534;								// 30534
+	float				unk30468;								// 30538
+	float				unk3046C;								// 3053C
+	tArray<MarkerData>	markers;								// 30540
+	UInt8				todo[0x305F0 - 0x30558];				// 30558
 };
-STATIC_ASSERT(offsetof(MapMenu, localMap) == 0x60);
+STATIC_ASSERT(offsetof(MapMenu, localMap) == 0xB0);
 STATIC_ASSERT(offsetof(MapMenu::LocalMap, cullingProcess) == 0x40);
 STATIC_ASSERT(sizeof(MapMenu::LocalMap::cullingProcess) == 0x30360);
 STATIC_ASSERT(offsetof(MapMenu::LocalMap, renderedLocalMapTexture) == 0x303A0);
-STATIC_ASSERT(offsetof(MapMenu, markers) == 0x30470);
+STATIC_ASSERT(offsetof(MapMenu, markers) == 0x30540);
 STATIC_ASSERT(sizeof(MapMenu) == 0x0305F0);
 
 // 28
@@ -399,25 +460,27 @@ public:
 
 };
 
-// 98
-class HUDMenu : public IMenu
+// C8
+class HUDMenu : public WorldSpaceMenu
 {
 public:
-	BSTEventSink<void>	unk30;			// 30 - UserEventEnabledEvent
-	void				*unk38;			// 38 - New in SE
-	tArray<HUDObject*>	hudComponents;	// 40
-	ActorValueMeter		*unk58;			// 58
-	ActorValueMeter		*unk60;			// 60
-	ActorValueMeter		*unk68;			// 68
-	ShoutMeter			*unk70;			// 70
-	UInt64				unk78;			// 78
-	UInt32				unk80;			// 80
-	UInt32				unk84;			// 84
-	UInt64				unk88;			// 88
-	UInt8				unk90;			// 90
-	UInt8				unk91[7];		// 91
+	BSTEventSink<struct UserEventEnabledEvent>	unk58;			// 58 - UserEventEnabledEvent
+	BSTEventSink<struct BSRemoteGamepadEvent>	unk60;			// 60 - New in SE
+	UInt64				unk68;			// 68
+	tArray<HUDObject*>	hudComponents;	// 70
+
+	ActorValueMeter		*unk88;			// 88
+	ActorValueMeter		*unk90;			// 90
+	ActorValueMeter		*unk98;			// 98
+	ShoutMeter			*unkA0;			// A0
+	UInt64				unkA8;			// A8
+	UInt32				unkB0;			// B0
+	UInt32				unkB4;			// B4
+	UInt64				unkB8;			// B8
+	UInt8				unkC0;			// C0
+	UInt8				unkC1[7];		// C1
 };
-STATIC_ASSERT(sizeof(HUDMenu) == 0x98);
+STATIC_ASSERT(sizeof(HUDMenu) == 0xC8);
 
 // 38
 class CraftingMenu : public IMenu

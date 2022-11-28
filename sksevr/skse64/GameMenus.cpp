@@ -4,10 +4,13 @@ RelocAddr <_CreateUIMessageData> CreateUIMessageData(0x00335740);
 
 IMenu::IMenu() :
 	view(NULL),
-	unk0C(3),
+	unk18(3),
 	flags(0),
-	unk14(0x12),
-	unk18(NULL)
+	unk20(0x12),
+	unk28(NULL),
+	unk30(-1),
+	unk34(0),
+	unk38("N/A")
 {
 }
 
