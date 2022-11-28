@@ -307,6 +307,7 @@ namespace alchemist {
 	public:
 		virtual void Invoke(Args *args) {
 			static string alchemist_result = "";
+			alchemist_result = "";
 			if (args && args->numArgs && args->numArgs > 0) {
 				string craft_description = *(args->args[0].data.managedString);
 				if (craft_description.find("Alchemy") != string::npos && g_thePlayer) {
