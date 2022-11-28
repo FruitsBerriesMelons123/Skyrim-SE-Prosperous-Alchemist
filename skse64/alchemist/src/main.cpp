@@ -87,14 +87,17 @@ namespace alchemist {
 	void makePotions2(Ingredient ingredient1, Ingredient ingredient2);
 	void getNextIngredients() {
 		alchemist_mutex.lock();
-		if (ingredients_it1 != ingredients.end()) {
-			Ingredient ingredient1 = *ingredients_it1;
-			ingredients_it2 = ++ingredients_it1;
+		while (ingredients_it1 != ingredients.end()) {
+			ingredients_it2++;
 			if (ingredients_it2 != ingredients.end()) {
+				Ingredient ingredient1 = *ingredients_it1;
 				Ingredient ingredient2 = *ingredients_it2;
-				++ingredients_it2;
 				alchemist_mutex.unlock();
 				return makePotions2(ingredient1, ingredient2);
+			}
+			else {
+				ingredients_it1++;
+				ingredients_it2 = ingredients_it1;
 			}
 		}
 		alchemist_mutex.unlock();
@@ -161,14 +164,17 @@ namespace alchemist {
 		}
 		alchemist_mutex.lock();
 		ingredients_it1 = ingredients.begin();
+		ingredients_it2 = ingredients_it1;
 		for (int i = 0; i < num_threads; ++i) {
-			if (ingredients_it1 != ingredients.end()) {
-				Ingredient ingredient1 = *ingredients_it1;
-				ingredients_it2 = ++ingredients_it1;
+			while (ingredients_it1 != ingredients.end()) {
+				ingredients_it2++;
 				if (ingredients_it2 != ingredients.end()) {
-					Ingredient ingredient2 = *ingredients_it2;
-					++ingredients_it2;
-					threads.push_back(thread(makePotions2, ingredient1, ingredient2));
+					threads.push_back(thread(makePotions2, *ingredients_it1, *ingredients_it2));
+					break;
+				}
+				else {
+					ingredients_it1++;
+					ingredients_it2 = ingredients_it1;
 				}
 			}
 		}
@@ -304,7 +310,7 @@ namespace alchemist {
 	class Scaleform_RegisterGetBestRecipeNameHandler : public GFxFunctionHandler {
 	public:
 		virtual void Invoke(Args* args) {
-			string alchemist_result = "";
+			static string alchemist_result = "";
 			if (args && args->numArgs && args->numArgs > 0) {
 				string craft_description = *(args->args[0].data.managedString);
 				if (craft_description.find("Alchemy") != string::npos && g_thePlayer) {
