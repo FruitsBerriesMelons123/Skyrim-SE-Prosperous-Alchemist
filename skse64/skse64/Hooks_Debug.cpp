@@ -1,6 +1,6 @@
 #include "Hooks_Debug.h"
-#include "common/IInterlockedLong.h"
-#include "common/IFileStream.h"
+#include "IInterlockedLong.h"
+#include "IFileStream.h"
 #include "skse64_common/Utilities.h"
 #include "skse64_common/SafeWrite.h"
 #include "skse64_common/skse_version.h"

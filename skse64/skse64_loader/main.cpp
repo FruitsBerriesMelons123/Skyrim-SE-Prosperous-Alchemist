@@ -6,7 +6,7 @@
 #include "skse64_loader_common/Steam.h"
 #include "skse64_loader_common/Inject.h"
 #include <string>
-#include "common/IFileStream.h"
+#include "IFileStream.h"
 #include <tlhelp32.h>
 #include "Options.h"
 

@@ -1,11 +1,11 @@
 #pragma once
 
-#include "common/IDebugLog.h"
+#include "IDebugLog.h"
 #include "skse64_common/skse_version.h"
-#include "skse64\PapyrusActorValueInfo.cpp"
+#include "skse64/PapyrusActorValueInfo.cpp"
 #include "skse64/PapyrusForm.cpp"
 #include "skse64/PapyrusIngredient.h"
-#include "skse64\PapyrusMagicEffect.h"
+#include "skse64/PapyrusMagicEffect.h"
 #include "skse64/PapyrusObjectReference.cpp"
 #include "skse64/PluginAPI.h"
 #include "skse64/ScaleformCallbacks.h"

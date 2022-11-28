@@ -4,7 +4,7 @@
 #include "skse64_common/BranchTrampoline.h"
 #include "GameThreads.h"
 
-#include "common/ICriticalSection.h"
+#include "ICriticalSection.h"
 #include <queue>
 
 ICriticalSection			s_taskQueueLock;

@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "common/ICriticalSection.h"
+#include "ICriticalSection.h"
 
 struct SKSESerializationInterface;
 class TESForm;

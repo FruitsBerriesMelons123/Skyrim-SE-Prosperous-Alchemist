@@ -1,6 +1,6 @@
 #include "LoaderError.h"
 #include "IdentifyEXE.h"
-#include "common/IFileStream.h"
+#include "IFileStream.h"
 
 // remote thread creation
 

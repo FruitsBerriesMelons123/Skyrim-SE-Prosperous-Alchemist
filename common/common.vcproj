@@ -52,7 +52,7 @@
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="false"
 				DebugInformationFormat="4"
-				ForcedIncludeFiles="common/IPrefix.h"
+				ForcedIncludeFiles="IPrefix.h"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -116,7 +116,7 @@
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="false"
 				DebugInformationFormat="3"
-				ForcedIncludeFiles="common/IPrefix.h"
+				ForcedIncludeFiles="IPrefix.h"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"

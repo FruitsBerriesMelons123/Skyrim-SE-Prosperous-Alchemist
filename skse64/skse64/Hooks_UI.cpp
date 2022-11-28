@@ -4,7 +4,7 @@
 #include "skse64_common/Utilities.h"
 #include "skse64_common/BranchTrampoline.h"
 #include "GameMenus.h"
-#include "common/ICriticalSection.h"
+#include "ICriticalSection.h"
 #include <queue>
 
 #include "PapyrusUI.h"

@@ -1,7 +1,7 @@
 #include "skse64/InternalTasks.h"
-#include "common/IMemPool.h"
+#include "IMemPool.h"
 
-#include "common/ICriticalSection.h"
+#include "ICriticalSection.h"
 #include <queue>
 
 #include "skse64/GameAPI.h"

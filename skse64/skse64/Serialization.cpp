@@ -1,5 +1,5 @@
 #include "skse64/Serialization.h"
-#include "common/IFileStream.h"
+#include "IFileStream.h"
 #include "skse64/PluginManager.h"
 #include "GameAPI.h"
 #include "skse64_common/skse_version.h"

@@ -7,7 +7,7 @@
 #include "skse64/GameFormComponents.h"
 #include "skse64/PapyrusEvents.h"
 
-#include "common/ICriticalSection.h"
+#include "ICriticalSection.h"
 #include "xbyak/xbyak.h"
 
 // Used by UpdatePlayerTints to create a render target of a particular size

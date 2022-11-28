@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-#include "common/ICriticalSection.h"
+#include "ICriticalSection.h"
 
 // needs to be extern and set appropriately when a Quest is constructed
 UInt32 g_invalidateQuestCache;

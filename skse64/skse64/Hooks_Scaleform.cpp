@@ -26,7 +26,7 @@
 #include "ScaleformState.h"
 #include "GlobalLocks.h"
 #include "GameMenus.h"
-#include "common/IMemPool.h"
+#include "IMemPool.h"
 #include "HashUtil.h"
 #include "Translation.h"
 #include "xbyak/xbyak.h"

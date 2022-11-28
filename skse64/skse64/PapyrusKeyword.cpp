@@ -4,7 +4,7 @@
 #include "GameObjects.h"
 #include "GameData.h"
 
-#include "common/ICriticalSection.h"
+#include "ICriticalSection.h"
 
 //extern UInt32 g_invalidateKeywordCache;
 

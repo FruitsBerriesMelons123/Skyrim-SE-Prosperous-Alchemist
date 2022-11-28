@@ -4,7 +4,7 @@
 #include <functional>
 #include <unordered_map>
 
-#include "common/IFileStream.h"
+#include "IFileStream.h"
 #include "skse64/PluginAPI.h"
 #include "skse64/InternalSerialization.h"
 #include "skse64/GameData.h"

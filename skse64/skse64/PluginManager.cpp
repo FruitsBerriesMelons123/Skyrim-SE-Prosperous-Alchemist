@@ -1,6 +1,6 @@
 #include "skse64/PluginManager.h"
-#include "common/IDirectoryIterator.h"
-#include "common/IFileStream.h"
+#include "IDirectoryIterator.h"
+#include "IFileStream.h"
 #include "skse64/GameAPI.h"
 #include "skse64_common/Utilities.h"
 #include "skse64/Serialization.h"

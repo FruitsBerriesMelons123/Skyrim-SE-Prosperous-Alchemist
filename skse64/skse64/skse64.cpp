@@ -5,7 +5,7 @@
 #include "skse64_common/SafeWrite.h"
 #include "skse64/PluginManager.h"
 #include <shlobj.h>
-#include "common/IFileStream.h"
+#include "IFileStream.h"
 #include "Hooks_ObScript.h"
 #include "Hooks_Papyrus.h"
 #include "Hooks_SaveLoad.h"
