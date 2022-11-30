@@ -372,7 +372,7 @@ extern "C" {
 			_FATALERROR("[FATAL ERROR] Loaded in editor, marking as incompatible!\n");
 			return false;
 		}
-		else if (a_skse->runtimeVersion != RUNTIME_VERSION_1_6_353) {
+		else if (a_skse->runtimeVersion != CURRENT_RELEASE_RUNTIME) {
 			_FATALERROR("[FATAL ERROR] Unsupported runtime version %08X!\n", a_skse->runtimeVersion);
 			return false;
 		}
@@ -408,7 +408,7 @@ extern "C" {
 
 		0,	// not version independent
 		0,
-		{ RUNTIME_VERSION_1_6_640, 0 },
+		{ CURRENT_RELEASE_RUNTIME, 0 },
 
 		0,	// works with any version of the script extender. you probably do not need to put anything here
 	};
