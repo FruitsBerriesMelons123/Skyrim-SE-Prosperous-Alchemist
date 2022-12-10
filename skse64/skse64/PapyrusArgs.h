@@ -18,9 +18,9 @@ public:
 	~VMArgList();
 
 	MEMBER_FN_PREFIX(VMArgList);
-	DEFINE_MEMBER_FN(GetOffset, UInt32, 0x0136C8A0, VMState * state);
+	DEFINE_MEMBER_FN(GetOffset, UInt32, 0x0136F0E0, VMState * state);
 	// FB33603AEC8921D8A9361F52478B667E583E54A1+20
-	DEFINE_MEMBER_FN(Get, VMValue *, 0x0136C910, VMState * state, UInt32 idx, UInt32 offset);
+	DEFINE_MEMBER_FN(Get, VMValue *, 0x0136F150, VMState * state, UInt32 idx, UInt32 offset);
 };
 
 template <typename T>
@@ -102,22 +102,6 @@ void PackValue(VMValue * dst, T ** src, VMClassRegistry * registry)
 	typedef std::remove_pointer <T>::type	BaseType;
 	PackHandle(dst, *src, BaseType::kTypeID, registry);
 }
-
-template<>
-class VMResultArray<bool> : public std::vector<bool>
-{
-public:
-	void PackArray(VMValue::ArrayData * data, VMClassRegistry * registry)
-	{
-		UInt32 i = 0;
-		for (std::vector<bool>::iterator it = begin(); it != end(); ++it, i++) {
-			VMValue * value = data->GetData() + i;
-			bool _data = *it;
-			PackValue<bool>(value, &_data, registry);
-			value->type = VMValue::kType_Bool;
-		}
-	}
-};
 
 template <> void UnpackValue <float>(float * dst, VMValue * src);
 template <> void UnpackValue <UInt32>(UInt32 * dst, VMValue * src);

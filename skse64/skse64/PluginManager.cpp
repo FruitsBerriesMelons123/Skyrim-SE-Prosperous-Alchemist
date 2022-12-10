@@ -486,7 +486,7 @@ const char * PluginManager::CheckPluginCompatibility(const SKSEPluginVersionData
 	__try
 	{
 		// basic validity
-		if(!version.dataVersion)
+		if(version.dataVersion != SKSEPluginVersionData::kVersion)
 		{
 			return "disabled, bad version data";
 		}
@@ -523,41 +523,21 @@ const char * PluginManager::CheckPluginCompatibility(const SKSEPluginVersionData
 		}
 
 		// version compatibility
-		
-		const UInt32 kKnownVersionIndependent =
+		const UInt32 kIndependentMask =
 			SKSEPluginVersionData::kVersionIndependent_AddressLibraryPostAE |
-			SKSEPluginVersionData::kVersionIndependent_Signatures |
-			SKSEPluginVersionData::kVersionIndependent_StructsPost629;
-		
-		// bail out on unknown flags, handles future breaking API changes in the runtime
-		if(version.versionIndependence & ~kKnownVersionIndependent)
+			SKSEPluginVersionData::kVersionIndependent_Signatures;
+
+		if(version.versionIndependence & ~kIndependentMask)
 		{
 			return "disabled, unsupported version independence method";
 		}
 
-		// any claim of version independence?
-		bool versionIndependent = version.versionIndependence & (SKSEPluginVersionData::kVersionIndependent_AddressLibraryPostAE | SKSEPluginVersionData::kVersionIndependent_Signatures);
-
-		// verify the address library is there to centralize error message
 		if(version.versionIndependence & SKSEPluginVersionData::kVersionIndependent_AddressLibraryPostAE)
 		{
 			const char * result = CheckAddressLibrary();
 			if(result) return result;
 		}
-		
-		// 1.6.629+ has different structure sizes, make sure the plugin specifies which is used
-		if(
-			versionIndependent &&
-			(RUNTIME_VERSION >= RUNTIME_VERSION_1_6_629) &&
-			!(version.versionIndependence & SKSEPluginVersionData::kVersionIndependent_StructsPost629))
-		{
-			// plugins that don't use gameplay structures or that use EXTREME EFFORT can specify that they are truly generic
-			if(!(version.versionIndependenceEx & SKSEPluginVersionData::kVersionIndependentEx_NoStructUse))
-				return "disabled, only compatible with versions earlier than 1.6.629";
-		}
-		
-		// simple version list
-		if(!versionIndependent)
+		else if(!version.versionIndependence)
 		{
 			bool found = false;
 
@@ -578,7 +558,7 @@ const char * PluginManager::CheckPluginCompatibility(const SKSEPluginVersionData
 
 			if(!found)
 			{
-				return "disabled, incompatible with current version of the game";
+				return "disabled, incompatible with current runtime version";
 			}
 		}
 
@@ -617,19 +597,6 @@ void PluginManager::LogPluginLoadError(const LoadedPlugin & pluginSrc, const cha
 		s_currentPluginHandle);
 }
 
-struct BetterPluginName
-{
-	const char * dllName;
-	const char * userReportedName;
-};
-
-// some plugins have non-descriptive names resulting in bad bug reports
-static const BetterPluginName kBetterPluginNames[] =
-{
-	{ "skee64.dll", "RaceMenu" },
-	{ nullptr, nullptr }
-};
-
 void PluginManager::ReportPluginErrors()
 {
 #if 0
@@ -652,23 +619,7 @@ void PluginManager::ReportPluginErrors()
 	for(auto & plugin : m_erroredPlugins)
 	{
 		message += "\n";
-
-		bool foundReplacementName = false;
-		for(auto * iter = kBetterPluginNames; iter->dllName; ++iter)
-		{
-			if(!_stricmp(iter->dllName, plugin.dllName.c_str()))
-			{
-				foundReplacementName = true;
-
-				message += iter->userReportedName;
-				message += " (" + plugin.dllName + ")";
-			}
-		}
-		if(!foundReplacementName)
-			message += plugin.dllName;
-
-		message += ": ";
-		message += plugin.errorState;
+		message += plugin.dllName + ": " + plugin.errorState;
 
 		if(plugin.errorCode)
 		{

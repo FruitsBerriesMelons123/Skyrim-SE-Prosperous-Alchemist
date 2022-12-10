@@ -407,7 +407,6 @@ extern "C" {
 		"support@example.com",
 
 		0,	// not version independent
-		0,
 		{ CURRENT_RELEASE_RUNTIME, 0 },
 
 		0,	// works with any version of the script extender. you probably do not need to put anything here
