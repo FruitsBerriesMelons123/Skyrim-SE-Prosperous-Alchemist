@@ -11,14 +11,92 @@
 #include "skse64/ScaleformCallbacks.h"
 #include "skse64/ScaleformMovie.h"
 
+#include "SME_Prefix.h"
+#include "INIManager.h"
+
 #include "skillLevels.h"
 
 #include <time.h>
 #include <string>
 #include <set>
+#include <thread>
 
 using std::set;
 using std::string;
+using std::thread;
+
+extern IDebugLog						gLog;
+
+PluginHandle					kPluginHandle;
+SKSEMessagingInterface* kMsgInterface;
+
+extern SME::INI::INISetting				kIgnorePlayer;
+extern SME::INI::INISetting				kProtectIngredients;
+extern SME::INI::INISetting				kMaximumThreadsForCurrentHardware;
+extern SME::INI::INISetting				kActualThreadsToUseInGame;
+extern SME::INI::INISetting				kNumberOfIngredientsToStressTest;
+
+class AlchemistINIManager : public SME::INI::INIManager
+{
+public:
+	void								Initialize(const char* INIPath, void* Parameter) override;
+
+	static AlchemistINIManager			Instance;
+};
+
+AlchemistINIManager		AlchemistINIManager::Instance;
+
+SME::INI::INISetting	kIgnorePlayer("IgnorePlayer",
+	"General",
+	"Ignore player state when calculating potion cost.",
+	(SInt32)1);
+
+SME::INI::INISetting	kProtectIngredients("ProtectIngredients",
+	"General",
+	"Protect certain ingredients",
+	(SInt32)0);
+
+SME::INI::INISetting	kMaximumThreadsForCurrentHardware("MaximumThreadsForCurrentHardware",
+	"General",
+	"Not used in game. Number of threads recommended for the current hardware.",
+	(SInt32)(thread::hardware_concurrency() - 1));
+
+SME::INI::INISetting	kActualThreadsToUseInGame("ActualThreadsToUseInGame",
+	"General",
+	"Number of threads to use in game.",
+	(SInt32)(thread::hardware_concurrency() - 1));
+
+SME::INI::INISetting	kNumberOfIngredientsToStressTest("NumberOfIngredientsToStressTest",
+	"General",
+	"Use this number of ingredients in a stress test.",
+	(SInt32)0);
+
+void AlchemistINIManager::Initialize(const char* INIPath, void* Parameter)
+{
+	this->INIFilePath = INIPath;
+	_MESSAGE("prosperous alchemist INI Path: %s", INIPath);
+
+	std::fstream INIStream(INIPath, std::fstream::in);
+	bool CreateINI = false;
+
+	if (INIStream.fail())
+	{
+		_MESSAGE("prosperous alchemist INI File not found; Creating one...");
+		CreateINI = true;
+	}
+
+	INIStream.close();
+	INIStream.clear();
+
+	RegisterSetting(&kIgnorePlayer);
+	RegisterSetting(&kProtectIngredients);
+	RegisterSetting(&kMaximumThreadsForCurrentHardware);
+	RegisterSetting(&kActualThreadsToUseInGame);
+	RegisterSetting(&kNumberOfIngredientsToStressTest);
+
+	if (CreateINI)
+		Save();
+}
 
 namespace alchemist {
 	void _LOG(string s) {
@@ -88,6 +166,16 @@ namespace alchemist {
 		}
 
 		string fromDouble(double f) {
+			if (abs(f - int(f)) == 0) {
+				return fromInt(f);
+			}
+			char f_char[30];
+			snprintf(f_char, 30, "%.2f", f);
+			string f_str = f_char;
+			return f_str;
+		}
+
+		string fromFloat(float f) {
 			if (abs(f - int(f)) == 0) {
 				return fromInt(f);
 			}
