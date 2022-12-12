@@ -4,7 +4,6 @@
 #include "main.h"
 
 #include <mutex>
-#include <vector>
 
 using std::vector;
 using std::mutex;
@@ -403,7 +402,21 @@ namespace alchemist {
 		for (TESForm* form : playerForms) {
 			if (form->GetFormType() == kFormType_Ingredient) {
 				IngredientItem* ingredient = DYNAMIC_CAST(form, TESForm, IngredientItem);
-				if (protectIngredients == 0 || !ingredient::isProtected(ingredient, ingredientCount)) {
+				map<string, int> moreIngredients;
+				if (protectIngredients > 0) {
+					string additionalIngredients = kMoreIngredientsToProtect.GetData().s;
+					vector<string> iTokens = str::split(additionalIngredients, ',');
+					for (auto& iToken : iTokens) {
+						vector<string> iParts = str::split(iToken, '|');
+						if (iParts.size() == 1) {
+							moreIngredients[iParts.at(0)] = 999;
+						}
+						else if (iParts.size() == 2) {
+							moreIngredients[iParts.at(0)] = str::toInt(iParts.at(1));
+						}
+					}
+				}
+				if (protectIngredients == 0 || !ingredient::isProtected(ingredient, ingredientCount, moreIngredients)) {
 					ingredients.insert(Ingredient(ingredient));
 				}
 			}
@@ -488,7 +501,7 @@ namespace alchemist {
 }
 
 extern "C" {
-	bool SKSEPlugin_Query(const SKSEInterface *a_skse, PluginInfo *a_info) {
+	bool SKSEPlugin_Query(const SKSEInterface* a_skse, PluginInfo* a_info) {
 		gLog.OpenRelative(CSIDL_MYDOCUMENTS, "\\My Games\\Skyrim Special Edition\\SKSE\\alchemist.log");
 		gLog.SetPrintLevel(IDebugLog::kLevel_DebugMessage);
 		gLog.SetLogLevel(IDebugLog::kLevel_DebugMessage);
@@ -502,7 +515,8 @@ extern "C" {
 		if (a_skse->isEditor) {
 			_FATALERROR("[FATAL ERROR] Loaded in editor, marking as incompatible!\n");
 			return false;
-		} else if (a_skse->runtimeVersion != CURRENT_RELEASE_RUNTIME) {
+		}
+		else if (a_skse->runtimeVersion != CURRENT_RELEASE_RUNTIME) {
 			_FATALERROR("[FATAL ERROR] Unsupported runtime version %08X!\n", a_skse->runtimeVersion);
 			return false;
 		}
@@ -510,10 +524,46 @@ extern "C" {
 		return true;
 	}
 
-	bool SKSEPlugin_Load(const SKSEInterface *a_skse) {
-		_MESSAGE("[MESSAGE] prosperous alchemist loaded");
+	void MessageHandler(SKSEMessagingInterface::Message* msg)
+	{
+		switch (msg->type)
+		{
+		case SKSEMessagingInterface::kMessage_InputLoaded:
+		{
+			_MESSAGE("...prosperous alchemist initialized!");
+		}
+		break;
+		}
+	}
 
-		SKSEScaleformInterface *scaleformInterface = (SKSEScaleformInterface*)a_skse->QueryInterface(kInterface_Scaleform);
+	bool SKSEPlugin_Load(const SKSEInterface* a_skse) {
+		//gLog.OpenRelative(CSIDL_MYDOCUMENTS, "\\My Games\\Skyrim Special Edition\\SKSE\\alchemist.log");
+		_MESSAGE("[MESSAGE] Initializing prosperous alchemist...");
+
+		kPluginHandle = a_skse->GetPluginHandle();
+		kMsgInterface = (SKSEMessagingInterface*)a_skse->QueryInterface(kInterface_Messaging);
+
+		if (!kMsgInterface)
+		{
+			_MESSAGE("Couldn't initialize messaging interface");
+			return false;
+		}
+		else if (kMsgInterface->interfaceVersion < 2)
+		{
+			_MESSAGE("Messaging interface too old (%d expected %d)", kMsgInterface->interfaceVersion, 2);
+			return false;
+		}
+
+		_MESSAGE("Initializing prosperous alchemist INI Manager");
+		AlchemistINIManager::Instance.Initialize("Data\\SKSE\\Plugins\\alchemist.ini", nullptr);
+
+		if (kMsgInterface->RegisterListener(kPluginHandle, "SKSE", MessageHandler) == false)
+		{
+			_MESSAGE("Couldn't register message listener");
+			return false;
+		}
+
+		SKSEScaleformInterface* scaleformInterface = (SKSEScaleformInterface*)a_skse->QueryInterface(kInterface_Scaleform);
 
 		bool registerScaleformHandlers = scaleformInterface->Register("alchemist", alchemist::RegisterScaleformHandlers);
 
