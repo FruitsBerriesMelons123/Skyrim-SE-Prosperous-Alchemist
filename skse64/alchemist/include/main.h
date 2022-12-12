@@ -23,10 +23,15 @@
 #include <algorithm>
 #include <sstream>
 #include <iterator>
+#include <iostream>
+#include <vector>
+#include <map>
 
 using std::set;
 using std::string;
 using std::thread;
+using std::map;
+using std::vector;
 
 extern IDebugLog						gLog;
 
@@ -38,7 +43,7 @@ extern SME::INI::INISetting				kProtectIngredients;
 extern SME::INI::INISetting				kMaximumThreadsForCurrentHardware;
 extern SME::INI::INISetting				kActualThreadsToUseInGame;
 extern SME::INI::INISetting				kNumberOfIngredientsToStressTest;
-extern SME::INI::INISetting				kAdditionalIngredientsToProtect;
+extern SME::INI::INISetting				kMoreIngredientsToProtect;
 
 class AlchemistINIManager : public SME::INI::INIManager
 {
@@ -75,7 +80,7 @@ SME::INI::INISetting	kNumberOfIngredientsToStressTest("NumberOfIngredientsToStre
 	"Use this number of ingredients in a stress test.",
 	(SInt32)0);
 
-SME::INI::INISetting	kAdditionalIngredientsToProtect("AdditionalIngredientsToProtect",
+SME::INI::INISetting	kMoreIngredientsToProtect("MoreIngredientsToProtect",
 	"General",
 	"Comma separated list of additional ingredients to protect.",
 	"");
@@ -102,7 +107,7 @@ void AlchemistINIManager::Initialize(const char* INIPath, void* Parameter)
 	RegisterSetting(&kMaximumThreadsForCurrentHardware);
 	RegisterSetting(&kActualThreadsToUseInGame);
 	RegisterSetting(&kNumberOfIngredientsToStressTest);
-	RegisterSetting(&kAdditionalIngredientsToProtect);
+	RegisterSetting(&kMoreIngredientsToProtect);
 
 	if (CreateINI)
 		Save();
@@ -172,6 +177,12 @@ namespace alchemist {
 				tokens.push_back(str.substr(start, end - start));
 			}
 			return tokens;
+		}
+
+		int toInt(string s) {
+			int i;
+			std::istringstream(s) >> i;
+			return i;
 		}
 
 		string fromChar(BSFixedString c) {
@@ -678,7 +689,7 @@ namespace alchemist {
 			return false;
 		}
 
-		bool isProtected(IngredientItem* ingredient, set<Ingredient> ingredients) {
+		bool isProtected(IngredientItem* ingredient, set<Ingredient> ingredients, map<string,int> moreIngredients) {
 			string name = ingredient->fullName.name;
 			auto countIt = ingredients.find(Ingredient(name, 0));
 			int count = countIt->inventoryCount;
@@ -829,11 +840,11 @@ namespace alchemist {
 			if (hasEffect(ingredient, "Fortify Enchanting") || hasEffect(ingredient, "Fortify Smithing")) {
 				return true;
 			}
-			string additionalIngredients = kAdditionalIngredientsToProtect.GetData().s;
-			std::vector<std::string> iNames = str::split(additionalIngredients, ',');
-			for (auto& iName : iNames) {
-				if (name == iName) {
-					return true;
+			for (map<string,int>::iterator i = moreIngredients.begin(); i != moreIngredients.end(); i++) {
+				if ((*i).first == name) {
+					if (count <= (*i).second || (*i).second == 999) {
+						return true;
+					}
 				}
 			}
 			return false;

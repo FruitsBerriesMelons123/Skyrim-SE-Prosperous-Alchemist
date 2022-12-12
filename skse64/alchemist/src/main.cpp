@@ -4,7 +4,6 @@
 #include "main.h"
 
 #include <mutex>
-#include <vector>
 
 using std::vector;
 using std::mutex;
@@ -403,7 +402,21 @@ namespace alchemist {
 		for (TESForm* form : playerForms) {
 			if (form->GetFormType() == kFormType_Ingredient) {
 				IngredientItem* ingredient = DYNAMIC_CAST(form, TESForm, IngredientItem);
-				if (protectIngredients == 0 || !ingredient::isProtected(ingredient, ingredientCount)) {
+				map<string, int> moreIngredients;
+				if (protectIngredients > 0) {
+					string additionalIngredients = kMoreIngredientsToProtect.GetData().s;
+					vector<string> iTokens = str::split(additionalIngredients, ',');
+					for (auto& iToken : iTokens) {
+						vector<string> iParts = str::split(iToken, '|');
+						if (iParts.size() == 1) {
+							moreIngredients[iParts.at(0)] = 999;
+						}
+						else if (iParts.size() == 2) {
+							moreIngredients[iParts.at(0)] = str::toInt(iParts.at(1));
+						}
+					}
+				}
+				if (protectIngredients == 0 || !ingredient::isProtected(ingredient, ingredientCount, moreIngredients)) {
 					ingredients.insert(Ingredient(ingredient));
 				}
 			}
