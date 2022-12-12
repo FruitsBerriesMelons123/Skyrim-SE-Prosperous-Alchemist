@@ -77,7 +77,7 @@ SME::INI::INISetting	kNumberOfIngredientsToStressTest("NumberOfIngredientsToStre
 
 SME::INI::INISetting	kAdditionalIngredientsToProtect("AdditionalIngredientsToProtect",
 	"General",
-	"Comma separated list of additiongal ingredients to protect.",
+	"Comma separated list of additional ingredients to protect.",
 	"");
 
 void AlchemistINIManager::Initialize(const char* INIPath, void* Parameter)
