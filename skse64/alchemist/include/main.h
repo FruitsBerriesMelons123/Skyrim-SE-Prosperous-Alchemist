@@ -45,6 +45,7 @@ extern SME::INI::INISetting				kActualThreadsToUseInGame;
 extern SME::INI::INISetting				kNumberOfIngredientsToStressTest;
 extern SME::INI::INISetting				kMoreIngredientsToProtect;
 extern SME::INI::INISetting				kIngredientsToUnprotect;
+extern SME::INI::INISetting				kStringTranslations;
 
 class AlchemistINIManager : public SME::INI::INIManager
 {
@@ -91,6 +92,11 @@ SME::INI::INISetting	kIngredientsToUnprotect("IngredientsToUnprotect",
 	"Comma separated list of ingredients to not protect.",
 	"");
 
+SME::INI::INISetting	kStringTranslations("StringTranslations",
+	"General",
+	"Comma separated list of strings to translate the mod.",
+	"Alchemy,No potion recipes are currently available.");
+
 void AlchemistINIManager::Initialize(const char* INIPath, void* Parameter)
 {
 	this->INIFilePath = INIPath;
@@ -115,6 +121,7 @@ void AlchemistINIManager::Initialize(const char* INIPath, void* Parameter)
 	RegisterSetting(&kNumberOfIngredientsToStressTest);
 	RegisterSetting(&kMoreIngredientsToProtect);
 	RegisterSetting(&kIngredientsToUnprotect);
+	RegisterSetting(&kStringTranslations);
 
 	if (CreateINI)
 		Save();
