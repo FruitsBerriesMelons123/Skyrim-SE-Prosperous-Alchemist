@@ -44,6 +44,7 @@ extern SME::INI::INISetting				kMaximumThreadsForCurrentHardware;
 extern SME::INI::INISetting				kActualThreadsToUseInGame;
 extern SME::INI::INISetting				kNumberOfIngredientsToStressTest;
 extern SME::INI::INISetting				kMoreIngredientsToProtect;
+extern SME::INI::INISetting				kIngredientsToUnprotect;
 
 class AlchemistINIManager : public SME::INI::INIManager
 {
@@ -85,6 +86,11 @@ SME::INI::INISetting	kMoreIngredientsToProtect("MoreIngredientsToProtect",
 	"Comma separated list of additional ingredients to protect.",
 	"");
 
+SME::INI::INISetting	kIngredientsToUnprotect("IngredientsToUnprotect",
+	"General",
+	"Comma separated list of ingredients to not protect.",
+	"");
+
 void AlchemistINIManager::Initialize(const char* INIPath, void* Parameter)
 {
 	this->INIFilePath = INIPath;
@@ -108,6 +114,7 @@ void AlchemistINIManager::Initialize(const char* INIPath, void* Parameter)
 	RegisterSetting(&kActualThreadsToUseInGame);
 	RegisterSetting(&kNumberOfIngredientsToStressTest);
 	RegisterSetting(&kMoreIngredientsToProtect);
+	RegisterSetting(&kIngredientsToUnprotect);
 
 	if (CreateINI)
 		Save();
@@ -145,7 +152,17 @@ namespace alchemist {
 			return name == effect.name;
 		}
 		Effect(IngredientItem::EffectItem* effect);
-		Effect() {};
+		Effect() {
+			beneficial = false;
+			powerAffectsMagnitude = false;
+			magnitude = 0;
+			calcMagnitude = 0;
+			powerAffectsDuration = false;
+			duration = 0;
+			calcDuration = 0;
+			baseCost = 0;
+			calcCost = 0;
+		};
 	};
 
 	class Ingredient {
@@ -164,7 +181,9 @@ namespace alchemist {
 			name = n;
 			inventoryCount = ic;
 		};
-		Ingredient() {};
+		Ingredient() {
+			inventoryCount = 0;
+		};
 	};
 
 	namespace str {
@@ -361,7 +380,16 @@ namespace alchemist {
 				"," + str::fromInt(hasPerkPhysician) + "," + str::fromInt(hasPerkBenefactor) + "," + str::fromInt(hasPerkPoisoner) + "," + str::fromInt(hasSeekerOfShadows);
 		}
 
-		Player() {};
+		Player() {
+			alchemyLevel = 0;
+			fortifyAlchemyLevel = 0;
+			alchemistPerkLevel = 0;
+			hasPerkPurity = false;
+			hasPerkPhysician = false;
+			hasPerkBenefactor = false;
+			hasPerkPoisoner = false;
+			hasSeekerOfShadows = false;
+		};
 	};
 
 	Player player;
@@ -689,159 +717,204 @@ namespace alchemist {
 			return false;
 		}
 
-		bool isProtected(IngredientItem* ingredient, set<Ingredient> ingredients, map<string, int> moreIngredients) {
+		bool isProtected(IngredientItem* ingredient, set<Ingredient> ingredients, map<string, int> moreIngredients, int protectIngredients, vector<string> ingredientsToNotProtect) {
 			string name = ingredient->fullName.name;
+			for (string unprotectIngredient : ingredientsToNotProtect) {
+				if (name == unprotectIngredient) {
+					return false;
+				}
+			}
 			auto countIt = ingredients.find(Ingredient(name, 0));
 			int count = countIt->inventoryCount;
-			if (name == "Berit's Ashes") {
-				return true; // quest
-			}
-			else if (name == "Bone Hawk Claw") {
-				return true; // crafting
-			}
-			else if (name == "Briar Heart") {
-				if (count <= 3) {
+			if (protectIngredients == 1) {
+				if (name == "Berit's Ashes") {
 					return true; // quest
 				}
-			}
-			else if (name == "Crimson Nirnroot") {
-				if (count <= 31) {
+				else if (name == "Bliss Bug Thorax") {
+					if (count <= 11) {
+						return true; // atronach forge
+					}
+				}
+				else if (name == "Bone Hawk Claw") {
+					return true; // crafting
+				}
+				else if (name == "Briar Heart") {
+					if (count <= 3) {
+						return true; // quest
+					}
+				}
+				else if (name == "Corkbulb Root") {
+					return true; // crafting
+				}
+				else if (name == "Corrupted Human Heart") {
 					return true; // quest
 				}
-			}
-			else if (name == "Daedra Heart") {
-				return true;
-			}
-			else if (name == "Deathbell") {
-				if (count <= 32) {
-					return true; // atronach forge (10) + quest (21)
+				else if (name == "Crimson Nirnroot") {
+					if (count <= 31) {
+						return true; // quest
+					}
 				}
-			}
-			else if (name == "Dragon's Tongue") {
-				if (count <= 11) {
+				else if (name == "Daedra Heart") {
+					return true;
+				}
+				else if (name == "Deathbell") {
+					if (count <= 32) {
+						return true; // atronach forge (10) + quest (21)
+					}
+				}
+				else if (name == "Dragon's Tongue") {
+					if (count <= 11) {
+						return true; // atronach forge
+					}
+				}
+				else if (name == "Daedra Heart") {
+					return true;
+				}
+				else if (name == "Ectoplasm") {
+					if (count <= 11) {
+						return true; // atronach forge
+					}
+				}
+				else if (name == "Farengar's Frost Salt") {
+					return true; // quest
+				}
+				else if (name == "Fine-Cut Void Salts") {
+					return true; // quest
+				}
+				else if (name == "Fire Salts") {
+					if (count <= 21) {
+						return true; // atronach forge (10) + quest (10)
+					}
+				}
+				else if (name == "Frost Mirriam") {
+					if (count <= 11) {
+						return true; // atronach forge
+					}
+				}
+				else if (name == "Frost Salts") {
+					if (count <= 11) {
+						return true; // atronach forge
+					}
+				}
+				else if (name == "Giant's Toe") {
+					if (count <= 3) {
+						return true; // quest
+					}
+				}
+				else if (name == "Goldfish") {
+					if (count <= 2) {
+						return true; // quest
+					}
+				}
+				else if (name == "Hagraven Claw") {
+					if (count <= 2) {
+						return true; // quest
+					}
+				}
+				else if (name == "Hagraven Feathers") {
+					if (count <= 2) {
+						return true; // quest
+					}
+				}
+				else if (name == "Human Heart") {
 					return true; // atronach forge
 				}
-			}
-			else if (name == "Ectoplasm") {
-				if (count <= 11) {
-					return true; // atronach forge
+				else if (name == "Ice Wraith Teeth") {
+					if (count <= 6) {
+						return true; // quest
+					}
 				}
-			}
-			else if (name == "Fire Salts") {
-				if (count <= 21) {
-					return true; // atronach forge (10) + quest (10)
+				else if (name == "Ironwood Fruit") {
+					if (count <= 2) {
+						return true; // quest
+					}
 				}
-			}
-			else if (name == "Frost Mirriam") {
-				if (count <= 11) {
-					return true; // atronach forge
-				}
-			}
-			else if (name == "Frost Salts") {
-				if (count <= 11) {
-					return true; // atronach forge
-				}
-			}
-			else if (name == "Giant's Toe") {
-				if (count <= 3) {
+				else if (name == "Jarrin Root") {
 					return true; // quest
 				}
-			}
-			else if (name == "Hagraven Claw") {
-				if (count <= 2) {
+				else if (name == "Jazbay Grapes") {
+					if (count <= 21) {
+						return true; // quest
+					}
+				}
+				else if (name == "Juniper Berries") {
+					if (count <= 2) {
+						return true; // quest
+					}
+				}
+				else if (name == "Juvenile Mudcrab") {
+					if (count <= 2) {
+						return true; // quest
+					}
+				}
+				else if (name == "Large Antlers") {
+					return true; // hearthfire
+				}
+				else if (name == "Mudcrab Chitin") {
+					return true; // hearthfire
+				}
+				else if (name == "Netch Jelly") {
+					if (count <= 6) {
+						return true; // quest
+					}
+				}
+				else if (name == "Nightshade") {
+					if (count <= 21) {
+						return true; // quest
+					}
+				}
+				else if (name == "Nirnroot") {
+					if (count <= 21) {
+						return true; // quest
+					}
+				}
+				else if (name == "Salt Pile") {
+					if (count <= 11) {
+						return true; // atronach forge
+					}
+				}
+				else if (name == "Scathecraw") {
+					if (count <= 11) {
+						return true; // quest
+					}
+				}
+				else if (name == "Simon Rodayne's Heart") {
 					return true; // quest
 				}
-			}
-			else if (name == "Hagraven Feathers") {
-				if (count <= 2) {
-					return true; // quest
+				else if (name == "Slaughterfish Scales") {
+					return true; // hearthfire
 				}
-			}
-			else if (name == "Human Heart") {
-				return true; // atronach forge
-			}
-			else if (name == "Ice Wraith Teeth") {
-				if (count <= 6) {
-					return true; // quest
+				else if (name == "Taproot") {
+					if (count <= 4) {
+						return true; // quest
+					}
 				}
-			}
-			else if (name == "Jarrin Root") {
-				return true; // quest
-			}
-			else if (name == "Jazbay Grapes") {
-				if (count <= 21) {
-					return true; // quest
+				else if (name == "Torchbug Abdomen" || name == "Torchbug Thorax") {
+					if (count <= 11) {
+						return true; // atronach forge
+					}
 				}
-			}
-			else if (name == "Juniper Berries") {
-				if (count <= 2) {
-					return true; // quest
+				else if (name == "Troll Fat") {
+					if (count <= 2) {
+						return true; // quest
+					}
 				}
-			}
-			else if (name == "Large Antlers") {
-				return true; // hearthfire
-			}
-			else if (name == "Mudcrab Chitin") {
-				return true; // hearthfire
-			}
-			else if (name == "Netch Jelly") {
-				if (count <= 6) {
-					return true; // quest
+				else if (name == "Vampire Dust") {
+					if (count <= 3) {
+						return true; // quest
+					}
 				}
-			}
-			else if (name == "Nightshade") {
-				if (count <= 21) {
-					return true; // quest
+				else if (name == "Void Salts") {
+					if (count <= 12) {
+						return true; // atronach forge (10) + quest (1)
+					}
 				}
-			}
-			else if (name == "Nirnroot") {
-				if (count <= 21) {
-					return true; // quest
+				if (hasEffect(ingredient, "Fortify Enchanting") || hasEffect(ingredient, "Fortify Smithing")) {
+					return true;
 				}
-			}
-			else if (name == "Salt Pile") {
-				if (count <= 11) {
-					return true; // atronach forge
-				}
-			}
-			else if (name == "Scathecraw") {
-				if (count <= 11) {
-					return true; // quest
-				}
-			}
-			else if (name == "Slaughterfish Scales") {
-				return true; // hearthfire
-			}
-			else if (name == "Taproot") {
-				if (count <= 4) {
-					return true; // quest
-				}
-			}
-			else if (name == "Torchbug Abdomen" || name == "Torchbug Thorax") {
-				if (count <= 11) {
-					return true; // atronach forge
-				}
-			}
-			else if (name == "Troll Fat") {
-				if (count <= 2) {
-					return true; // quest
-				}
-			}
-			else if (name == "Vampire Dust") {
-				if (count <= 3) {
-					return true; // quest
-				}
-			}
-			else if (name == "Void Salts") {
-				if (count <= 12) {
-					return true; // atronach forge (10) + quest (1)
-				}
-			}
-			if (hasEffect(ingredient, "Fortify Enchanting") || hasEffect(ingredient, "Fortify Smithing")) {
-				return true;
 			}
 			for (map<string, int>::iterator i = moreIngredients.begin(); i != moreIngredients.end(); i++) {
-				if ((*i).first == name) {
+				if (name == (*i).first) {
 					if (count <= (*i).second || (*i).second == 999) {
 						return true;
 					}
@@ -960,6 +1033,9 @@ namespace alchemist {
 			cost = c;
 			description = d;
 		};
-		Potion() {};
+		Potion() {
+			size = 0;
+			cost = 0;
+		};
 	};
 }
