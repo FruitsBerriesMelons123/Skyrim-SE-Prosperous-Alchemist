@@ -1,24 +1,102 @@
 #pragma once
 
-#include "common/IDebugLog.h"
+#include "IDebugLog.h"
 #include "skse64_common/skse_version.h"
-#include "skse64\PapyrusActorValueInfo.cpp"
+#include "skse64/PapyrusActorValueInfo.cpp"
 #include "skse64/PapyrusForm.cpp"
 #include "skse64/PapyrusIngredient.h"
-#include "skse64\PapyrusMagicEffect.h"
+#include "skse64/PapyrusMagicEffect.h"
 #include "skse64/PapyrusObjectReference.cpp"
 #include "skse64/PluginAPI.h"
 #include "skse64/ScaleformCallbacks.h"
 #include "skse64/ScaleformMovie.h"
+
+#include "SME_Prefix.h"
+#include "INIManager.h"
 
 #include "skillLevels.h"
 
 #include <time.h>
 #include <string>
 #include <set>
+#include <thread>
 
 using std::set;
 using std::string;
+using std::thread;
+
+extern IDebugLog						gLog;
+
+PluginHandle					kPluginHandle;
+SKSEMessagingInterface* kMsgInterface;
+
+extern SME::INI::INISetting				kIgnorePlayer;
+extern SME::INI::INISetting				kProtectIngredients;
+extern SME::INI::INISetting				kMaximumThreadsForCurrentHardware;
+extern SME::INI::INISetting				kActualThreadsToUseInGame;
+extern SME::INI::INISetting				kNumberOfIngredientsToStressTest;
+
+class AlchemistINIManager : public SME::INI::INIManager
+{
+public:
+	void								Initialize(const char* INIPath, void* Parameter) override;
+
+	static AlchemistINIManager			Instance;
+};
+
+AlchemistINIManager		AlchemistINIManager::Instance;
+
+SME::INI::INISetting	kIgnorePlayer("IgnorePlayer",
+	"General",
+	"Ignore player state when calculating potion cost.",
+	(SInt32)1);
+
+SME::INI::INISetting	kProtectIngredients("ProtectIngredients",
+	"General",
+	"Protect certain ingredients",
+	(SInt32)0);
+
+SME::INI::INISetting	kMaximumThreadsForCurrentHardware("MaximumThreadsForCurrentHardware",
+	"General",
+	"Not used in game. Number of threads recommended for the current hardware.",
+	(SInt32)(thread::hardware_concurrency() - 1));
+
+SME::INI::INISetting	kActualThreadsToUseInGame("ActualThreadsToUseInGame",
+	"General",
+	"Number of threads to use in game.",
+	(SInt32)(thread::hardware_concurrency() - 1));
+
+SME::INI::INISetting	kNumberOfIngredientsToStressTest("NumberOfIngredientsToStressTest",
+	"General",
+	"Use this number of ingredients in a stress test.",
+	(SInt32)0);
+
+void AlchemistINIManager::Initialize(const char* INIPath, void* Parameter)
+{
+	this->INIFilePath = INIPath;
+	_MESSAGE("prosperous alchemist INI Path: %s", INIPath);
+
+	std::fstream INIStream(INIPath, std::fstream::in);
+	bool CreateINI = false;
+
+	if (INIStream.fail())
+	{
+		_MESSAGE("prosperous alchemist INI File not found; Creating one...");
+		CreateINI = true;
+	}
+
+	INIStream.close();
+	INIStream.clear();
+
+	RegisterSetting(&kIgnorePlayer);
+	RegisterSetting(&kProtectIngredients);
+	RegisterSetting(&kMaximumThreadsForCurrentHardware);
+	RegisterSetting(&kActualThreadsToUseInGame);
+	RegisterSetting(&kNumberOfIngredientsToStressTest);
+
+	if (CreateINI)
+		Save();
+}
 
 namespace alchemist {
 	void _LOG(string s) {
@@ -45,13 +123,13 @@ namespace alchemist {
 		double baseCost;
 		double calcCost;
 		string description;
-		bool operator< (const Effect & effect) const {
+		bool operator< (const Effect& effect) const {
 			return name < effect.name;
 		}
-		bool operator== (const Effect & effect) const {
+		bool operator== (const Effect& effect) const {
 			return name == effect.name;
 		}
-		Effect(IngredientItem::EffectItem *effect);
+		Effect(IngredientItem::EffectItem* effect);
 		Effect() {};
 	};
 
@@ -60,13 +138,13 @@ namespace alchemist {
 		string name;
 		set<Effect> effects;
 		int inventoryCount;
-		bool operator< (const Ingredient & ingredient) const {
+		bool operator< (const Ingredient& ingredient) const {
 			return name < ingredient.name;
 		}
-		bool operator== (const Ingredient & ingredient) const {
+		bool operator== (const Ingredient& ingredient) const {
 			return name == ingredient.name;
 		}
-		Ingredient(IngredientItem *ingredient);
+		Ingredient(IngredientItem* ingredient);
 		Ingredient(string n, int ic) {
 			name = n;
 			inventoryCount = ic;
@@ -97,12 +175,22 @@ namespace alchemist {
 			return f_str;
 		}
 
+		string fromFloat(float f) {
+			if (abs(f - int(f)) == 0) {
+				return fromInt(f);
+			}
+			char f_char[30];
+			snprintf(f_char, 30, "%.2f", f);
+			string f_str = f_char;
+			return f_str;
+		}
+
 		string getRandom() {
 			srand(time(NULL));
 			string alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 			string random = "";
 			int pos;
-			while(random.size() != 9) {
+			while (random.size() != 9) {
 				pos = ((rand() % (alphanum.size() - 1)));
 				random += alphanum.substr(pos, 1);
 			}
@@ -116,7 +204,8 @@ namespace alchemist {
 				pos = target.find(random);
 				if (pos != string::npos) {
 					random = getRandom();
-				} else if (pos == string::npos) {
+				}
+				else if (pos == string::npos) {
 					pos = target.find(match);
 					while (pos != string::npos) {
 						target.replace(pos, match.length(), random);
@@ -142,21 +231,26 @@ namespace alchemist {
 
 		string printSort3(string item1, string item2, string item3) {
 			string sorted = "";
-			if (item1 < item2  && item1 < item3) {
+			if (item1 < item2 && item1 < item3) {
 				if (item2 < item3) {
 					sorted = item1 + ", " + item2 + ", " + item3;
-				} else {
+				}
+				else {
 					sorted = item1 + ", " + item3 + ", " + item2;
 				}
-			} else if (item2 < item1 && item2 < item3) {
+			}
+			else if (item2 < item1 && item2 < item3) {
 				if (item1 < item3) {
 					sorted = item2 + ", " + item1 + ", " + item3;
-				} else {
+				}
+				else {
 					sorted = item2 + ", " + item3 + ", " + item1;
 				}
-			} else if (item1 < item2) {
+			}
+			else if (item1 < item2) {
 				sorted = item3 + ", " + item1 + ", " + item2;
-			} else {
+			}
+			else {
 				sorted = item3 + ", " + item2 + ", " + item1;
 			}
 			return sorted;
@@ -166,7 +260,8 @@ namespace alchemist {
 			string sorted = "";
 			if (item1 < item2) {
 				sorted = item1 + ", " + item2;
-			} else {
+			}
+			else {
 				sorted = item2 + ", " + item1;
 			}
 			return sorted;
@@ -240,7 +335,7 @@ namespace alchemist {
 	Player player;
 
 	namespace effect {
-		string getName(IngredientItem::EffectItem *effect) {
+		string getName(IngredientItem::EffectItem* effect) {
 			string name = effect->mgef->fullName.name;
 			return name;
 		}
@@ -249,7 +344,7 @@ namespace alchemist {
 			return papyrusMagicEffect::IsEffectFlagSet(effect->mgef, EffectSetting::Properties::kEffectType_Magnitude);
 		}
 
-		bool hasKeyword(IngredientItem::EffectItem *effect, string keyword) {
+		bool hasKeyword(IngredientItem::EffectItem* effect, string keyword) {
 			VMResultArray<BGSKeyword*> pKeywords = papyrusForm::GetKeywords(effect->mgef);
 			for (int i = 0; i < effect->mgef->keywordForm.numKeywords; ++i) {
 				if (str::fromChar(pKeywords.at(i)->keyword) == keyword) {
@@ -259,11 +354,11 @@ namespace alchemist {
 			return false;
 		}
 
-		double getMagnitude(IngredientItem::EffectItem *effect) {
+		double getMagnitude(IngredientItem::EffectItem* effect) {
 			return effect->magnitude;
 		}
 
-		double getCalcMagnitude(IngredientItem::EffectItem *effect) {
+		double getCalcMagnitude(IngredientItem::EffectItem* effect) {
 			double magnitude = effect->magnitude;
 			//return round_skyrim(magnitude);
 			return magnitude;
@@ -281,7 +376,8 @@ namespace alchemist {
 			}
 			if (effect.beneficial && player_debug.hasPerkBenefactor && potion) {
 				calcMagnitude = calcMagnitude * 1.25;
-			} else if (!effect.beneficial && player_debug.hasPerkPoisoner && !potion) {
+			}
+			else if (!effect.beneficial && player_debug.hasPerkPoisoner && !potion) {
 				calcMagnitude = calcMagnitude * 1.25;
 			}
 			if (player_debug.hasSeekerOfShadows) {
@@ -303,7 +399,8 @@ namespace alchemist {
 			}
 			if (effect.beneficial && player.hasPerkBenefactor && potion) {
 				calcMagnitude = calcMagnitude * 1.25;
-			} else if (!effect.beneficial && player.hasPerkPoisoner && !potion) {
+			}
+			else if (!effect.beneficial && player.hasPerkPoisoner && !potion) {
 				calcMagnitude = calcMagnitude * 1.25;
 			}
 			if (player.hasSeekerOfShadows) {
@@ -317,11 +414,11 @@ namespace alchemist {
 			return papyrusMagicEffect::IsEffectFlagSet(effect->mgef, EffectSetting::Properties::kEffectType_Duration);
 		}
 
-		int getDuration(IngredientItem::EffectItem *effect) {
+		int getDuration(IngredientItem::EffectItem* effect) {
 			return effect->duration;
 		}
 
-		double getCalcDuration(IngredientItem::EffectItem *effect) {
+		double getCalcDuration(IngredientItem::EffectItem* effect) {
 			double duration = effect->duration;
 			//return round_skyrim(duration);
 			return duration;
@@ -339,7 +436,8 @@ namespace alchemist {
 			}
 			if (effect.beneficial && player_debug.hasPerkBenefactor && potion) {
 				calcDuration = calcDuration * 1.25;
-			} else if (!effect.beneficial && player_debug.hasPerkPoisoner && !potion) {
+			}
+			else if (!effect.beneficial && player_debug.hasPerkPoisoner && !potion) {
 				calcDuration = calcDuration * 1.25;
 			}
 			if (player_debug.hasSeekerOfShadows) {
@@ -361,7 +459,8 @@ namespace alchemist {
 			}
 			if (effect.beneficial && player.hasPerkBenefactor && potion) {
 				calcDuration = calcDuration * 1.25;
-			} else if (!effect.beneficial && player.hasPerkPoisoner && !potion) {
+			}
+			else if (!effect.beneficial && player.hasPerkPoisoner && !potion) {
 				calcDuration = calcDuration * 1.25;
 			}
 			if (player.hasSeekerOfShadows) {
@@ -371,11 +470,11 @@ namespace alchemist {
 			//return calcDuration;
 		}
 
-		double getCost(IngredientItem::EffectItem *effect) {
+		double getCost(IngredientItem::EffectItem* effect) {
 			return effect->cost;
 		}
 
-		double getBaseCost(IngredientItem::EffectItem *effect) {
+		double getBaseCost(IngredientItem::EffectItem* effect) {
 			return effect->mgef->properties.baseCost;
 		}
 
@@ -385,9 +484,11 @@ namespace alchemist {
 			double duration = getCalcDuration(effect);
 			if (magnitude > 0 && duration > 0) {
 				return baseCost * pow(magnitude, 1.1) * pow(duration / 10, 1.1);
-			} else if (magnitude > 0) {
+			}
+			else if (magnitude > 0) {
 				return baseCost * pow(magnitude, 1.1);
-			} else {
+			}
+			else {
 				return baseCost * pow(duration / 10, 1.1);
 			}
 		}
@@ -397,15 +498,17 @@ namespace alchemist {
 			double duration = getPerkCalcDuration(effect, potion);
 			if (magnitude > 0 && duration > 0) {
 				return effect.baseCost * pow(magnitude, 1.1) * pow(duration / 10, 1.1);
-			} else if (magnitude > 0) {
+			}
+			else if (magnitude > 0) {
 				return effect.baseCost * pow(magnitude, 1.1);
-			} else {
+			}
+			else {
 				return effect.baseCost * pow(duration / 10, 1.1);
 			}
 		}
 
-		IngredientItem::EffectItem* getBestEffectDuplicate(tArray<IngredientItem::EffectItem*> effects1, tArray<IngredientItem::EffectItem*> effects2, IngredientItem::EffectItem *effect3) {
-			IngredientItem::EffectItem *bestEffect = NULL;
+		IngredientItem::EffectItem* getBestEffectDuplicate(tArray<IngredientItem::EffectItem*> effects1, tArray<IngredientItem::EffectItem*> effects2, IngredientItem::EffectItem* effect3) {
+			IngredientItem::EffectItem* bestEffect = NULL;
 			double cost3 = getCalcCost(effect3);
 			double bestCost = 0;
 			string name3 = getName(effect3);
@@ -415,7 +518,8 @@ namespace alchemist {
 					if (cost >= cost3 && cost > bestCost) {
 						bestCost = cost;
 						bestEffect = effects1[i];
-					} else if (cost3 > bestCost) {
+					}
+					else if (cost3 > bestCost) {
 						bestCost = cost3;
 						bestEffect = effect3;
 					}
@@ -427,7 +531,8 @@ namespace alchemist {
 					if (cost >= cost3 && cost > bestCost) {
 						bestCost = cost;
 						bestEffect = effects2[i];
-					} else if (cost3 > bestCost) {
+					}
+					else if (cost3 > bestCost) {
 						bestCost = cost3;
 						bestEffect = effect3;
 					}
@@ -436,7 +541,7 @@ namespace alchemist {
 			return bestEffect;
 		}
 
-		tArray<string> getKeywords(IngredientItem::EffectItem *effect) {
+		tArray<string> getKeywords(IngredientItem::EffectItem* effect) {
 			tArray<string> keywords = tArray<string>();
 			VMResultArray<BGSKeyword*> pKeywords = papyrusForm::GetKeywords(effect->mgef);
 			for (int i = 0; i < effect->mgef->keywordForm.numKeywords; ++i) {
@@ -446,7 +551,7 @@ namespace alchemist {
 			return keywords;
 		}
 
-		string getGenericDescription(IngredientItem::EffectItem *effect) {
+		string getGenericDescription(IngredientItem::EffectItem* effect) {
 			string description = effect->mgef->description;
 			//description = str::replace(description, "%", "%%");
 			description = str::replace(description, "<", "");
@@ -454,7 +559,7 @@ namespace alchemist {
 			return description;
 		}
 
-		string getDescription(IngredientItem::EffectItem *effect) {
+		string getDescription(IngredientItem::EffectItem* effect) {
 			string description = effect->mgef->description;
 			description = str::replace(description, "<mag>", str::fromDouble(getMagnitude(effect)));
 			description = str::replace(description, "<dur>", str::fromInt(getDuration(effect)));
@@ -484,7 +589,7 @@ namespace alchemist {
 			return description;
 		}
 
-		string printEffect(IngredientItem::EffectItem *effect) {
+		string printEffect(IngredientItem::EffectItem* effect) {
 			string data = getName(effect) + "," +
 				str::fromDouble(getMagnitude(effect)) + "," +
 				str::fromInt(getDuration(effect)) + "," +
@@ -494,7 +599,8 @@ namespace alchemist {
 			for (int i = 0; i < 3; ++i) {
 				if (i < keywords.count) {
 					data += "," + keywords[i];
-				} else {
+				}
+				else {
 					data += ",";
 				}
 			}
@@ -504,22 +610,22 @@ namespace alchemist {
 	}
 
 	namespace ingredient {
-		string getName(IngredientItem *ingredient) {
+		string getName(IngredientItem* ingredient) {
 			string name = ingredient->fullName.name;
 			return name;
 		}
 
-		int getValue(IngredientItem *ingredient) {
+		int getValue(IngredientItem* ingredient) {
 			int value = ingredient->value.value;
 			return value;
 		}
 
-		int getIngredientValue(IngredientItem *ingredient) {
+		int getIngredientValue(IngredientItem* ingredient) {
 			int ingredientValue = ingredient->unk130;
 			return ingredientValue;
 		}
 
-		tArray<string> getKeywords(IngredientItem *ingredient) {
+		tArray<string> getKeywords(IngredientItem* ingredient) {
 			tArray<string> keywords = tArray<string>();
 			VMResultArray<BGSKeyword*> pKeywords = papyrusForm::GetKeywords(ingredient);
 			for (int i = 0; i < ingredient->keyword.numKeywords; ++i) {
@@ -529,19 +635,19 @@ namespace alchemist {
 			return keywords;
 		}
 
-		tArray<IngredientItem::EffectItem*> getEffects(IngredientItem *ingredient) {
+		tArray<IngredientItem::EffectItem*> getEffects(IngredientItem* ingredient) {
 			tArray<IngredientItem::EffectItem*> effects = tArray<IngredientItem::EffectItem*>();
 			for (int i = 0; i < ingredient->effectItemList.count; ++i) {
-				IngredientItem::EffectItem *effect;
+				IngredientItem::EffectItem* effect;
 				ingredient->effectItemList.GetNthItem(i, effect);
 				effects.Push(effect);
 			}
 			return effects;
 		}
 
-		bool hasEffect(IngredientItem *ingredient, string eName) {
+		bool hasEffect(IngredientItem* ingredient, string eName) {
 			for (int i = 0; i < ingredient->effectItemList.count; ++i) {
-				IngredientItem::EffectItem *effect;
+				IngredientItem::EffectItem* effect;
 				ingredient->effectItemList.GetNthItem(i, effect);
 				string iName = effect->mgef->fullName.name;
 				if (iName == eName) {
@@ -551,119 +657,150 @@ namespace alchemist {
 			return false;
 		}
 
-		bool isProtected(IngredientItem *ingredient, set<Ingredient> ingredients) {
+		bool isProtected(IngredientItem* ingredient, set<Ingredient> ingredients) {
 			string name = ingredient->fullName.name;
 			auto countIt = ingredients.find(Ingredient(name, 0));
 			int count = countIt->inventoryCount;
 			if (name == "Berit's Ashes") {
 				return true; // quest
-			} else if (name == "Bone Hawk Claw") {
+			}
+			else if (name == "Bone Hawk Claw") {
 				return true; // crafting
-			} else if (name == "Briar Heart") {
+			}
+			else if (name == "Briar Heart") {
 				if (count <= 3) {
 					return true; // quest
 				}
-			} else if (name == "Crimson Nirnroot") {
+			}
+			else if (name == "Crimson Nirnroot") {
 				if (count <= 31) {
 					return true; // quest
 				}
-			} else if (name == "Daedra Heart") {
+			}
+			else if (name == "Daedra Heart") {
 				return true;
-			} else if (name == "Deathbell") {
+			}
+			else if (name == "Deathbell") {
 				if (count <= 32) {
 					return true; // atronach forge (10) + quest (21)
 				}
-			} else if (name == "Dragon's Tongue") {
+			}
+			else if (name == "Dragon's Tongue") {
 				if (count <= 11) {
 					return true; // atronach forge
 				}
-			} else if (name == "Ectoplasm") {
+			}
+			else if (name == "Ectoplasm") {
 				if (count <= 11) {
 					return true; // atronach forge
 				}
-			} else if (name == "Fire Salts") {
+			}
+			else if (name == "Fire Salts") {
 				if (count <= 21) {
 					return true; // atronach forge (10) + quest (10)
 				}
-			} else if (name == "Frost Mirriam") {
+			}
+			else if (name == "Frost Mirriam") {
 				if (count <= 11) {
 					return true; // atronach forge
 				}
-			} else if (name == "Frost Salts") {
+			}
+			else if (name == "Frost Salts") {
 				if (count <= 11) {
 					return true; // atronach forge
 				}
-			} else if (name == "Giant's Toe") {
+			}
+			else if (name == "Giant's Toe") {
 				if (count <= 3) {
 					return true; // quest
 				}
-			} else if (name == "Hagraven Claw") {
+			}
+			else if (name == "Hagraven Claw") {
 				if (count <= 2) {
 					return true; // quest
 				}
-			} else if (name == "Hagraven Feathers") {
+			}
+			else if (name == "Hagraven Feathers") {
 				if (count <= 2) {
 					return true; // quest
 				}
-			} else if (name == "Human Heart") {
+			}
+			else if (name == "Human Heart") {
 				return true; // atronach forge
-			} else if (name == "Ice Wraith Teeth") {
+			}
+			else if (name == "Ice Wraith Teeth") {
 				if (count <= 6) {
 					return true; // quest
 				}
-			} else if (name == "Jarrin Root") {
+			}
+			else if (name == "Jarrin Root") {
 				return true; // quest
-			} else if (name == "Jazbay Grapes") {
+			}
+			else if (name == "Jazbay Grapes") {
 				if (count <= 21) {
 					return true; // quest
 				}
-			} else if (name == "Juniper Berries") {
+			}
+			else if (name == "Juniper Berries") {
 				if (count <= 2) {
 					return true; // quest
 				}
-			} else if (name == "Large Antlers") {
+			}
+			else if (name == "Large Antlers") {
 				return true; // hearthfire
-			} else if (name == "Mudcrab Chitin") {
+			}
+			else if (name == "Mudcrab Chitin") {
 				return true; // hearthfire
-			} else if (name == "Netch Jelly") {
+			}
+			else if (name == "Netch Jelly") {
 				if (count <= 6) {
 					return true; // quest
 				}
-			} else if (name == "Nightshade") {
+			}
+			else if (name == "Nightshade") {
 				if (count <= 21) {
 					return true; // quest
 				}
-			} else if (name == "Nirnroot") {
+			}
+			else if (name == "Nirnroot") {
 				if (count <= 21) {
 					return true; // quest
 				}
-			} else if (name == "Salt Pile") {
+			}
+			else if (name == "Salt Pile") {
 				if (count <= 11) {
 					return true; // atronach forge
 				}
-			} else if (name == "Scathecraw") {
+			}
+			else if (name == "Scathecraw") {
 				if (count <= 11) {
 					return true; // quest
 				}
-			} else if (name == "Slaughterfish Scales") {
+			}
+			else if (name == "Slaughterfish Scales") {
 				return true; // hearthfire
-			} else if (name == "Taproot") {
+			}
+			else if (name == "Taproot") {
 				if (count <= 4) {
 					return true; // quest
 				}
-			} else if (name == "Torchbug Abdomen" || name == "Torchbug Thorax") {
+			}
+			else if (name == "Torchbug Abdomen" || name == "Torchbug Thorax") {
 				if (count <= 11) {
 					return true; // atronach forge
 				}
-			} else if (name == "Troll Fat") {
+			}
+			else if (name == "Troll Fat") {
 				if (count <= 2) {
 					return true; // quest
 				}
-			} else if (name == "Vampire Dust") {
+			}
+			else if (name == "Vampire Dust") {
 				if (count <= 3) {
 					return true; // quest
 				}
-			} else if (name == "Void Salts") {
+			}
+			else if (name == "Void Salts") {
 				if (count <= 12) {
 					return true; // atronach forge (10) + quest (1)
 				}
@@ -678,7 +815,7 @@ namespace alchemist {
 			string data = "";
 			tArray<IngredientItem::EffectItem*> effects = getEffects(ingredient);
 			for (int i = 0; i < effects.count; ++i) {
-				data += getName(ingredient) + "," + 
+				data += getName(ingredient) + "," +
 					str::fromInt(getValue(ingredient)) + "," +
 					str::fromInt(getIngredientValue(ingredient)) + "," +
 					effect::printEffect(effects[i]);
@@ -689,7 +826,7 @@ namespace alchemist {
 			return data;
 		}
 
-		string printIngredient(IngredientItem *ingredient) {
+		string printIngredient(IngredientItem* ingredient) {
 			string data = getName(ingredient) + "," +
 				str::fromInt(getValue(ingredient)) + "," +
 				str::fromInt(getIngredientValue(ingredient));
@@ -697,7 +834,8 @@ namespace alchemist {
 			for (int i = 0; i < 3; ++i) {
 				if (i < keywords.count) {
 					data += "," + keywords[i];
-				} else {
+				}
+				else {
 					data += ",";
 				}
 			}
@@ -709,7 +847,7 @@ namespace alchemist {
 		}
 	}
 
-	Effect::Effect(IngredientItem::EffectItem *effect) {
+	Effect::Effect(IngredientItem::EffectItem* effect) {
 		name = effect->mgef->fullName.name;
 		beneficial = effect::hasKeyword(effect, "MagicAlchBeneficial");
 		powerAffectsMagnitude = papyrusMagicEffect::IsEffectFlagSet(effect->mgef, EffectSetting::Properties::kEffectType_Magnitude);
@@ -723,7 +861,7 @@ namespace alchemist {
 		description = effect->mgef->description;
 	};
 
-	Ingredient::Ingredient(IngredientItem *ingredient) {
+	Ingredient::Ingredient(IngredientItem* ingredient) {
 		name = ingredient->fullName.name;
 		tArray<IngredientItem::EffectItem*> iEffects = ingredient::getEffects(ingredient);
 		for (int i = 0; i < iEffects.count; ++i) {
@@ -751,10 +889,10 @@ namespace alchemist {
 			}
 			return title + controlEffect.name;
 		}
-		bool operator< (const Potion & potion) const {
+		bool operator< (const Potion& potion) const {
 			return id < potion.id;
 		}
-		bool operator== (const Potion & potion) const {
+		bool operator== (const Potion& potion) const {
 			return id == potion.id;
 		}
 		Potion(int s, Ingredient i1, Ingredient i2, set<Effect> e, set<Effect> pe, Effect ce, double c) {
