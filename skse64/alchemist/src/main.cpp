@@ -511,8 +511,44 @@ extern "C" {
 		return true;
 	}
 
+	void MessageHandler(SKSEMessagingInterface::Message* msg)
+	{
+		switch (msg->type)
+		{
+		case SKSEMessagingInterface::kMessage_InputLoaded:
+		{
+			_MESSAGE("...prosperous alchemist initialized!");
+		}
+		break;
+		}
+	}
+
 	bool SKSEPlugin_Load(const SKSEInterface* a_skse) {
-		_MESSAGE("[MESSAGE] prosperous alchemist loaded");
+		gLog.OpenRelative(CSIDL_MYDOCUMENTS, "\\My Games\\Skyrim Special Edition\\SKSE\\alchemist.log");
+		_MESSAGE("[MESSAGE] Initializing prosperous alchemist...");
+
+		kPluginHandle = a_skse->GetPluginHandle();
+		kMsgInterface = (SKSEMessagingInterface*)a_skse->QueryInterface(kInterface_Messaging);
+
+		if (!kMsgInterface)
+		{
+			_MESSAGE("Couldn't initialize messaging interface");
+			return false;
+		}
+		else if (kMsgInterface->interfaceVersion < 2)
+		{
+			_MESSAGE("Messaging interface too old (%d expected %d)", kMsgInterface->interfaceVersion, 2);
+			return false;
+		}
+
+		_MESSAGE("Initializing prosperous alchemist INI Manager");
+		AlchemistINIManager::Instance.Initialize("Data\\SKSE\\Plugins\\alchemist.ini", nullptr);
+
+		if (kMsgInterface->RegisterListener(kPluginHandle, "SKSE", MessageHandler) == false)
+		{
+			_MESSAGE("Couldn't register message listener");
+			return false;
+		}
 
 		SKSEScaleformInterface* scaleformInterface = (SKSEScaleformInterface*)a_skse->QueryInterface(kInterface_Scaleform);
 
@@ -537,6 +573,7 @@ extern "C" {
 		"",
 
 		0,	// not version independent
+
 		{ CURRENT_RELEASE_RUNTIME, 0 },
 
 		0,	// works with any version of the script extender. you probably do not need to put anything here
