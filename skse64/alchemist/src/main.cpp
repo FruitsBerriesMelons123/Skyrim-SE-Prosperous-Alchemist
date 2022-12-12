@@ -5,7 +5,6 @@
 
 #include <mutex>
 
-using std::vector;
 using std::mutex;
 
 namespace alchemist {
@@ -353,6 +352,10 @@ namespace alchemist {
 		}
 		ExtraContainerChanges* containerChanges = static_cast<ExtraContainerChanges*>((*g_thePlayer)->extraData.GetByType(kExtraData_ContainerChanges));
 		ExtraContainerChanges::Data* containerData = containerChanges ? containerChanges->data : NULL;
+		if (containerData == NULL) {
+			_LOG("containerData was NULL... initAlchemist has been aborted...");
+			return;
+		}
 		EntryDataList* objList = containerData->objList;
 		set<Ingredient> ingredientCount;
 		for (int i = 0; i < objList->Count(); ++i) {
@@ -399,24 +402,25 @@ namespace alchemist {
 			}
 		}
 		int protectIngredients = kProtectIngredients.GetData().i;
+		vector<string> ingredientsToNotProtect = str::split(kIngredientsToUnprotect.GetData().s, ',');
+		map<string, int> moreIngredients;
+		if (protectIngredients > 0) {
+			string additionalIngredients = kMoreIngredientsToProtect.GetData().s;
+			vector<string> iTokens = str::split(additionalIngredients, ',');
+			for (auto& iToken : iTokens) {
+				vector<string> iParts = str::split(iToken, '|');
+				if (iParts.size() == 1) {
+					moreIngredients[iParts.at(0)] = 999;
+				}
+				else if (iParts.size() == 2) {
+					moreIngredients[iParts.at(0)] = str::toInt(iParts.at(1));
+				}
+			}
+		}
 		for (TESForm* form : playerForms) {
 			if (form->GetFormType() == kFormType_Ingredient) {
 				IngredientItem* ingredient = DYNAMIC_CAST(form, TESForm, IngredientItem);
-				map<string, int> moreIngredients;
-				if (protectIngredients > 0) {
-					string additionalIngredients = kMoreIngredientsToProtect.GetData().s;
-					vector<string> iTokens = str::split(additionalIngredients, ',');
-					for (auto& iToken : iTokens) {
-						vector<string> iParts = str::split(iToken, '|');
-						if (iParts.size() == 1) {
-							moreIngredients[iParts.at(0)] = 999;
-						}
-						else if (iParts.size() == 2) {
-							moreIngredients[iParts.at(0)] = str::toInt(iParts.at(1));
-						}
-					}
-				}
-				if (protectIngredients == 0 || !ingredient::isProtected(ingredient, ingredientCount, moreIngredients)) {
+				if (protectIngredients == 0 || !ingredient::isProtected(ingredient, ingredientCount, moreIngredients, protectIngredients, ingredientsToNotProtect)) {
 					ingredients.insert(Ingredient(ingredient));
 				}
 			}
@@ -437,11 +441,21 @@ namespace alchemist {
 		}
 	}
 
+	void printIngredients() {
+		auto allIngredients = DataHandler::GetSingleton()->ingredients;
+		for (int i = 0; i < allIngredients.count; ++i) {
+			_LOG(allIngredients[i]->fullName.name.c_str());
+		}
+	}
+
 	class Scaleform_RegisterGetBestRecipeNameHandler : public GFxFunctionHandler {
 	public:
 		virtual void Invoke(Args* args) {
 			static int performStressTest = 0;
 			performStressTest = kNumberOfIngredientsToStressTest.GetData().i;
+			if (performStressTest == -1) {
+				printIngredients();
+			}
 			static string alchemist_result = "";
 			alchemist_result = "";
 			if (args && args->numArgs && args->numArgs > 0) {

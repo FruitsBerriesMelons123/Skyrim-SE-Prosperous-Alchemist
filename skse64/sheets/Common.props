@@ -3,7 +3,7 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <TargetName>$(ProjectName)_1_6_323</TargetName>
+    <TargetName>$(ProjectName)_1_6</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
