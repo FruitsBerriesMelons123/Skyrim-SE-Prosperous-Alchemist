@@ -3,4 +3,6 @@
 ## Special Thanks
 * [SKSE Team](https://skse.silverlock.org)
 * [axxonite](https://www.nexusmods.com/skyrim/mods/38634)
-* [Ryan-rsm-McKenzie](https://github.com/Ryan-rsm-McKenzie/CommonLibSSE/wiki/Getting-Started)
+* [Ryan-rsm-McKenzie](https://github.com/Ryan-rsm-McKenzie/CommonLibSSE/wiki/Getting-Started/b089fcaa77aeac3f2db019ecb30df94743574b6f)
+* [sonycman](https://www.nexusmods.com/skyrimspecialedition/users/23615814)
+* [shademe](https://github.com/shadeMe/SME-Sundries)
