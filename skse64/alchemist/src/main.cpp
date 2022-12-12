@@ -456,11 +456,19 @@ namespace alchemist {
 			if (performStressTest == -1) {
 				printIngredients();
 			}
+			string translationStringCommas = kStringTranslations.GetData().s;
+			vector<string> tStrings = str::split(translationStringCommas, ',');
+			string tAlchemy = "Alchemy";
+			string tNoPotions = "No potion recipes are currently available.";
+			if (tStrings.size() == 2) {
+				tAlchemy = tStrings.at(0);
+				tNoPotions = tStrings.at(1);
+			}
 			static string alchemist_result = "";
 			alchemist_result = "";
 			if (args && args->numArgs && args->numArgs > 0) {
 				string craft_description = *(args->args[0].data.managedString);
-				if (craft_description.find("Alchemy") != string::npos && g_thePlayer) {
+				if (craft_description.find(tAlchemy) != string::npos && g_thePlayer) {
 					static time_t start;
 					if (performStressTest > 0) {
 						start = time(NULL);
@@ -470,7 +478,7 @@ namespace alchemist {
 						stressTest();
 					}
 					if (ingredients != lastIngredientList || player.state != player.lastState) {
-						costliestPotion = Potion(0, "No potion recipes are currently available.");
+						costliestPotion = Potion(0, tNoPotions);
 						lastIngredientList = set<Ingredient>(ingredients);
 						player.lastState = player.state;
 						if (kActualThreadsToUseInGame.GetData().i < 2) {
