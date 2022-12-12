@@ -20,6 +20,9 @@
 #include <string>
 #include <set>
 #include <thread>
+#include <algorithm>
+#include <sstream>
+#include <iterator>
 
 using std::set;
 using std::string;
@@ -35,6 +38,7 @@ extern SME::INI::INISetting				kProtectIngredients;
 extern SME::INI::INISetting				kMaximumThreadsForCurrentHardware;
 extern SME::INI::INISetting				kActualThreadsToUseInGame;
 extern SME::INI::INISetting				kNumberOfIngredientsToStressTest;
+extern SME::INI::INISetting				kAdditionalIngredientsToProtect;
 
 class AlchemistINIManager : public SME::INI::INIManager
 {
@@ -71,6 +75,11 @@ SME::INI::INISetting	kNumberOfIngredientsToStressTest("NumberOfIngredientsToStre
 	"Use this number of ingredients in a stress test.",
 	(SInt32)0);
 
+SME::INI::INISetting	kAdditionalIngredientsToProtect("AdditionalIngredientsToProtect",
+	"General",
+	"Comma separated list of additiongal ingredients to protect.",
+	"");
+
 void AlchemistINIManager::Initialize(const char* INIPath, void* Parameter)
 {
 	this->INIFilePath = INIPath;
@@ -93,6 +102,7 @@ void AlchemistINIManager::Initialize(const char* INIPath, void* Parameter)
 	RegisterSetting(&kMaximumThreadsForCurrentHardware);
 	RegisterSetting(&kActualThreadsToUseInGame);
 	RegisterSetting(&kNumberOfIngredientsToStressTest);
+	RegisterSetting(&kAdditionalIngredientsToProtect);
 
 	if (CreateINI)
 		Save();
@@ -153,6 +163,17 @@ namespace alchemist {
 	};
 
 	namespace str {
+		std::vector<std::string> split(std::string const& str, char delim) {
+			std::vector<std::string> tokens;
+			size_t start;
+			size_t end = 0;
+			while ((start = str.find_first_not_of(delim, end)) != std::string::npos) {
+				end = str.find(delim, start);
+				tokens.push_back(str.substr(start, end - start));
+			}
+			return tokens;
+		}
+
 		string fromChar(BSFixedString c) {
 			string str_c = c;
 			return str_c;
@@ -807,6 +828,13 @@ namespace alchemist {
 			}
 			if (hasEffect(ingredient, "Fortify Enchanting") || hasEffect(ingredient, "Fortify Smithing")) {
 				return true;
+			}
+			string additionalIngredients = kAdditionalIngredientsToProtect.GetData().s;
+			std::vector<std::string> iNames = str::split(additionalIngredients, ',');
+			for (auto& iName : iNames) {
+				if (name == iName) {
+					return true;
+				}
 			}
 			return false;
 		}
