@@ -17,6 +17,7 @@ namespace alchemist {
 	set<Potion>::iterator potion_it;
 	mutex alchemist_mutex;
 	vector<thread> threads;
+	int combinations;
 
 	void improvePotion(Potion potion);
 	void getNextPotion() {
@@ -37,11 +38,11 @@ namespace alchemist {
 			}
 			set<Effect> effects = potion.effects;
 			Effect controlEffect = potion.controlEffect;
-			double controlCost = potion.controlEffect.calcCost;
+			float controlCost = potion.controlEffect.calcCost;
 			for (Effect effect : potion.possibleEffects) {
 				auto effectIt = ingredientIt->effects.find(effect);
 				if (effectIt != ingredientIt->effects.end()) {
-					double costCheck = 0;
+					float costCheck = 0;
 					Effect effectCheck;
 					if (effectIt->calcCost > effect.calcCost) {
 						costCheck = effectIt->calcCost;
@@ -62,7 +63,7 @@ namespace alchemist {
 			if (effects.size() == potion.effects.size()) {
 				continue;
 			}
-			double cost = 0;
+			float cost = 0;
 			for (Effect effect : effects) {
 				if (!(player.hasPerkPurity && effect.beneficial && !controlEffect.beneficial) &&
 					!(player.hasPerkPurity && !effect.beneficial && controlEffect.beneficial)) {
@@ -71,7 +72,8 @@ namespace alchemist {
 			}
 			Potion improvedPotion = Potion(3, potion.ingredient1, potion.ingredient2, *ingredientIt, effects, controlEffect, cost);
 			alchemist_mutex.lock();
-			//potions.insert(improvedPotion);
+			//potions.insert(improvedPotion); // WHY IS THIS LINE HERE!?
+			++combinations;
 			if (floor(cost) > costliestPotion.cost) {
 				costliestPotion = improvedPotion;
 			}
@@ -107,12 +109,12 @@ namespace alchemist {
 		set<Effect> possibleEffects = ingredient1.effects;
 		possibleEffects.merge(ingredient2.effects);
 		Effect controlEffect;
-		double controlCost = 0;
+		float controlCost = 0;
 		for (auto it1 = ingredient1.effects.begin(); it1 != ingredient1.effects.end(); ++it1) {
 			auto it2 = ingredient2.effects.find(*it1);
 			if (it2 != ingredient2.effects.end()) {
 				possibleEffects.erase(*it1);
-				double costCheck = 0;
+				float costCheck = 0;
 				Effect effectCheck;
 				if (it1->calcCost > it2->calcCost) {
 					costCheck = it1->calcCost;
@@ -133,7 +135,7 @@ namespace alchemist {
 		if (controlCost == 0) {
 			return getNextIngredients();
 		}
-		double cost = 0;
+		float cost = 0;
 		for (Effect effect : effects) {
 			if (!(player.hasPerkPurity && effect.beneficial && !controlEffect.beneficial) &&
 				!(player.hasPerkPurity && !effect.beneficial && controlEffect.beneficial)) {
@@ -153,16 +155,10 @@ namespace alchemist {
 	void makePotions() {
 		potions.clear();
 
-		//int max_threads = thread::hardware_concurrency();
-		//int num_threads = 2;
-		//if (max_threads > 2) {
-		//	num_threads = max_threads - 1;
-		//}
-		int num_threads = kActualThreadsToUseInGame.GetData().i;
 		alchemist_mutex.lock();
 		ingredients_it1 = ingredients.begin();
 		ingredients_it2 = ingredients_it1;
-		for (int i = 0; i < num_threads; ++i) {
+		for (int i = 0; i < ingredients.size(); ++i) {
 			while (ingredients_it1 != ingredients.end()) {
 				ingredients_it2++;
 				if (ingredients_it2 != ingredients.end()) {
@@ -186,8 +182,9 @@ namespace alchemist {
 		threads.clear();
 
 		alchemist_mutex.lock();
+		combinations = potions.size();
 		potion_it = potions.begin();
-		for (int i = 0; i < num_threads; ++i) {
+		for (int i = 0; i < ingredients.size(); ++i) {
 			if (potion_it != potions.end()) {
 				Potion potion = *potion_it;
 				++potion_it;
@@ -211,11 +208,11 @@ namespace alchemist {
 		}
 		if (costliestPotion.size == 2) {
 			costliestPotion.description = costliestPotion.name + ":" + effectDescriptions +
-				"\n Value: " + str::fromDouble(floor(costliestPotion.cost)) + "\n" + str::printSort2(costliestPotion.ingredient1.name, costliestPotion.ingredient2.name);
+				"\n Value: " + str::fromFloat(floor(costliestPotion.cost)) + "\n" + str::printSort2(costliestPotion.ingredient1.name, costliestPotion.ingredient2.name);
 		}
 		else if (costliestPotion.size == 3) {
 			costliestPotion.description = costliestPotion.name + ":" + effectDescriptions +
-				"\n Value: " + str::fromDouble(floor(costliestPotion.cost)) + "\n" + str::printSort3(costliestPotion.ingredient1.name, costliestPotion.ingredient2.name, costliestPotion.ingredient3.name);
+				"\n Value: " + str::fromFloat(floor(costliestPotion.cost)) + "\n" + str::printSort3(costliestPotion.ingredient1.name, costliestPotion.ingredient2.name, costliestPotion.ingredient3.name);
 		}
 	}
 
@@ -259,7 +256,8 @@ namespace alchemist {
 				}
 			}
 			Potion improvedPotion = Potion(3, potion.ingredient1, potion.ingredient2, *ingredientIt, effects, controlEffect, cost);
-			potions.insert(improvedPotion);
+			//potions.insert(improvedPotion); // WHY IS THIS LINE HERE!?
+			++combinations;
 			if (floor(cost) > costliestPotion.cost) {
 				costliestPotion = improvedPotion;
 			}
@@ -324,6 +322,9 @@ namespace alchemist {
 				makePotionsST2(ingredient1, ingredient2);
 			}
 		}
+
+		combinations = potions.size();
+
 		for (Potion potion : potions) {
 			improvePotionST(potion);
 		}
@@ -430,8 +431,8 @@ namespace alchemist {
 		}
 	}
 
-	// SINGLETHREADED: all 177 ingredients in 19 seconds, and no crashing 
-	// MULTITHREADED: any more than 102 or 103 ingredients and it crashes (your results may differ)
+	// SINGLETHREADED: all ingredients in 2 seconds
+	// MULTITHREADED: all ingredients in 1 second or less
 	void stressTest() {
 		int stressTestCount = kNumberOfIngredientsToStressTest.GetData().i;
 		ingredients.clear();
@@ -481,12 +482,13 @@ namespace alchemist {
 						costliestPotion = Potion(0, tNoPotions);
 						lastIngredientList = set<Ingredient>(ingredients);
 						player.lastState = player.state;
-						if (kActualThreadsToUseInGame.GetData().i < 2) {
+						if (kSinglethreaded.GetData().i == 1) {
 							makePotionsST();
 						}
 						else {
 							makePotions();
 						}
+						_LOG("Calculated ingredients from " + std::to_string(combinations) + " different possible combinations.");
 					}
 					alchemist_result = costliestPotion.description;
 					if (performStressTest > 0) {
