@@ -122,7 +122,7 @@ SInt32 CalcItemId(TESForm * form, BaseExtraList * extraList)
 	if (!name)
 		return 0;
 
-	return (SInt32)HashUtil::CRC32(name, form->formID & 0x00FFFFFF);
+	return HashItemId(name, form->formID);
 }
 
 namespace papyrusActor

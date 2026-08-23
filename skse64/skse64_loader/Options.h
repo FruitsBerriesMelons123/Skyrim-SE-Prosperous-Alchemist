@@ -19,11 +19,10 @@ public:
 	bool	m_crcOnly;
 	bool	m_waitForClose;
 	bool	m_verbose;
-	bool	m_moduleInfo;
 	bool	m_skipLauncher;
 	bool	m_launchSteam;
 	bool	m_noTimeout;
-	bool	m_forceSteamLoader;
+	bool	m_waitForDebugger;
 
 	UInt64	m_affinity;
 

@@ -78,10 +78,10 @@ public:
 	void	Release(void);
 
 	MEMBER_FN_PREFIX(VMClassInfo);
-	DEFINE_MEMBER_FN(Destroy, void, 0x01425DF0);
-	DEFINE_MEMBER_FN(GetVariable, SInt32, 0x01427080, BSFixedString * name);
+	DEFINE_MEMBER_FN(Destroy, void, 0x01491BA0);
+	DEFINE_MEMBER_FN(GetVariable, SInt32, 0x01492E30, BSFixedString * name);
 	// 
-	DEFINE_MEMBER_FN(GetFunction, IFunction*, 0x0142A7C0, const char * fnName);
+	DEFINE_MEMBER_FN(GetFunction, IFunction*, 0x01496570, const char * fnName);
 };
 
 // This type is not fully decoded or correctly sized, just enough to use the functor
@@ -365,6 +365,8 @@ public:
 		kEventSink_TriggerLeave,
 		kEventSink_UniqueIDChange,
 		kEventSink_SwitchRaceComplete,
+		kEventSink_AmiiboTouchEvent,	// added in 1.7.99
+		kEventSink_AmiiboForcedStopDetectionEvent,	// added in 1.7.99
 		kEventSink_PlayerBowShot,
 		kEventSink_FastTravelEnd,	// added in 1.5.3
 		kEventSink_PositionPlayer,
@@ -391,15 +393,15 @@ public:
 
 	// Used by Hooks_Papyrus
 	// 
-	DEFINE_MEMBER_FN(UnregisterFromSleep_Internal, void, 0x009C2650, UInt64 handle);	// AE: using one function earlier due to inlining
-	DEFINE_MEMBER_FN(RevertGlobalData_Internal, bool, 0x009CC340);
+	DEFINE_MEMBER_FN(UnregisterFromSleep_Internal, void, 0x009D9D40, UInt64 handle);	// AE: using one function earlier due to inlining
+	DEFINE_MEMBER_FN(RevertGlobalData_Internal, bool, 0x009E3D50);
 	// 4DF4B0288419C72FBF262CE2DBBAAFE7D9713C51+390
-	DEFINE_MEMBER_FN(SaveRegSleepEventHandles_Internal, bool, 0x009CD700, void * handleReaderWriter, void * saveStorageWrapper);
+	DEFINE_MEMBER_FN(SaveRegSleepEventHandles_Internal, bool, 0x009E5110, void * handleReaderWriter, void * saveStorageWrapper);
 	// 4F9ECB23ABD5935D4160213D8A06DB7A94E6B988+2FB
-	DEFINE_MEMBER_FN(LoadRegSleepEventHandles_Internal, bool, 0x009CE9A0, void * handleReaderWriter, void * loadStorageWrapper);	// AE: using one function earlier due to inlining
+	DEFINE_MEMBER_FN(LoadRegSleepEventHandles_Internal, bool, 0x009E63B0, void * handleReaderWriter, void * loadStorageWrapper);	// AE: using one function earlier due to inlining
 
 	// 96B4034421813AABF0DBF8B2B00A84CC25FB9CA0+112
-	DEFINE_MEMBER_FN(QueueDelayFunctor_Internal, bool, 0x009C34C0, void** pFunctor);
+	DEFINE_MEMBER_FN(QueueDelayFunctor_Internal, bool, 0x009DABB0, void** pFunctor);
 
 	bool QueueDelayFunctor(void** pFunctor)
 	{
@@ -411,10 +413,10 @@ public:
 	bool SaveGlobalData_Hook(void * handleReaderWriter, void * saveStorageWrapper);
 	bool LoadGlobalData_Hook(void * handleReaderWriter, void * loadStorageWrapper);
 };
-STATIC_ASSERT(offsetof(SkyrimVM, m_classRegistry) == 0x200);
-STATIC_ASSERT(offsetof(SkyrimVM, m_updateLock) == 0x714);
-STATIC_ASSERT(offsetof(SkyrimVM, m_updateRegHolder) == 0x720);
-STATIC_ASSERT(offsetof(SkyrimVM, m_updateGameTimeRegHolder) == 0x738);
+STATIC_ASSERT(offsetof(SkyrimVM, m_classRegistry) == 0x210);
+STATIC_ASSERT(offsetof(SkyrimVM, m_updateLock) == 0x724);
+STATIC_ASSERT(offsetof(SkyrimVM, m_updateRegHolder) == 0x730);
+STATIC_ASSERT(offsetof(SkyrimVM, m_updateGameTimeRegHolder) == 0x748);
 
 extern RelocPtr<SkyrimVM*> g_skyrimVM;
 
@@ -437,7 +439,7 @@ public:
 		VMValue	* Get(UInt32 idx)	{ return (idx < m_size) ? &m_data[idx] : NULL; }
 
 		MEMBER_FN_PREFIX(Output);
-		DEFINE_MEMBER_FN(Resize, bool, 0x009BDD60, UInt32 len);
+		DEFINE_MEMBER_FN(Resize, bool, 0x009D53D0, UInt32 len);
 	};
 
 	virtual bool	Copy(Output * dst) = 0;

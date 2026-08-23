@@ -107,6 +107,20 @@ public:
 	};
 };
 
+// case insensitive strstr that possibly doesn't do the same thing in edge cases
+static const char * strstr_ci(const char * lhs, const char * rhs)
+{
+	const size_t rhsLen = strlen(rhs);
+
+	for(const char * iter = lhs; *iter; ++iter)
+	{
+		if(!_strnicmp(iter, rhs, rhsLen))
+			return iter;
+	}
+
+	return nullptr;
+}
+
 // Data extensions
 namespace scaleformExtend
 {
@@ -196,7 +210,15 @@ namespace scaleformExtend
 				if(pBook)
 				{
 					RegisterNumber(pFxVal, "flags", pBook->data.flags);
-					RegisterNumber(pFxVal, "bookType", pBook->data.type);
+
+					// SE stopped using this field, use a heuristic for compatibility
+					// not stored on a keyword or anything special
+
+					UInt8 bookType = pBook->data.type;
+					if(strstr_ci(pBook->texSwap.name.c_str(), "note"))	// .nif path containing "note" (case insensitive)
+						bookType = 0xFF;
+					RegisterNumber(pFxVal, "bookType", bookType);
+
 					switch(pBook->data.GetSanitizedType())
 					{
 					case TESObjectBOOK::Data::kType_Skill:

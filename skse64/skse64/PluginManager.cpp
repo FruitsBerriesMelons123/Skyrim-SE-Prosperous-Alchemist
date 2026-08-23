@@ -13,6 +13,8 @@ PluginManager	g_pluginManager;
 
 PluginManager::LoadedPlugin *	PluginManager::s_currentLoadingPlugin = NULL;
 PluginHandle					PluginManager::s_currentPluginHandle = 0;
+PluginHandle					PluginManager::s_dispatchingPluginHandle = 0;
+PluginManager::PluginListeners	PluginManager::s_pluginListeners;
 UInt32							s_trampolineLog = 1;
 
 extern EventDispatcher<SKSEModCallbackEvent>	g_modCallbackEventDispatcher;
@@ -112,17 +114,13 @@ PluginManager::~PluginManager()
 }
 
 PluginManager::LoadedPlugin::LoadedPlugin()
-	:handle(0)
-	,load(nullptr)
 {
 	memset(&info, 0, sizeof(info));
 	memset(&version, 0, sizeof(version));
 }
 
-bool PluginManager::Init(void)
+void PluginManager::Init(void)
 {
-	bool	result = false;
-
 	if(FindPluginDirectory())
 	{
 		_MESSAGE("plugin directory = %s", m_pluginDirectory.c_str());
@@ -133,9 +131,6 @@ bool PluginManager::Init(void)
 		__try
 		{
 			ScanPlugins();
-			InstallPlugins();
-
-			result = true;
 		}
 		__except(EXCEPTION_EXECUTE_HANDLER)
 		{
@@ -143,10 +138,109 @@ bool PluginManager::Init(void)
 			_ERROR("exception occurred while loading plugins");
 		}
 	}
+}
+
+void PluginManager::InstallPlugins(UInt32 phase)
+{
+	for(size_t i = 0; i < m_plugins.size(); i++)
+	{
+		auto & plugin = m_plugins[i];
+
+		// skip plugins that don't care about this phase
+		if(phase == kPhase_Preload)
+		{
+			if(!plugin.hasPreload)
+				continue;
+		}
+		else
+		{
+			if(!plugin.hasLoad)
+				continue;
+		}
+
+		_MESSAGE("%sloading plugin \"%s\"", (phase == kPhase_Preload) ? "pre" : "", plugin.version.name);
+
+		s_currentLoadingPlugin = &plugin;
+		s_currentPluginHandle = plugin.internalHandle;
+
+		std::string pluginPath = m_pluginDirectory + plugin.dllName;
+
+		if(!plugin.handle)
+		{
+			plugin.handle = (HMODULE)LoadLibrary(pluginPath.c_str());
+			if(!plugin.handle)
+				LogPluginLoadError(plugin, "couldn't load plugin", GetLastError());
+		}
+
+		bool	success = false;
+
+		if(plugin.handle)
+		{
+			plugin.load[phase] = (_SKSEPlugin_Load)GetProcAddress(plugin.handle, (phase == kPhase_Preload) ? "SKSEPlugin_Preload" : "SKSEPlugin_Load");
+			if(plugin.load[phase])
+			{
+				const char * loadStatus = NULL;
+
+				loadStatus = SafeCallLoadPlugin(&plugin, &g_SKSEInterface, phase);
+
+				if(!loadStatus)
+				{
+					success = true;
+				}
+				else
+				{
+					LogPluginLoadError(plugin, loadStatus);
+				}
+			}
+			else
+			{
+				LogPluginLoadError(plugin, "does not appear to be an SKSE plugin");
+			}
+		}
+
+		if(!success)
+		{
+			// failed, unload the library
+			if(plugin.handle) FreeLibrary(plugin.handle);
+
+			// and remove from plugins list
+			m_plugins.erase(m_plugins.begin() + i);
+
+			// fix iterator
+			i--;
+		}
+	}
+
+	s_currentLoadingPlugin = nullptr;
+	s_currentPluginHandle = 0;
+}
+
+void PluginManager::LoadComplete()
+{
+	for(size_t i = 0; i < m_plugins.size(); i++)
+	{
+		auto & plugin = m_plugins[i];
+
+		_MESSAGE("plugin %s (%08X %s %08X) %s (handle %d)",
+			plugin.dllName.c_str(),
+			plugin.version.dataVersion,
+			plugin.version.name,
+			plugin.version.pluginVersion,
+			"loaded correctly",
+			plugin.internalHandle);
+	}
 
 	ReportPluginErrors();
 
-	return result;
+	// make fake PluginInfo structs after m_plugins is locked
+	for(auto & plugin : m_plugins)
+	{
+		plugin.info.infoVersion = PluginInfo::kInfoVersion;
+		plugin.info.name = plugin.version.name;
+		plugin.info.version = plugin.version.pluginVersion;
+	}
+
+	CallPostLoad();
 }
 
 void PluginManager::DeInit(void)
@@ -294,6 +388,9 @@ void PluginManager::ScanPlugins(void)
 						plugin.internalHandle = handleIdx;
 						handleIdx++;
 
+						plugin.hasLoad = GetResourceLibraryProcAddress(resourceHandle, "SKSEPlugin_Load") != nullptr;
+						plugin.hasPreload = GetResourceLibraryProcAddress(resourceHandle, "SKSEPlugin_Preload") != nullptr;
+
 						m_plugins.push_back(plugin);
 					}
 					else
@@ -318,6 +415,8 @@ void PluginManager::ScanPlugins(void)
 			LogPluginLoadError(plugin, "couldn't load plugin", GetLastError());
 		}
 	}
+
+	s_pluginListeners.resize(handleIdx + 1);
 }
 
 const char * PluginManager::CheckAddressLibrary(void)
@@ -331,7 +430,7 @@ const char * PluginManager::CheckAddressLibrary(void)
 	}
 
 	char fileName[256];
-	_snprintf_s(fileName, 256, "Data\\SKSE\\Plugins\\versionlib-%d-%d-%d-%d.bin",
+	_snprintf_s(fileName, sizeof(fileName), "Data\\SKSE\\Plugins\\versionlib-%d-%d-%d-%d.bin",
 		GET_EXE_VERSION_MAJOR(RUNTIME_VERSION),
 		GET_EXE_VERSION_MINOR(RUNTIME_VERSION),
 		GET_EXE_VERSION_BUILD(RUNTIME_VERSION),
@@ -349,99 +448,11 @@ const char * PluginManager::CheckAddressLibrary(void)
 	return s_status;
 }
 
-void PluginManager::InstallPlugins(void)
-{
-	for(size_t i = 0; i < m_plugins.size(); i++)
-	{
-		auto & plugin = m_plugins[i];
-
-		_MESSAGE("loading plugin \"%s\"", plugin.version.name);
-
-		s_currentLoadingPlugin = &plugin;
-		s_currentPluginHandle = plugin.internalHandle;
-
-		std::string pluginPath = m_pluginDirectory + plugin.dllName;
-
-		plugin.handle = (HMODULE)LoadLibrary(pluginPath.c_str());
-		if(plugin.handle)
-		{
-			bool		success = false;
-
-			plugin.load = (_SKSEPlugin_Load)GetProcAddress(plugin.handle, "SKSEPlugin_Load");
-			if(plugin.load)
-			{
-				const char * loadStatus = NULL;
-
-				loadStatus = SafeCallLoadPlugin(&plugin, &g_SKSEInterface);
-
-				if(!loadStatus)
-				{
-					success = true;
-					loadStatus = "loaded correctly";
-				}
-
-				ASSERT(loadStatus);
-
-				if(success)
-				{
-					_MESSAGE("plugin %s (%08X %s %08X) %s (handle %d)",
-						plugin.dllName.c_str(),
-						plugin.version.dataVersion,
-						plugin.version.name,
-						plugin.version.pluginVersion,
-						loadStatus,
-						s_currentPluginHandle);
-				}
-				else
-				{
-					LogPluginLoadError(plugin, loadStatus);
-				}
-			}
-			else
-			{
-				LogPluginLoadError(plugin, "does not appear to be an SKSE plugin");
-			}
-
-			if(!success)
-			{
-				// failed, unload the library
-				FreeLibrary(plugin.handle);
-
-				// and remove from plugins list
-				m_plugins.erase(m_plugins.begin() + i);
-
-				// fix iterator
-				i--;
-			}
-		}
-		else
-		{
-			LogPluginLoadError(plugin, "couldn't load plugin", GetLastError());
-		}
-	}
-
-	s_currentLoadingPlugin = NULL;
-	s_currentPluginHandle = 0;
-
-	// make fake PluginInfo structs after m_plugins is locked
-	for(auto & plugin : m_plugins)
-	{
-		plugin.info.infoVersion = PluginInfo::kInfoVersion;
-		plugin.info.name = plugin.version.name;
-		plugin.info.version = plugin.version.pluginVersion;
-	}
-
-	// alert any listeners that plugin load has finished
-	Dispatch_Message(0, SKSEMessagingInterface::kMessage_PostLoad, NULL, 0, NULL);
-	// second post-load dispatch
-	Dispatch_Message(0, SKSEMessagingInterface::kMessage_PostPostLoad, NULL, 0, NULL);
-}
-
-const char * PluginManager::SafeCallLoadPlugin(LoadedPlugin * plugin, const SKSEInterface * skse)
+const char * PluginManager::SafeCallLoadPlugin(LoadedPlugin * plugin, const SKSEInterface * skse, UInt32 phase)
 {
 	__try
 	{
-		if(!plugin->load(skse))
+		if(!plugin->load[phase](skse))
 		{
 			return "reported as incompatible during load";
 		}
@@ -623,6 +634,13 @@ struct BetterPluginName
 	const char * userReportedName;
 };
 
+struct BetterPluginError
+{
+	const char * dllName;
+	UInt32 errorCode;
+	const char * errorText;
+};
+
 // some plugins have non-descriptive names resulting in bad bug reports
 static const BetterPluginName kBetterPluginNames[] =
 {
@@ -630,15 +648,14 @@ static const BetterPluginName kBetterPluginNames[] =
 	{ nullptr, nullptr }
 };
 
+static const BetterPluginError kBetterPluginError[] =
+{
+	{ "EngineFixes.dll", ERROR_MOD_NOT_FOUND, "SSE Engine Fixes (Part 2) not installed. Read the mod page." },
+	{ nullptr, 0, nullptr }
+};
+
 void PluginManager::ReportPluginErrors()
 {
-#if 0
-	PluginErrorDialogBox dialog(*this);
-	dialog.Show();
-
-	return;
-#endif
-
 	if(m_erroredPlugins.empty())
 		return;
 
@@ -666,6 +683,16 @@ void PluginManager::ReportPluginErrors()
 		}
 		if(!foundReplacementName)
 			message += plugin.dllName;
+
+		for(auto * iter = kBetterPluginError; iter->dllName; ++iter)
+		{
+			if(!_stricmp(iter->dllName, plugin.dllName.c_str()) && (iter->errorCode == plugin.errorCode))
+			{
+				plugin.errorState = iter->errorText;
+
+				break;
+			}
+		}
 
 		message += ": ";
 		message += plugin.errorState;
@@ -708,6 +735,38 @@ void PluginManager::UpdateAddressLibraryPrompt()
 	}
 }
 
+void PluginManager::CallPostLoad()
+{
+	PluginHandle crashingPlugin = 0;
+
+	__try
+	{
+		// alert any listeners that plugin load has finished
+		Dispatch_Message(0, SKSEMessagingInterface::kMessage_PostLoad, NULL, 0, NULL);
+		// second post-load dispatch
+		Dispatch_Message(0, SKSEMessagingInterface::kMessage_PostPostLoad, NULL, 0, NULL);
+	}
+	__except(EXCEPTION_EXECUTE_HANDLER)
+	{
+		crashingPlugin = s_dispatchingPluginHandle;
+	}
+
+	if(crashingPlugin)
+	{
+		// usually index matches handle except under strange cases
+		for(size_t i = 0; i < m_plugins.size(); i++)
+		{
+			auto & plugin = m_plugins[i];
+
+			if(plugin.internalHandle == crashingPlugin)
+			{
+				LogPluginLoadError(plugin, "crashed during postload");
+				break;
+			}
+		}
+	}
+}
+
 void * PluginManager::GetEventDispatcher(UInt32 dispatcherId)
 {
 	void	* result = nullptr;
@@ -742,28 +801,12 @@ void * PluginManager::GetEventDispatcher(UInt32 dispatcherId)
 	return result;
 }
 
-// Plugin communication interface
-struct PluginListener {
-	PluginHandle	listener;
-	SKSEMessagingInterface::EventCallback	handleMessage;
-};
-
-typedef std::vector<std::vector<PluginListener> > PluginListeners;
-static PluginListeners s_pluginListeners;
-
 bool PluginManager::RegisterListener(PluginHandle listener, const char* sender, SKSEMessagingInterface::EventCallback handler)
 {
-	// because this can be called while plugins are loading, gotta make sure number of plugins hasn't increased
-	UInt32 numPlugins = g_pluginManager.GetNumPlugins() + 1;
-	if (s_pluginListeners.size() < numPlugins)
-	{
-		s_pluginListeners.resize(numPlugins + 5);	// add some extra room to avoid unnecessary re-alloc
-	}
-
-	_MESSAGE("registering plugin listener for %s at %u of %u", sender, listener, numPlugins);
+	_MESSAGE("registering plugin listener for %s at %u of %u", sender, listener, s_pluginListeners.size());
 
 	// handle > num plugins = invalid
-	if (listener > g_pluginManager.GetNumPlugins() || !handler) 
+	if (listener >= s_pluginListeners.size() || !handler) 
 	{
 		return false;
 	}
@@ -855,8 +898,11 @@ bool PluginManager::Dispatch_Message(PluginHandle sender, UInt32 messageType, vo
 	const char* senderName = g_pluginManager.GetPluginNameFromHandle(sender);
 	if (!senderName)
 		return false;
+
 	for (std::vector<PluginListener>::iterator iter = s_pluginListeners[sender].begin(); iter != s_pluginListeners[sender].end(); ++iter)
 	{
+		s_dispatchingPluginHandle = iter->listener;
+
 		SKSEMessagingInterface::Message msg;
 		msg.data = data;
 		msg.type = messageType;
@@ -868,6 +914,7 @@ bool PluginManager::Dispatch_Message(PluginHandle sender, UInt32 messageType, vo
 			if (iter->listener == target)
 			{
 				iter->handleMessage(&msg);
+				s_dispatchingPluginHandle = 0;
 				return true;
 			}
 		}
@@ -878,6 +925,9 @@ bool PluginManager::Dispatch_Message(PluginHandle sender, UInt32 messageType, vo
 			numRespondents++;
 		}
 	}
+
+	s_dispatchingPluginHandle = 0;
+
 	_DMESSAGE("dispatched message.");
 	return numRespondents ? true : false;
 }
@@ -910,77 +960,6 @@ PluginHandle PluginManager::LookupHandleFromName(const char* pluginName)
 	return kPluginHandle_Invalid;
 }
 
-void PluginErrorDialogBox::Show()
-{
-	extern HINSTANCE g_moduleHandle;
-
-	CreateDialogParam(g_moduleHandle, MAKEINTRESOURCE(IDD_PLUGINERROR), NULL, _DialogProc, (LPARAM)this);
-	UInt32 err = GetLastError();
-}
-
-INT_PTR PluginErrorDialogBox::_DialogProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-	INT_PTR result = 0;
-	PluginErrorDialogBox * context = nullptr;
-
-	if(msg == WM_INITDIALOG)
-	{
-		context = (PluginErrorDialogBox *)lParam;
-		context->m_window = window;
-		SetWindowLongPtr(window, GWLP_USERDATA, lParam);
-	}
-	else
-	{
-		context = (PluginErrorDialogBox *)GetWindowLongPtr(window, GWLP_USERDATA);
-	}
-
-	if(context)
-		result = context->DialogProc(msg, wParam, lParam);
-
-	return result;
-}
-
-INT_PTR PluginErrorDialogBox::DialogProc(UINT msg, WPARAM wParam, LPARAM lParam)
-{
-	INT_PTR result = FALSE;
-
-	switch(msg)
-	{
-		case WM_INITDIALOG:
-			result = TRUE;
-			break;
-
-		case WM_COMMAND:
-		{
-			bool done = false;
-
-			switch(LOWORD(wParam))
-			{
-				case IDCANCEL:
-					done = true;
-					m_exitGame = true;
-					break;
-
-				case IDOK:
-					done = true;
-					break;
-			}
-
-			if(done)
-			{
-				DestroyWindow(m_window);
-			}
-		}
-		break;
-
-		default:
-			result = FALSE;
-			break;
-	}
-
-	return result;
-}
-
 inline void * BranchTrampolineManager::Allocate(PluginHandle plugin, size_t size)
 {
 	auto mem = m_trampoline.Allocate(size);
@@ -1001,7 +980,6 @@ inline void * BranchTrampolineManager::Allocate(PluginHandle plugin, size_t size
 	}
 	return mem;
 }
-
 
 void * AllocateFromSKSEBranchPool(PluginHandle plugin, size_t size)
 {

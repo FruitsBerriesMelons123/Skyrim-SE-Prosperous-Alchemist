@@ -1,6 +1,7 @@
 #include <ShlObj.h>
 #include "skse64_common/skse_version.h"
 #include "skse64_common/Utilities.h"
+#include "skse64_common/CoreInfo.h"
 #include "skse64_loader_common/LoaderError.h"
 #include "skse64_loader_common/IdentifyEXE.h"
 #include "skse64_loader_common/Steam.h"
@@ -8,12 +9,71 @@
 #include <string>
 #include "common/IFileStream.h"
 #include <tlhelp32.h>
+#include <Shlwapi.h>
 #include "Options.h"
+#include "SigCheck.h"
 
 IDebugLog gLog;
 
-static void PrintModuleInfo(UInt32 procID);
-static void PrintProcessInfo();
+class EarlyTerminationHandler
+{
+public:
+	void start(HANDLE proc)
+	{
+		if(m_proc == INVALID_HANDLE_VALUE)
+		{
+			m_proc = proc;
+
+			SetConsoleCtrlHandler(HandlerWrapper, true);
+		}
+	}
+
+	void stop()
+	{
+		if(m_proc != INVALID_HANDLE_VALUE)
+		{
+			SetConsoleCtrlHandler(HandlerWrapper, false);
+
+			m_proc = INVALID_HANDLE_VALUE;
+		}
+	}
+
+private:
+	HANDLE	m_proc = INVALID_HANDLE_VALUE;
+
+	static BOOL HandlerWrapper(DWORD type)
+	{
+		return gEarlyTerminationHandler.Handler(type);
+	}
+
+	BOOL Handler(DWORD type)
+	{
+		_MESSAGE("early termination %d", type);
+
+		TerminateProcess(m_proc, 0);
+		
+		return true;	// "no other handlers are called and the system terminates the process"
+	}
+} gEarlyTerminationHandler;
+
+void AugmentEnvironment(const std::string& procPath, const std::string& dllPath)
+{
+	const auto getFilename = [](const std::string& fullPath) {
+		char runtime[MAX_PATH] = { '\0' };
+		if (fullPath.length() < std::extent<decltype(runtime)>::value)
+		{
+			std::copy(fullPath.begin(), fullPath.end(), runtime);
+			PathStripPathA(runtime);
+		}
+
+		return std::string(runtime);
+	};
+
+	// breaks old commonlib
+//	SetEnvironmentVariableA("SKSE_DLL", getFilename(dllPath).c_str());
+//	SetEnvironmentVariableA("SKSE_RUNTIME", getFilename(procPath).c_str());
+	SetEnvironmentVariableA("SKSE_WAITFORDEBUGGER", (g_options.m_waitForDebugger ? "1" : "0"));
+}
 
 int main(int argc, char ** argv)
 {
@@ -99,7 +159,7 @@ int main(int argc, char ** argv)
 	}
 
 	const std::string & runtimeDir = GetRuntimeDirectory();
-	std::string procPath = runtimeDir + "\\" + procName;
+	std::string procPath = runtimeDir + procName;
 
 	if(g_options.m_altEXE.size())
 	{
@@ -135,14 +195,13 @@ int main(int argc, char ** argv)
 			{
 				PrintLoaderError("You have the MS Store/Gamepass version of Skyrim, which is not compatible with SKSE.");
 			}
-			if(usedCustomRuntimeName)
+			else if(usedCustomRuntimeName)
 			{
-				// hurr durr
 				PrintLoaderError("Couldn't find %s. You have customized the runtime name via SKSE64's .ini file, and that file does not exist. This can usually be fixed by removing the RuntimeName line from the .ini file.)", procName.c_str());
 			}
 			else
 			{
-				PrintLoaderError("Couldn't find %s. (%08X)", procName.c_str(), err);
+				PrintLoaderError("Couldn't find %s. You have installed the loader to the wrong folder.", procName.c_str());
 			}
 
 			return 1;
@@ -169,15 +228,11 @@ int main(int argc, char ** argv)
 
 		if(usedCustomRuntimeName)
 		{
-			// hurr durr
 			PrintLoaderError("You have customized the runtime name via SKSE64's .ini file. Version errors can usually be fixed by removing the RuntimeName line from the .ini file.");
 		}
 
 		return 1;
 	}
-
-	if(g_options.m_crcOnly)
-		return 0;
 
 	// build dll path
 	std::string	dllPath;
@@ -187,7 +242,7 @@ int main(int argc, char ** argv)
 	}
 	else
 	{
-		dllPath = runtimeDir + "\\" + baseDllName + "_" + dllSuffix + ".dll";
+		dllPath = runtimeDir + baseDllName + "_" + dllSuffix + ".dll";
 	}
 
 	_MESSAGE("dll = %s", dllPath.c_str());
@@ -202,6 +257,90 @@ int main(int argc, char ** argv)
 			return 1;
 		}
 	}
+
+	// check to make sure the dll makes sense
+	{
+		bool dllOK = false;
+		UInt32 dllVersion = 0;
+
+		HMODULE resourceHandle = (HMODULE)LoadLibraryEx(dllPath.c_str(), nullptr, LOAD_LIBRARY_AS_IMAGE_RESOURCE);
+		if(resourceHandle)
+		{
+			if(Is64BitDLL(resourceHandle))
+			{
+				auto * version = (const SKSECoreVersionData *)GetResourceLibraryProcAddress(resourceHandle, "SKSECore_Version");
+				if(version)
+				{
+					dllVersion = version->runtimeVersion;
+
+					if(	(version->dataVersion == SKSECoreVersionData::kVersion) &&
+						(version->runtimeVersion == procHookInfo.packedVersion))
+					{
+						dllOK = true;
+					}
+				}
+			}
+
+			FreeLibrary(resourceHandle);
+		}
+
+		if(dllOK)
+		{
+			if(!CheckDLLSignature(dllPath))
+				dllOK = false;
+		}
+
+		if(!dllOK)
+		{
+			bool preSigning = false;
+
+			VS_FIXEDFILEINFO info;
+			std::string productName;
+			std::string productVersion;
+
+			if(GetFileVersion(dllPath.c_str(), &info, &productName, &productVersion))
+			{
+				_MESSAGE("DLL version");
+				DumpVersionInfo(info);
+				_MESSAGE("productName = %s", productName.c_str());
+
+				UInt64 fullVersion = (UInt64(info.dwFileVersionMS) << 32) | info.dwFileVersionLS;
+				UInt64 kFirstSignedVersion = 0x0000000200020007;
+
+				if(fullVersion < kFirstSignedVersion)
+					preSigning = true;
+			}
+			else
+			{
+				_MESSAGE("couldn't get file version info");
+			}
+
+			if(preSigning)
+			{
+				PrintLoaderError(
+					"Old SKSE DLL (%s).\n"
+					"Please make sure that you have replaced all files with their new versions.\n"
+					"DLL version (%d.%d.%d) EXE version (%d.%d.%d)",
+					dllPath.c_str(),
+					(info.dwFileVersionMS >> 16) & 0xFFFF,
+					(info.dwFileVersionLS >> 16) & 0xFFFF,
+					info.dwFileVersionLS & 0xFFFF,
+					SKSE_VERSION_INTEGER, SKSE_VERSION_INTEGER_MINOR, SKSE_VERSION_INTEGER_BETA);
+			}
+			else
+			{
+				PrintLoaderError(
+					"Bad SKSE DLL (%s).\n"
+					"Do not rename files; it will not magically make anything work.\n"
+					"%08X %08X", dllPath.c_str(), procHookInfo.packedVersion, dllVersion);
+			}
+
+			return 1;
+		}
+	}
+
+	if(g_options.m_crcOnly)
+		return 0;
 
 	// steam setup
 	if(procHookInfo.procType == kProcType_Steam)
@@ -238,6 +377,8 @@ int main(int argc, char ** argv)
 
 	startupInfo.cb = sizeof(startupInfo);
 
+	AugmentEnvironment(procPath, dllPath);
+	
 	DWORD createFlags = CREATE_SUSPENDED;
 	if(g_options.m_setPriority)
 		createFlags |= g_options.m_priority;
@@ -265,6 +406,8 @@ int main(int argc, char ** argv)
 		return 1;
 	}
 
+	gEarlyTerminationHandler.start(procInfo.hProcess);
+
 	_MESSAGE("main thread id = %d", procInfo.dwThreadId);
 
 	// set affinity if requested
@@ -280,12 +423,6 @@ int main(int argc, char ** argv)
 
 	bool	injectionSucceeded = false;
 	UInt32	procType = procHookInfo.procType;
-
-	if(g_options.m_forceSteamLoader)
-	{
-		_MESSAGE("forcing steam loader");
-		procType = kProcType_Steam;
-	}
 
 	// inject the dll
 	switch(procType)
@@ -320,82 +457,15 @@ int main(int argc, char ** argv)
 			_WARNING("Try running skse64_loader as an administrator, or check for conflicts with a virus scanner.");
 		}
 
-		if(g_options.m_moduleInfo)
-		{
-			Sleep(1000 * 3);	// wait 3 seconds
-
-			PrintModuleInfo(procInfo.dwProcessId);
-			PrintProcessInfo();
-		}
-
 		if(g_options.m_waitForClose)
 			WaitForSingleObject(procInfo.hProcess, INFINITE);
 	}
+
+	gEarlyTerminationHandler.stop();
 
 	// clean up
 	CloseHandle(procInfo.hProcess);
 	CloseHandle(procInfo.hThread);
 
 	return 0;
-}
-
-static void PrintModuleInfo(UInt32 procID)
-{
-	HANDLE	snap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, procID);
-	if(snap != INVALID_HANDLE_VALUE)
-	{
-		MODULEENTRY32	module;
-
-		module.dwSize = sizeof(module);
-
-		if(Module32First(snap, &module))
-		{
-			do 
-			{
-				_MESSAGE("%08Xx%08X %08X %s %s", module.modBaseAddr, module.modBaseSize, module.hModule, module.szModule, module.szExePath);
-			}
-			while(Module32Next(snap, &module));
-		}
-		else
-		{
-			_ERROR("PrintModuleInfo: Module32First failed (%d)", GetLastError());
-		}
-
-		CloseHandle(snap);
-	}
-	else
-	{
-		_ERROR("PrintModuleInfo: CreateToolhelp32Snapshot failed (%d)", GetLastError());
-	}
-}
-
-static void PrintProcessInfo()
-{
-	HANDLE	snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-	if(snap != INVALID_HANDLE_VALUE)
-	{
-		PROCESSENTRY32	proc;
-
-		proc.dwSize = sizeof(PROCESSENTRY32);
-		
-		if(Process32First(snap, &proc))
-		{
-			do
-			{
-				_MESSAGE("%s", proc.szExeFile);
-				proc.dwSize = sizeof(PROCESSENTRY32);
-			}
-			while (Process32Next(snap, &proc));
-		}
-		else
-		{
-			_ERROR("PrintProcessInfo: Process32First failed (%d)", GetLastError());
-		}
-
-		CloseHandle(snap);
-	}
-	else
-	{
-		_ERROR("PrintProcessInfo: CreateToolhelp32Snapshot failed (%d)", GetLastError());
-	}
 }
