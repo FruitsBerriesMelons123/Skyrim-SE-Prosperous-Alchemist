@@ -10,7 +10,7 @@
 #include "GameMenus.h"
 
 // Helpers
-double round(double r)
+double skse_round(double r)
 {
 	return (r >= 0.0) ? floor(r + 0.5) : ceil(r - 0.5);
 }
@@ -350,7 +350,7 @@ namespace scaleformExtend
 					// Words
 					GFxValue words;
 					movieView->CreateArray(&words);
-					for(int i = 0; i < pShout->Words::kNumWords; i++)
+					for(int i = 0; i < TESShout::Words::kNumWords; i++)
 					{
 						GFxValue word;
 						movieView->CreateObject(&word);
@@ -764,7 +764,7 @@ namespace scaleformExtend
 				if(pArmor)
 				{
 					double armorValue = CALL_MEMBER_FN(pPC, GetArmorValue)(objDesc);
-					armorValue = round(armorValue);
+					armorValue = skse_round(armorValue);
 					RegisterNumber(pFxVal, "armor", armorValue);
 				}
 			}
@@ -776,7 +776,7 @@ namespace scaleformExtend
 				if(pWeapon)
 				{
 					double damage = CALL_MEMBER_FN(pPC, GetDamage)(objDesc);
-					damage = round(damage);
+					damage = skse_round(damage);
 					RegisterNumber(pFxVal, "damage", damage);
 				}
 			}
@@ -788,7 +788,7 @@ namespace scaleformExtend
 				if(pAmmo)
 				{
 					double damage = CALL_MEMBER_FN(pPC, GetDamage)(objDesc);
-					damage = round(damage);
+					damage = skse_round(damage);
 					RegisterNumber(pFxVal, "damage", damage);
 				}
 			}

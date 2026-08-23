@@ -17,6 +17,7 @@
 #include "skillLevels.h"
 
 #include <time.h>
+#include <cmath>
 #include <string>
 #include <set>
 #include <thread>
@@ -126,10 +127,7 @@ namespace alchemist {
 	}
 
 	float round_skyrim(float f) {
-		//if (...figure out why skyrim sometimes rounds toward zero) {
-			//return ceil(f - 0.5); // round toward zero
-		//} // else
-		return floor(f + 0.5); // round away from zero
+		return std::round(f);
 	}
 
 	class Effect {
