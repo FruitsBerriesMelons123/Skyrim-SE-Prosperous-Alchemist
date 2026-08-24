@@ -46,6 +46,7 @@ extern SME::INI::INISetting				kNumberOfIngredientsToStressTest;
 extern SME::INI::INISetting				kMoreIngredientsToProtect;
 extern SME::INI::INISetting				kIngredientsToUnprotect;
 extern SME::INI::INISetting				kStringTranslations;
+extern SME::INI::INISetting				kPotionPoison;
 
 class AlchemistINIManager : public SME::INI::INIManager
 {
@@ -92,6 +93,11 @@ SME::INI::INISetting	kStringTranslations("StringTranslations",
 	"Comma separated list of strings to translate the mod.",
 	"Alchemy,No potion recipes are currently available.");
 
+SME::INI::INISetting	kPotionPoison("PotionPoison",
+	"General",
+	"Translations for 'Potion of' and 'Poison of'",
+	"Potion of,Poison of");
+
 void AlchemistINIManager::Initialize(const char* INIPath, void* Parameter)
 {
 	this->INIFilePath = INIPath;
@@ -116,6 +122,7 @@ void AlchemistINIManager::Initialize(const char* INIPath, void* Parameter)
 	RegisterSetting(&kMoreIngredientsToProtect);
 	RegisterSetting(&kIngredientsToUnprotect);
 	RegisterSetting(&kStringTranslations);
+	RegisterSetting(&kPotionPoison);
 
 	if (CreateINI)
 		Save();
@@ -983,11 +990,19 @@ namespace alchemist {
 		Effect controlEffect;
 		string description;
 		string getName() {
-			string title = "Poison of ";
-			if (controlEffect.beneficial) {
-				title = "Potion of ";
+			string translationPotionPoison = kPotionPoison.GetData().s;
+			vector<string> tStrings = str::split(translationPotionPoison, ',');
+			string tPotion = "Potion of";
+			string tPoison = "Poison of";
+			if (tStrings.size() == 2) {
+				tPotion = tStrings.at(0);
+				tPoison = tStrings.at(1);
 			}
-			return title + controlEffect.name;
+			string title = tPoison;
+			if (controlEffect.beneficial) {
+				title = tPotion;
+			}
+			return title + " " + controlEffect.name;
 		}
 		bool operator< (const Potion& potion) const {
 			return id < potion.id;
