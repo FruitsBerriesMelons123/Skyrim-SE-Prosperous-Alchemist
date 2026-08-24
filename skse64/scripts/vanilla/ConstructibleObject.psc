@@ -1,1 +1,0 @@
-Scriptname ConstructibleObject extends MiscObject Hidden

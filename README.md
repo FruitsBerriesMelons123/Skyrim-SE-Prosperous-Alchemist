@@ -4,11 +4,51 @@ Prosperous Alchemist is an SKSE plugin that calculates the most valuable potion 
 
 ![Prosperous Alchemist preview](Prosperous%20Alchemist%20AE%20GOG%20SE%20VR.png)
 
-> This repository contains the native plugin source and Visual Studio project. It is not a packaged installer or a complete mod archive.
+> This repository contains the native plugin source and build configuration. It is not a packaged installer or a complete mod archive.
+
+For installation and gameplay instructions, see the [user-facing guide](docs/USER_README.md).
+
+## Current build state
+
+- The native plugin is an **Address Library** plugin built with CommonLibSSE-NG.
+- The current build was tested with Skyrim runtime **1.7.99** and SKSE **2.3.0**. These are validation versions, not fixed plugin requirements.
+- The Release DLL is self-contained with respect to the third-party C++ libraries used by the project. It does not require `fmt.dll`, `spdlog.dll`, or the dynamic MSVC runtime beside the plugin.
+- SKSE, Address Library for SKSE Plugins, and a matching Skyrim runtime are still required. Address Library is not part of this repository or embedded in `alchemist.dll`.
+- The current plugin package consists of the native DLL; the plugin creates an optional `alchemist.ini` with defaults when it starts. It does not require an ESP/ESL.
+
+## Repository checkout
+
+CommonLibSSE-NG is included as the `alandtse-CommonLibSSE-NG` Git submodule. CommonLibSSE-NG itself uses OpenVR as a nested submodule, so both levels must be initialized before configuring the build.
+
+For a fresh checkout, initialize all submodules during cloning:
+
+```powershell
+git clone --recurse-submodules <repository-url>
+cd prosperous-alchemist
+```
+
+If the repository was cloned without `--recurse-submodules`, run this from the repository root:
+
+```powershell
+git submodule update --init --recursive
+```
+
+The expected submodule layout is:
+
+```text
+<repository root>/
+├── ProsperousAlchemist.slnx  # tracked Visual Studio entry point
+├── ProsperousAlchemistBootstrap.vcxproj  # tracked Visual Studio/CMake build bridge
+├── alchemist/
+├── alandtse-CommonLibSSE-NG/
+│   └── extern/openvr/
+└── build-alchemist/       # generated and ignored
+```
 
 ## Contents
 
 - [Features](#features)
+- [Repository checkout](#repository-checkout)
 - [How it works](#how-it-works)
 - [Calculation model](#calculation-model)
 - [Configuration](#configuration)
@@ -101,13 +141,13 @@ The displayed value is the calculated value rounded down to a whole number. This
 
 ## Configuration
 
-The plugin creates this file automatically the first time it loads:
+The plugin reads this file when it loads if it exists:
 
 ```text
 Data/SKSE/Plugins/alchemist.ini
 ```
 
-All settings are in the `[General]` section. Restart the game after editing the file so the plugin loads the new values.
+If the file is missing, the plugin creates it with the default settings during startup. All settings are in the `[General]` section. Restart the game after editing the file so the plugin loads the new values.
 
 ### General settings
 
@@ -199,52 +239,280 @@ Ingredients containing the `Fortify Enchanting` or `Fortify Smithing` effect are
 ### Requirements
 
 - Skyrim Special Edition/Anniversary Edition on Windows.
-- A game executable with runtime **1.7.99**, which is the runtime targeted by this branch.
-- SKSE matching the installed game runtime. The checked-in source identifies itself as SKSE **2.3.0**.
+- A supported Skyrim SE/AE/VR game runtime.
+- SKSE matching the installed game runtime. The plugin does not require exactly SKSE **2.3.0**; that is the version used to build and test this project.
+- Address Library for SKSE Plugins, including the version library matching the installed runtime. For the tested runtime, the file is `versionlib-1-7-99-0.bin`.
 - The game must be launched through SKSE.
 
-The plugin performs an exact runtime check and rejects unsupported runtimes. Do not use the built DLL with a different game runtime unless the source has been updated and rebuilt for that runtime.
+The generated plugin metadata declares Address Library runtime independence. This allows the same DLL to use the Address Library database for supported Skyrim runtimes instead of requiring a separate fixed-address build. It does not make the DLL independent of Address Library or SKSE. Use the Address Library version file matching the installed runtime; `1.7.99` and `2.3.0` are the versions validated for this project, not mandatory versions.
 
 ### Installing a compiled plugin
 
-1. Obtain a compiled `alchemist.dll` built for the matching runtime.
-2. Copy it to:
+1. Obtain the Release `alchemist.dll` built with Address Library support.
+2. If using Mod Organizer 2, create or enable a mod with this archive structure:
+
+```text
+Prosperous Alchemist AE/
+└── SKSE/
+    └── Plugins/
+        └── alchemist.dll
+```
+
+A typical MO2 mod source directory is:
+
+```text
+<MO2 instance>/mods/Prosperous Alchemist AE/SKSE/Plugins/alchemist.dll
+```
+
+3. For a direct installation, copy the DLL to:
 
    ```text
    <Skyrim installation>/Data/SKSE/Plugins/alchemist.dll
    ```
 
-3. Launch Skyrim through SKSE.
-4. Open the alchemy interface. The plugin creates `alchemist.ini` automatically if it does not already exist.
-5. Edit the INI file as needed and restart the game after making changes.
+4. Enable the mod in MO2 and launch Skyrim through SKSE.
+5. Open the alchemy interface. The plugin uses built-in defaults when `alchemist.ini` is absent.
+6. Edit the INI file as needed and restart the game after making changes.
 
-This repository does not currently include a release archive, installer, ESP/ESL, or tracked compiled DLL. If a distribution package provides additional UI files, install those files according to that package's archive structure.
+This repository does not currently include a release archive, installer, ESP/ESL, or tracked compiled DLL. The native plugin integrates with the existing alchemy interface; no separate UI plugin is included here.
 
 ## Building from source
 
-The repository includes the SKSE and common source trees required by the Visual Studio projects.
+The current plugin build is the standalone CMake project at [`alchemist`](alchemist). CommonLibSSE-NG is included as the `alandtse-CommonLibSSE-NG` Git submodule and must be configured against a static vcpkg triplet so the resulting Release DLL has no `fmt.dll` or `spdlog.dll` dependency.
+
+The root solution exposes the `Release|x64` build. The CMake project also restricts generated multi-configuration Visual Studio projects to `Release`; the generated projects under `build-alchemist` should not be edited directly.
+
+### Build prerequisites
+
+- Visual Studio with the **Desktop development with C++** workload, an x64 toolchain, and a Windows SDK.
+- CMake 3.21 or later. Visual Studio's bundled CMake is supported by the root bootstrap project.
+- The CommonLibSSE-NG submodule and its nested OpenVR submodule, initialized recursively.
+- vcpkg available on `PATH` and the dependencies from the CommonLibSSE-NG manifest.
+- The `x64-windows-static` vcpkg triplet.
+
+### CMake build
+
+If the repository was not cloned recursively, initialize the CommonLibSSE-NG and its nested dependencies:
+
+```powershell
+git submodule update --init --recursive
+```
+
+Install the CommonLibSSE-NG manifest dependencies into a static triplet. Replace the paths and generator name with the values for the local machine:
+
+```powershell
+vcpkg install `
+  --x-manifest-root=alandtse-CommonLibSSE-NG `
+  --x-install-root=<vcpkg install root> `
+  --triplet=x64-windows-static `
+  --feature-flags=manifests
+```
+
+Configure and build the plugin:
+
+```powershell
+cmake -S alchemist -B build-alchemist `
+  -G "Visual Studio 18 2026" -A x64 `
+  -DVCPKG_STATIC_DIR=<vcpkg install root>/x64-windows-static
+
+cmake --build build-alchemist --config Release --target alchemist
+```
+
+The resulting DLL is:
+
+```text
+build-alchemist/Release/alchemist.dll
+```
+
+The native build supports only the `Release` configuration. The `x64` platform is required by the Visual Studio generator and the plugin toolchain.
+
+### CMake path settings
+
+The project intentionally keeps machine-specific paths out of the source tree:
+
+| Variable | Required | Behavior |
+| --- | --- | --- |
+| `COMMONLIBSSE_DIR` | No | Defaults to `../alandtse-CommonLibSSE-NG` relative to `alchemist/CMakeLists.txt`. Override it only when the submodule is stored elsewhere. |
+| `VCPKG_STATIC_DIR` | Yes | Must point to a static vcpkg installation containing `share/spdlog/spdlogConfig.cmake`. |
+| `CMAKE_PREFIX_PATH` | Usually no | Automatically set to `VCPKG_STATIC_DIR`; specify it explicitly only when packages are located elsewhere. |
+| `CMAKE_CONFIGURATION_TYPES` | No | Forced to `Release` for Visual Studio multi-configuration generators. |
+| `ALCHEMIST_DEPLOY_DIR` | No | When set, adds a post-build step that creates the directory and copies the built `alchemist.dll` there. The root Visual Studio bootstrap also performs this deployment when its local `AlchemistDeployDir` property is set. When omitted, the DLL remains only in the build output directory. |
+
+`COMMONLIBSSE_DIR` is resolved from the repository-relative default automatically. A clone with initialized submodules therefore does not need to provide that path. `VCPKG_STATIC_DIR` is different: it is a local dependency installation and has no portable repository default, so configuration deliberately fails until it is supplied.
+
+To enable automatic deployment to a Mod Organizer 2 profile, add the optional variable during configuration. Set it to the `Plugins` directory, not to the DLL filename:
+
+```powershell
+cmake -S alchemist -B build-alchemist `
+  -G "Visual Studio 18 2026" -A x64 `
+  -DVCPKG_STATIC_DIR=<vcpkg install root>/x64-windows-static `
+  -DALCHEMIST_DEPLOY_DIR=<MO2 instance>/mods/Prosperous Alchemist AE/SKSE/Plugins
+```
+
+The post-build step overwrites the deployed DLL after a successful `alchemist` build. The deployment setting is stored in the local CMake cache and is not part of the portable source configuration. If switching from the old dynamic build, delete `CMakeCache.txt` and `CMakeFiles` from the build directory before configuring again. Otherwise CMake may retain the old dynamic `spdlog_DIR` and `fmt_DIR` values.
 
 ### Visual Studio
 
-1. Install Visual Studio with the **Desktop development with C++** workload, an x64 toolchain, and a Windows SDK.
-2. Open [`skse64/skse64.sln`](skse64/skse64.sln).
-3. Select the `Release` configuration and `x64` platform.
-4. Build the solution or build the `alchemist` project after its SKSE/common dependencies.
-5. The plugin is produced at:
+Before the first build, configure the static vcpkg installation used by the CMake build. You can set the `VCPKG_STATIC_DIR` environment variable, pass the MSBuild property `VcpkgStaticDir`, or add the property to the local `ProsperousAlchemistBootstrap.vcxproj.user` file.
 
-   ```text
-   skse64/x64/Release/alchemist.dll
-   ```
+Deployment is configured per checkout. The tracked post-build event is defined in `alchemist/CMakeLists.txt`; it copies the built DLL when `ALCHEMIST_DEPLOY_DIR` is set. For Visual Studio, the ignored `ProsperousAlchemistBootstrap.vcxproj.user` file can set both the local `VcpkgStaticDir` property and the `AlchemistDeployDir` property for the desired `SKSE/Plugins` directory. The bootstrap project passes both values to CMake. For command-line CMake builds, set `VCPKG_STATIC_DIR` and `ALCHEMIST_DEPLOY_DIR` during configuration. Because the `.user` file and these paths contain machine-specific settings and are not committed, each clone must configure its own dependency and deployment paths.
 
-The alchemist project currently uses the `v145` platform toolset and C++17. When invoking MSBuild directly on the project rather than through the solution, set `SolutionDir` to the repository's `skse64` directory so the existing relative include and dependency paths resolve correctly.
+A local Visual Studio user file can contain:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+	<VcpkgStaticDir>&lt;vcpkg install root&gt;\x64-windows-static</VcpkgStaticDir>
+	<AlchemistDeployDir>&lt;MO2 instance&gt;\mods\Prosperous Alchemist AE\SKSE\Plugins</AlchemistDeployDir>
+  </PropertyGroup>
+</Project>
+```
+
+Save it beside `ProsperousAlchemistBootstrap.vcxproj` as `ProsperousAlchemistBootstrap.vcxproj.user`. The `.user` extension is ignored intentionally and should not be committed.
+
+Open ProsperousAlchemist.slnx from the repository root, select Release and x64, and build the ProsperousAlchemistBootstrap project. The bootstrap project is the tracked root solution entry point: it configures the CMake project in build-alchemist and invokes the alchemist target. It is designed to work before any generated CMake project files exist.
+
+The project currently uses the v145 platform toolset and C++23. The CommonLibSSE-NG, static vcpkg, and optional deployment paths are CMake cache settings; do not edit generated vcxproj files to change them. Reconfigure CMake instead.
+
+### Generated build files
+
+build-alchemist contains generated CMake and Visual Studio files and is ignored by Git. ProsperousAlchemist.slnx is the canonical tracked solution entry point and remains the stable entry point for a fresh clone; it does not require generated project files to be committed. Do not edit generated vcxproj files or commit CMakeCache.txt; CMake resolves repository-relative paths into absolute paths inside the build directory as part of normal generation. If the cache points to an old checkout, reconfigure from the active repository root or remove the build directory first. Close Visual Studio before deleting a build directory if its .vs database files are locked.
+
+The root `x64` directory is Visual Studio intermediate/output state for the bootstrap project. `Prospero.4C7C8D61` contains MSBuild recipes, logs, and tracking files for that project. Both directories are generated and can be deleted while Visual Studio is closed; they will be recreated by the next build. They do not contain source code or the CMake build cache.
+
+To reset the native build completely, close Visual Studio and delete `build-alchemist`. This removes the CMake cache, generated Visual Studio projects, dependency build state, and compiled outputs. The next build from `ProsperousAlchemist.slnx` will configure the project again, but it requires the recursive submodules and the `VCPKG_STATIC_DIR` setting described above. A complete rebuild can take significantly longer than an incremental build.
+
+After the root bootstrap project has configured the build directory, the generated build-alchemist/alchemist.slnx can optionally be opened for direct work with the generated alchemist target. It is not required for normal builds, and the root solution remains the stable entry point for a fresh clone.
+
+For a direct CMake build, you can prevent Visual Studio from automatically checking for CMake regeneration by configuring with the CMake option CMAKE_SUPPRESS_REGENERATION set to ON. With this option, rerun CMake manually after changing CMakeLists.txt, source lists, dependencies, paths, or the generator/toolchain. The root bootstrap project normally performs CMake configuration automatically.
 
 ## Troubleshooting
+
+The following reference covers the expected runtime files, log locations, diagnostic procedure, and the load/crash problems resolved in the current source.
+
+### Runtime log locations
+
+The logs are normally written under the Windows user's Documents folder, not the Skyrim installation folder:
+
+```text
+%USERPROFILE%\Documents\My Games\Skyrim Special Edition\SKSE\
+```
+
+The files of interest are:
+
+```text
+skse64_loader.log  # SKSE loader and Skyrim executable version
+skse64.log         # SKSE plugin discovery and load status
+alchemist.log      # Prosperous Alchemist initialization messages
+crash-*.log        # Crash Logger SSE AE VR reports, when installed
+```
+
+Use the equivalent paths for the local installation and mod manager:
+
+| Purpose | Path |
+| --- | --- |
+| Repository root | `<repository root>/` |
+| Release build | `<repository root>/build-alchemist/Release/alchemist.dll` |
+| MO2 mod source | `<MO2 instance>/mods/Prosperous Alchemist AE/SKSE/Plugins/alchemist.dll` |
+| Skyrim installation | `<Skyrim installation>/` |
+| Address Library mod source | `<MO2 instance>/mods/Address Library for SKSE Plugins/SKSE/Plugins/` |
+| Runtime logs | `%USERPROFILE%/Documents/My Games/Skyrim Special Edition/SKSE/` |
+
+Mod Organizer 2 may virtualize the game's `Data` directory and redirect saves, but the SKSE logs still identify the effective plugin directory and should be checked after each test run.
+
+### Basic diagnostic procedure
+
+1. Exit Skyrim completely.
+2. Delete or rename the old `alchemist.log` so the next test produces an unambiguous log.
+3. Launch the game through SKSE from the active MO2 profile.
+4. Confirm `skse64.log` contains `plugin alchemist.dll ... loaded correctly`.
+5. Confirm `alchemist.log` reaches `prosperous alchemist initialized!`.
+6. Reproduce the problem once, then close the game and inspect the newest `alchemist.log` and `crash-*.log`.
+7. Include the Skyrim runtime, SKSE version, plugin version, and the complete crash log when reporting a problem.
+
+When using MO2, compare the built and deployed DLLs if there is any doubt that the active mod contains the latest build:
+
+```powershell
+(Get-FileHash <build path> -Algorithm SHA256).Hash
+(Get-FileHash <MO2 mod path> -Algorithm SHA256).Hash
+```
+
+The hashes must match.
+
+The current build was validated with Skyrim runtime `1.7.99` and SKSE `2.3.0`. Other supported runtimes should show their own runtime version in `skse64_loader.log`. The expected successful plugin messages are:
+
+```text
+alchemist v1-0-0-0
+[MESSAGE] Initializing prosperous alchemist...
+[MESSAGE] prosperous alchemist Scaleform handlers registered
+...prosperous alchemist initialized!
+```
+
+### CMake cannot find CommonLibSSE-NG
+
+The repository-relative default expects the CommonLibSSE-NG submodule at `alandtse-CommonLibSSE-NG/`. From the repository root, initialize the complete submodule tree and configure again:
+
+```powershell
+git submodule update --init --recursive
+```
+
+If the build reports that `openvr.h` is missing from `BSVRInterface.h`, the nested OpenVR submodule has not been initialized. The recursive command above supplies the required headers and library.
+
+### CMake rejects the vcpkg path
+
+`VCPKG_STATIC_DIR` must point to a static vcpkg installation containing `share/spdlog/spdlogConfig.cmake`. A CommonLibSSE-NG checkout alone is not sufficient. Install the CommonLibSSE-NG manifest using the `x64-windows-static` triplet, then configure with that installation path. Do not use the old dynamic triplet or copy development DLLs beside the plugin.
+
+### The post-build DLL copy does not occur
+
+The CMake-side copy is disabled unless `ALCHEMIST_DEPLOY_DIR` is set in the CMake cache. For a Visual Studio build from the root solution, set `AlchemistDeployDir` in the ignored `ProsperousAlchemistBootstrap.vcxproj.user` file. For a direct CMake build, configure `ALCHEMIST_DEPLOY_DIR` as the destination `Plugins` directory, then rebuild the `alchemist` target:
+
+```powershell
+cmake -S alchemist -B build-alchemist `
+	-DVCPKG_STATIC_DIR=<vcpkg install root>/x64-windows-static `
+  -DALCHEMIST_DEPLOY_DIR=<MO2 instance>/mods/Prosperous Alchemist AE/SKSE/Plugins
+cmake --build build-alchemist --config Release --target alchemist
+```
+
+If the destination contains an older DLL, compare it with the build output:
+
+```powershell
+(Get-FileHash build-alchemist/Release/alchemist.dll -Algorithm SHA256).Hash
+(Get-FileHash '<MO2 instance>/mods/Prosperous Alchemist AE/SKSE/Plugins/alchemist.dll' -Algorithm SHA256).Hash
+```
+
+The hashes should match. Mod Organizer 2 must have the target profile enabled when Skyrim is launched.
+
+### DLL load error `0000007E`
+
+Windows error `0000007E` is `ERROR_MOD_NOT_FOUND`. It means Windows could not load the plugin or one of its imported DLLs. Inspect the Release artifact with:
+
+```powershell
+dumpbin /DEPENDENTS build-alchemist/Release/alchemist.dll
+```
+
+The current Release build statically links `fmt`, `spdlog`, and the MSVC runtime, so `fmt.dll`, `spdlog.dll`, `MSVCP140.dll`, and `VCRUNTIME140*.dll` should not be required in `Data/SKSE/Plugins`. If any of those third-party libraries appear in the dependency list, the build used the old dynamic vcpkg configuration. Reconfigure from a clean CMake cache using the `x64-windows-static` triplet; do not copy development DLLs into the mod.
+
+### `disabled, fatal error occurred while loading plugin`
+
+This message means the DLL loaded but an exception occurred inside `SKSEPluginLoad`. Check `alchemist.log` to determine how far initialization got. The current source passes an empty string, rather than `nullptr`, as the optional REX INI user path. Passing `nullptr` to the `std::string_view`-based setting store caused the earlier load-time crash.
+
+### Crash when opening the alchemy interface
+
+Install Crash Logger SSE AE VR and reproduce the crash. The report should be taken from:
+
+```text
+%USERPROFILE%\Documents\My Games\Skyrim Special Edition\SKSE\crash-*.log
+```
+
+The Scaleform callback receives its arguments through `RE::GFxFunctionHandler::Params`. `Params::args` points directly to the first `GFxValue`; it is not an ActionScript array. The current source correctly reads `a_params.args[0]`. Calling `a_params.args->GetElement(0, ...)` caused the previous alchemy-lab crash inside Skyrim's Scaleform code.
 
 ### No recommendation appears
 
 - Confirm that `alchemist.dll` is in `Data/SKSE/Plugins`.
 - Confirm that the game was launched through SKSE.
-- Confirm that the installed game runtime is exactly 1.7.99.
+- Confirm that the installed game runtime is supported by the current Address Library installation. This build was validated with runtime 1.7.99.
+- Confirm that Address Library provides the version file matching the installed runtime through the active MO2 profile. The tested runtime uses `versionlib-1-7-99-0.bin`.
 - Open the log at:
 
   ```text
@@ -256,7 +524,7 @@ The alchemist project currently uses the `v145` platform toolset and C++17. When
 
 ### The INI file is not created
 
-The plugin creates the file during load. Check the SKSE log for a plugin load error, verify write permissions for the game's `Data/SKSE/Plugins` directory, and make sure the DLL matches the game runtime.
+The plugin creates `Data/SKSE/Plugins/alchemist.ini` with its default settings when the file is missing. If an existing INI is ignored, confirm its section and setting names, check `alchemist.log`, and restart the game after editing it.
 
 ### Values appear unchanged after editing the INI
 
@@ -275,6 +543,8 @@ IngredientsToUnprotect=Deathbell
 
 ## Technical integration
 
+The generated SKSE metadata declares `SKSE::VersionIndependence::AddressLibrary`. Address Library supplies the runtime-specific addresses required by CommonLibSSE-NG, allowing the plugin to use the supported runtime database rather than embedding a separate fixed-address build. This declaration does not remove the requirement to install Address Library.
+
 The native plugin registers these Scaleform functions under the `alchemist` movie name:
 
 | Function | Behavior |
@@ -286,21 +556,31 @@ The plugin also registers `SKSEPlugin_Query`, `SKSEPlugin_Load`, and `SKSEPlugin
 
 ## Current limitations
 
-- Only the runtime defined by `CURRENT_RELEASE_RUNTIME` is accepted; this branch currently defines that as Skyrim runtime 1.7.99.
+- The branch was built and tested against Skyrim runtime 1.7.99. Address Library provides the runtime compatibility layer for supported runtimes, but the matching version library must be installed and the underlying CommonLibSSE-NG/runtime combination must be supported.
 - The recommendation cache compares ingredient names and tracked player state. Changing only an inventory quantity may not immediately force a new search if the ingredient set remains the same.
 - Localization values support exactly two comma-separated fields per setting and do not support commas inside a translated value.
 - Protection and menu detection use exact English/source strings unless overridden through the INI settings.
 - `NumberOfIngredientsToStressTest` and the `-1` ingredient logger are diagnostic features, not normal gameplay settings.
-- The plugin depends on the surrounding SKSE/Scaleform integration; the native DLL alone does not provide a standalone user interface.
+- The plugin depends on SKSE, Address Library, Skyrim's Scaleform integration, and the installed runtime; the native DLL alone does not provide a standalone user interface.
+- The repository currently has no automated plugin or calculation tests; a successful Release build validates compilation and linking, not in-game behavior.
 
 ## License and credits
 
-Prosperous Alchemist is released under the [MIT License](LICENSE).
+Prosperous Alchemist is released under the [GNU General Public License version 3 or later](COPYING), with the [Modding Exception and GPL-3.0 Linking Exception](EXCEPTIONS.md).
+
+This licensing change reflects the current build: `alchemist.dll` statically links CommonLibSSE-NG. CommonLibSSE-NG is licensed under GPL-3.0-or-later with the same exceptions, and its upstream README states that a plugin which statically links it must itself use GPL-3.0-or-later or a GPL-compatible license. The exceptions cover interoperation with Skyrim and permitted modding libraries; they do not make the plugin's own code MIT-licensed or remove the corresponding-source obligations for distributed combined works.
+
+For this project, the exception applies to the intended interoperation with:
+
+- **Modded Code:** Skyrim Special Edition, Anniversary Edition, and Virtual Reality.
+- **Modding Libraries:** SKSE, Windows, and other libraries permitted under the applicable upstream terms.
+
+The previous Prosperous Alchemist MIT license is preserved in [`licenses/PROSPEROUS-ALCHEMIST-LICENSE-MIT`](licenses/PROSPEROUS-ALCHEMIST-LICENSE-MIT). The historical MIT notice for code on which CommonLibSSE-NG was originally based is preserved in [`licenses/CommonLibSSE-NG-LICENSE-MIT`](licenses/CommonLibSSE-NG-LICENSE-MIT).
+
+The repository also contains historical SKSE source trees and external/development files with their own upstream notices. Those notices remain applicable to the files they cover; the project license does not relicense third-party code.
 
 Special thanks to:
 
 - [SKSE Team](https://skse.silverlock.org)
 - [axxonite](https://www.nexusmods.com/skyrim/mods/38634)
-- [Ryan-rsm-McKenzie](https://github.com/Ryan-rsm-McKenzie/CommonLibSSE/wiki/Getting-Started/b089fcaa77aeac3f2db019ecb30df94743574b6f)
-- [sonycman](https://www.nexusmods.com/skyrimspecialedition/users/23615814)
-- [shadeMe](https://github.com/shadeMe/SME-Sundries)
+- [CommonLibSSE-NG](https://github.com/alandtse/CommonLibSSE-NG)

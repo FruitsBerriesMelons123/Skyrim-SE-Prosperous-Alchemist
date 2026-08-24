@@ -1,1 +1,0 @@
-Scriptname SoulGem extends MiscObject Hidden
