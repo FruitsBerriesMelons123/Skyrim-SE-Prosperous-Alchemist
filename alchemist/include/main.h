@@ -40,15 +40,11 @@ namespace alchemist {
 	void _LOG(const string& s) {
 		SKSE::log::info("{}", s);
 	}
-
-	float round_skyrim(float f) {
-		return std::round(f);
-	}
-
 	class Effect {
 	public:
 		string name;
 		bool beneficial;
+		bool hostile;
 		bool powerAffectsMagnitude;
 		float magnitude;
 		float calcMagnitude;
@@ -67,6 +63,7 @@ namespace alchemist {
 		Effect(GameEffect* effect);
 		Effect() {
 			beneficial = false;
+			hostile = false;
 			powerAffectsMagnitude = false;
 			magnitude = 0;
 			calcMagnitude = 0;
@@ -78,9 +75,17 @@ namespace alchemist {
 		};
 	};
 
+	struct NativePotionResult {
+		set<Effect> effects;
+		Effect controlEffect;
+		float cost = 0;
+		bool valid = false;
+	};
+
 	class Ingredient {
 	public:
 		string name;
+		IngredientItem* nativeIngredient = nullptr;
 		set<Effect> effects;
 		int inventoryCount;
 		bool operator< (const Ingredient& ingredient) const {
@@ -324,58 +329,6 @@ namespace alchemist {
 			return effect ? effect->GetMagnitude() : 0.0f;
 		}
 
-		float getCalcMagnitude(GameEffect* effect) {
-			float magnitude = getMagnitude(effect);
-			//return round_skyrim(magnitude);
-			return magnitude;
-		}
-
-		float getPerkCalcMagnitudeDebug(Effect effect, bool potion, Player player_debug) {
-			float magnitude = effect.magnitude;
-			if (!effect.powerAffectsMagnitude) {
-				//return round_skyrim(magnitude);
-				return magnitude;
-			}
-			float calcMagnitude = magnitude * (player_debug.alchemyLevel / 5 * 0.1 + 4) * (1 + player_debug.alchemistPerkLevel * 20 / 100) * (1 + player_debug.fortifyAlchemyLevel / 100);
-			if (player_debug.hasPerkPhysician && (effect.name == "Restore Health" || effect.name == "Restore Magicka" || effect.name == "Restore Stamina")) {
-				calcMagnitude = calcMagnitude * 1.25;
-			}
-			if (effect.beneficial && player_debug.hasPerkBenefactor && potion) {
-				calcMagnitude = calcMagnitude * 1.25;
-			}
-			else if (!effect.beneficial && player_debug.hasPerkPoisoner && !potion) {
-				calcMagnitude = calcMagnitude * 1.25;
-			}
-			if (player_debug.hasSeekerOfShadows) {
-				calcMagnitude = calcMagnitude * 1.1;
-			}
-			//return round_skyrim(calcMagnitude);
-			return calcMagnitude;
-		}
-
-		float getPerkCalcMagnitude(Effect effect, bool potion) {
-			float magnitude = effect.magnitude;
-			if (!effect.powerAffectsMagnitude) {
-				return round_skyrim(magnitude);
-				//return magnitude;
-			}
-			float calcMagnitude = magnitude * (player.alchemyLevel / 5 * 0.1 + 4) * (1 + player.alchemistPerkLevel * 20 / 100) * (1 + player.fortifyAlchemyLevel / 100);
-			if (player.hasPerkPhysician && (effect.name == "Restore Health" || effect.name == "Restore Magicka" || effect.name == "Restore Stamina")) {
-				calcMagnitude = calcMagnitude * 1.25;
-			}
-			if (effect.beneficial && player.hasPerkBenefactor && potion) {
-				calcMagnitude = calcMagnitude * 1.25;
-			}
-			else if (!effect.beneficial && player.hasPerkPoisoner && !potion) {
-				calcMagnitude = calcMagnitude * 1.25;
-			}
-			if (player.hasSeekerOfShadows) {
-				calcMagnitude = calcMagnitude * 1.1;
-			}
-			return round_skyrim(calcMagnitude);
-			//return calcMagnitude;
-		}
-
 		bool powerAffectsDuration(GameEffect* effect) {
 			return effect && effect->baseEffect && effect->baseEffect->data.flags.all(RE::EffectSetting::EffectSettingData::Flag::kPowerAffectsDuration);
 		}
@@ -383,59 +336,6 @@ namespace alchemist {
 		int getDuration(GameEffect* effect) {
 			return effect ? static_cast<int>(effect->GetDuration()) : 0;
 		}
-
-		float getCalcDuration(GameEffect* effect) {
-			float duration = getDuration(effect);
-			//return round_skyrim(duration);
-			return duration;
-		}
-
-		float getPerkCalcDurationDebug(Effect effect, bool potion, Player player_debug) {
-			float duration = effect.duration;
-			if (!effect.powerAffectsDuration) {
-				//return round_skyrim(duration);
-				return duration;
-			}
-			float calcDuration = duration * (player_debug.alchemyLevel / 5 * 0.1 + 4) * (1 + player_debug.alchemistPerkLevel * 20 / 100) * (1 + player_debug.fortifyAlchemyLevel / 100);
-			if (player_debug.hasPerkPhysician && (effect.name == "Restore Health" || effect.name == "Restore Magicka" || effect.name == "Restore Stamina")) {
-				calcDuration = calcDuration * 1.25;
-			}
-			if (effect.beneficial && player_debug.hasPerkBenefactor && potion) {
-				calcDuration = calcDuration * 1.25;
-			}
-			else if (!effect.beneficial && player_debug.hasPerkPoisoner && !potion) {
-				calcDuration = calcDuration * 1.25;
-			}
-			if (player_debug.hasSeekerOfShadows) {
-				calcDuration = calcDuration * 1.1;
-			}
-			//return round_skyrim(calcDuration);
-			return calcDuration;
-		}
-
-		float getPerkCalcDuration(Effect effect, bool potion) {
-			float duration = effect.duration;
-			if (!effect.powerAffectsDuration) {
-				return round_skyrim(duration);
-				//return duration;
-			}
-			float calcDuration = duration * (player.alchemyLevel / 5 * 0.1 + 4) * (1 + player.alchemistPerkLevel * 20 / 100) * (1 + player.fortifyAlchemyLevel / 100);
-			if (player.hasPerkPhysician && (effect.name == "Restore Health" || effect.name == "Restore Magicka" || effect.name == "Restore Stamina")) {
-				calcDuration = calcDuration * 1.25;
-			}
-			if (effect.beneficial && player.hasPerkBenefactor && potion) {
-				calcDuration = calcDuration * 1.25;
-			}
-			else if (!effect.beneficial && player.hasPerkPoisoner && !potion) {
-				calcDuration = calcDuration * 1.25;
-			}
-			if (player.hasSeekerOfShadows) {
-				calcDuration = calcDuration * 1.1;
-			}
-			return round_skyrim(calcDuration);
-			//return calcDuration;
-		}
-
 		float getCost(GameEffect* effect) {
 			return effect ? effect->cost : 0.0f;
 		}
@@ -444,67 +344,91 @@ namespace alchemist {
 			return effect && effect->baseEffect ? effect->baseEffect->data.baseCost : 0.0f;
 		}
 
-		float getCalcCost(GameEffect* effect) {
-			float baseCost = getBaseCost(effect);
-			float magnitude = getCalcMagnitude(effect);
-			float duration = getCalcDuration(effect);
-			if (magnitude > 0 && duration > 0) {
-				return baseCost * pow(magnitude, 1.1) * pow(duration / 10, 1.1);
+		NativePotionResult evaluatePotion(const vector<IngredientItem*>& ingredients) {
+			NativePotionResult result;
+			RE::PlayerCharacter* playerCharacter = RE::PlayerCharacter::GetSingleton();
+			if (!playerCharacter) {
+				return result;
 			}
-			else if (magnitude > 0) {
-				return baseCost * pow(magnitude, 1.1);
-			}
-			else {
-				return baseCost * pow(duration / 10, 1.1);
-			}
-		}
 
-		float getPerkCalcCost(Effect effect, bool potion) {
-			float magnitude = getPerkCalcMagnitude(effect, potion);
-			float duration = getPerkCalcDuration(effect, potion);
-			if (magnitude > 0 && duration > 0) {
-				return effect.baseCost * pow(magnitude, 1.1) * pow(duration / 10, 1.1);
-			}
-			else if (magnitude > 0) {
-				return effect.baseCost * pow(magnitude, 1.1);
-			}
-			else {
-				return effect.baseCost * pow(duration / 10, 1.1);
-			}
-		}
-
-		GameEffect* getBestEffectDuplicate(vector<GameEffect*> effects1, vector<GameEffect*> effects2, GameEffect* effect3) {
-			GameEffect* bestEffect = NULL;
-			float cost3 = getCalcCost(effect3);
-			float bestCost = 0;
-			string name3 = getName(effect3);
-			for (int i = 0; i < effects1.size(); ++i) {
-				if (getName(effects1[i]) == name3) {
-					float cost = getCalcCost(effects1[i]);
-					if (cost >= cost3 && cost > bestCost) {
-						bestCost = cost;
-						bestEffect = effects1[i];
-					}
-					else if (cost3 > bestCost) {
-						bestCost = cost3;
-						bestEffect = effect3;
+			map<RE::EffectSetting*, vector<GameEffect*>> effectsByBaseEffect;
+			for (auto* ingredient : ingredients) {
+				if (!ingredient) {
+					continue;
+				}
+				set<RE::EffectSetting*> ingredientEffects;
+				for (auto* effect : ingredient->effects) {
+					if (effect && effect->baseEffect && ingredientEffects.insert(effect->baseEffect).second) {
+						effectsByBaseEffect[effect->baseEffect].push_back(effect);
 					}
 				}
 			}
-			for (int i = 0; i < effects2.size(); ++i) {
-				if (getName(effects2[i]) == name3) {
-					float cost = getCalcCost(effects2[i]);
-					if (cost >= cost3 && cost > bestCost) {
-						bestCost = cost;
-						bestEffect = effects2[i];
+
+			float highestEffectCost = -1.0f;
+			for (const auto& [baseEffect, candidateEffects] : effectsByBaseEffect) {
+				if (candidateEffects.size() < 2) {
+					continue;
+				}
+
+				GameEffect* selectedEffect = nullptr;
+				float selectedCost = -1.0f;
+				float selectedMagnitude = 0.0f;
+				float selectedDuration = 0.0f;
+				for (auto* candidateEffect : candidateEffects) {
+					float magnitude = candidateEffect->GetMagnitude();
+					RE::BGSEntryPoint::HandleEntryPoint(
+						RE::BGSEntryPoint::ENTRY_POINT::kModAlchemyEffectiveness,
+						playerCharacter,
+						baseEffect,
+						&magnitude);
+					float duration = static_cast<float>(candidateEffect->GetDuration());
+					float baseCost = baseEffect->data.baseCost;
+					float cost = 0.0f;
+					if (magnitude > 0.0f && duration > 0.0f) {
+						cost = baseCost * std::pow(magnitude, 1.1f) * std::pow(duration / 10.0f, 1.1f);
 					}
-					else if (cost3 > bestCost) {
-						bestCost = cost3;
-						bestEffect = effect3;
+					else if (magnitude > 0.0f) {
+						cost = baseCost * std::pow(magnitude, 1.1f);
+					}
+					else if (duration > 0.0f) {
+						cost = baseCost * std::pow(duration / 10.0f, 1.1f);
+					}
+
+					if (cost > selectedCost) {
+						selectedEffect = candidateEffect;
+						selectedCost = cost;
+						selectedMagnitude = magnitude;
+						selectedDuration = duration;
 					}
 				}
+
+				if (!selectedEffect) {
+					continue;
+				}
+
+				Effect calculatedEffect(selectedEffect);
+				calculatedEffect.calcMagnitude = selectedMagnitude;
+				calculatedEffect.calcDuration = selectedDuration;
+				calculatedEffect.calcCost = selectedCost;
+				result.effects.insert(calculatedEffect);
+				if (selectedCost > highestEffectCost) {
+					highestEffectCost = selectedCost;
+					result.controlEffect = calculatedEffect;
+				}
 			}
-			return bestEffect;
+
+			if (highestEffectCost < 0.0f) {
+				return result;
+			}
+
+			for (const auto& effect : result.effects) {
+				if (!(player.hasPerkPurity && effect.beneficial && !result.controlEffect.beneficial) &&
+					!(player.hasPerkPurity && !effect.beneficial && result.controlEffect.beneficial)) {
+					result.cost += effect.calcCost;
+				}
+			}
+			result.valid = true;
+			return result;
 		}
 
 		vector<string> getKeywords(GameEffect* effect) {
@@ -540,8 +464,8 @@ namespace alchemist {
 
 		string getPerkCalcDescriptionDebug(Effect effect, bool potion) {
 			string description = effect.description;
-			description = str::replace(description, "<mag>", str::fromFloat(getPerkCalcMagnitudeDebug(effect, potion, player)));
-			description = str::replace(description, "<dur>", str::fromFloat(getPerkCalcDurationDebug(effect, potion, player)));
+			description = str::replace(description, "<mag>", str::fromFloat(effect.calcMagnitude));
+			description = str::replace(description, "<dur>", str::fromFloat(effect.calcDuration));
 			//description = str::replace(description, "%", "%%");
 			description = str::replace(description, "<", "");
 			description = str::replace(description, ">", "");
@@ -550,8 +474,8 @@ namespace alchemist {
 
 		string getPerkCalcDescription(Effect effect, bool potion) {
 			string description = effect.description;
-			description = str::replace(description, "<mag>", str::fromFloat(getPerkCalcMagnitude(effect, potion)));
-			description = str::replace(description, "<dur>", str::fromInt(getPerkCalcDuration(effect, potion)));
+			description = str::replace(description, "<mag>", str::fromFloat(effect.calcMagnitude));
+			description = str::replace(description, "<dur>", str::fromFloat(effect.calcDuration));
 			//description = str::replace(description, "%", "%%");
 			description = str::replace(description, "<", "");
 			description = str::replace(description, ">", "");
@@ -867,19 +791,22 @@ namespace alchemist {
 	Effect::Effect(GameEffect* effect) {
 		name = effect::getName(effect);
 		beneficial = effect::hasKeyword(effect, "MagicAlchBeneficial");
+		hostile = effect && effect->baseEffect && effect->baseEffect->IsHostile();
 		powerAffectsMagnitude = effect::powerAffectsMagnitude(effect);
 		magnitude = effect::getMagnitude(effect);
-		calcMagnitude = effect::getCalcMagnitude(effect);
+		// initialize calculated values from native values
+		calcMagnitude = magnitude;
 		powerAffectsDuration = effect::powerAffectsDuration(effect);
 		duration = effect::getDuration(effect);
-		calcDuration = effect::getCalcDuration(effect);
+		calcDuration = duration;
 		baseCost = effect::getBaseCost(effect);
-		calcCost = effect::getCalcCost(effect);
+		calcCost = effect::getCost(effect);
 		description = effect && effect->baseEffect ? effect->baseEffect->magicItemDescription.c_str() : "";
 	};
 
 	Ingredient::Ingredient(IngredientItem* ingredient) {
 		name = ingredient::getName(ingredient);
+		nativeIngredient = ingredient;
 		vector<GameEffect*> iEffects = ingredient::getEffects(ingredient);
 		for (int i = 0; i < iEffects.size(); ++i) {
 			effects.insert(Effect(iEffects[i]));
@@ -909,7 +836,7 @@ namespace alchemist {
 				tPoison = tStrings.at(1);
 			}
 			string title = tPoison;
-			if (controlEffect.beneficial) {
+			if (!controlEffect.hostile) {
 				title = tPotion;
 			}
 			return title + " " + controlEffect.name;

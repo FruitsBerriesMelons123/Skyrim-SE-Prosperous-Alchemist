@@ -36,45 +36,20 @@ namespace alchemist {
 			if (potion.ingredient1 == *ingredientIt || potion.ingredient2 == *ingredientIt) {
 				continue;
 			}
-			set<Effect> effects = potion.effects;
-			Effect controlEffect = potion.controlEffect;
-			float controlCost = potion.controlEffect.calcCost;
-			for (Effect effect : potion.possibleEffects) {
-				auto effectIt = ingredientIt->effects.find(effect);
-				if (effectIt != ingredientIt->effects.end()) {
-					float costCheck = 0;
-					Effect effectCheck;
-					if (effectIt->calcCost > effect.calcCost) {
-						costCheck = effectIt->calcCost;
-						effectCheck = *effectIt;
-						effects.insert(*effectIt);
-					}
-					else {
-						costCheck = effect.calcCost;
-						effectCheck = effect;
-						effects.insert(effect);
-					}
-					if (costCheck > controlCost) {
-						controlEffect = effectCheck;
-						controlCost = costCheck;
-					}
-				}
-			}
-			if (effects.size() == potion.effects.size()) {
+			NativePotionResult nativeResult = effect::evaluatePotion({
+				potion.ingredient1.nativeIngredient,
+				potion.ingredient2.nativeIngredient,
+				ingredientIt->nativeIngredient
+			});
+			if (!nativeResult.valid || nativeResult.effects.size() <= potion.effects.size()) {
 				continue;
 			}
-			float cost = 0;
-			for (Effect effect : effects) {
-				if (!(player.hasPerkPurity && effect.beneficial && !controlEffect.beneficial) &&
-					!(player.hasPerkPurity && !effect.beneficial && controlEffect.beneficial)) {
-					cost += effect::getPerkCalcCost(effect, controlEffect.beneficial);
-				}
-			}
-			Potion improvedPotion = Potion(3, potion.ingredient1, potion.ingredient2, *ingredientIt, effects, controlEffect, cost);
+			Potion improvedPotion = Potion(3, potion.ingredient1, potion.ingredient2, *ingredientIt,
+				nativeResult.effects, nativeResult.controlEffect, nativeResult.cost);
 			alchemist_mutex.lock();
 			//potions.insert(improvedPotion); // WHY IS THIS LINE HERE!?
 			++combinations;
-			if (floor(cost) > costliestPotion.cost) {
+			if (floor(nativeResult.cost) > costliestPotion.cost) {
 				costliestPotion = improvedPotion;
 			}
 			alchemist_mutex.unlock();
@@ -105,47 +80,26 @@ namespace alchemist {
 		if (ingredient1 == ingredient2) {
 			return getNextIngredients();
 		}
-		set<Effect> effects;
 		set<Effect> possibleEffects = ingredient1.effects;
 		possibleEffects.merge(ingredient2.effects);
-		Effect controlEffect;
-		float controlCost = 0;
 		for (auto it1 = ingredient1.effects.begin(); it1 != ingredient1.effects.end(); ++it1) {
 			auto it2 = ingredient2.effects.find(*it1);
 			if (it2 != ingredient2.effects.end()) {
 				possibleEffects.erase(*it1);
-				float costCheck = 0;
-				Effect effectCheck;
-				if (it1->calcCost > it2->calcCost) {
-					costCheck = it1->calcCost;
-					effectCheck = *it1;
-					effects.insert(*it1);
-				}
-				else {
-					costCheck = it2->calcCost;
-					effectCheck = *it2;
-					effects.insert(*it2);
-				}
-				if (costCheck > controlCost) {
-					controlEffect = effectCheck;
-					controlCost = costCheck;
-				}
 			}
 		}
-		if (controlCost == 0) {
+		NativePotionResult nativeResult = effect::evaluatePotion({
+			ingredient1.nativeIngredient,
+			ingredient2.nativeIngredient
+		});
+		if (!nativeResult.valid) {
 			return getNextIngredients();
 		}
-		float cost = 0;
-		for (Effect effect : effects) {
-			if (!(player.hasPerkPurity && effect.beneficial && !controlEffect.beneficial) &&
-				!(player.hasPerkPurity && !effect.beneficial && controlEffect.beneficial)) {
-				cost += effect::getPerkCalcCost(effect, controlEffect.beneficial);
-			}
-		}
-		Potion potion = Potion(2, ingredient1, ingredient2, effects, possibleEffects, controlEffect, cost);
+		Potion potion = Potion(2, ingredient1, ingredient2, nativeResult.effects, possibleEffects,
+			nativeResult.controlEffect, nativeResult.cost);
 		alchemist_mutex.lock();
 		potions.insert(potion);
-		if (floor(cost) > costliestPotion.cost) {
+		if (floor(nativeResult.cost) > costliestPotion.cost) {
 			costliestPotion = potion;
 		}
 		alchemist_mutex.unlock();
@@ -221,44 +175,19 @@ namespace alchemist {
 			if (potion.ingredient1 == *ingredientIt || potion.ingredient2 == *ingredientIt) {
 				continue;
 			}
-			set<Effect> effects = potion.effects;
-			Effect controlEffect = potion.controlEffect;
-			float controlCost = potion.controlEffect.calcCost;
-			for (Effect effect : potion.possibleEffects) {
-				auto effectIt = ingredientIt->effects.find(effect);
-				if (effectIt != ingredientIt->effects.end()) {
-					float costCheck = 0;
-					Effect effectCheck;
-					if (effectIt->calcCost > effect.calcCost) {
-						costCheck = effectIt->calcCost;
-						effectCheck = *effectIt;
-						effects.insert(*effectIt);
-					}
-					else {
-						costCheck = effect.calcCost;
-						effectCheck = effect;
-						effects.insert(effect);
-					}
-					if (costCheck > controlCost) {
-						controlEffect = effectCheck;
-						controlCost = costCheck;
-					}
-				}
-			}
-			if (effects.size() == potion.effects.size()) {
+			NativePotionResult nativeResult = effect::evaluatePotion({
+				potion.ingredient1.nativeIngredient,
+				potion.ingredient2.nativeIngredient,
+				ingredientIt->nativeIngredient
+			});
+			if (!nativeResult.valid || nativeResult.effects.size() <= potion.effects.size()) {
 				continue;
 			}
-			float cost = 0;
-			for (Effect effect : effects) {
-				if (!(player.hasPerkPurity && effect.beneficial && !controlEffect.beneficial) &&
-					!(player.hasPerkPurity && !effect.beneficial && controlEffect.beneficial)) {
-					cost += effect::getPerkCalcCost(effect, controlEffect.beneficial);
-				}
-			}
-			Potion improvedPotion = Potion(3, potion.ingredient1, potion.ingredient2, *ingredientIt, effects, controlEffect, cost);
+			Potion improvedPotion = Potion(3, potion.ingredient1, potion.ingredient2, *ingredientIt,
+				nativeResult.effects, nativeResult.controlEffect, nativeResult.cost);
 			//potions.insert(improvedPotion); // WHY IS THIS LINE HERE!?
 			++combinations;
-			if (floor(cost) > costliestPotion.cost) {
+			if (floor(nativeResult.cost) > costliestPotion.cost) {
 				costliestPotion = improvedPotion;
 			}
 		}
@@ -268,46 +197,25 @@ namespace alchemist {
 		if (ingredient1 == ingredient2) {
 			return;
 		}
-		set<Effect> effects;
 		set<Effect> possibleEffects = ingredient1.effects;
 		possibleEffects.merge(ingredient2.effects);
-		Effect controlEffect;
-		float controlCost = 0;
 		for (auto it1 = ingredient1.effects.begin(); it1 != ingredient1.effects.end(); ++it1) {
 			auto it2 = ingredient2.effects.find(*it1);
 			if (it2 != ingredient2.effects.end()) {
 				possibleEffects.erase(*it1);
-				float costCheck = 0;
-				Effect effectCheck;
-				if (it1->calcCost > it2->calcCost) {
-					costCheck = it1->calcCost;
-					effectCheck = *it1;
-					effects.insert(*it1);
-				}
-				else {
-					costCheck = it2->calcCost;
-					effectCheck = *it2;
-					effects.insert(*it2);
-				}
-				if (costCheck > controlCost) {
-					controlEffect = effectCheck;
-					controlCost = costCheck;
-				}
 			}
 		}
-		if (controlCost == 0) {
+		NativePotionResult nativeResult = effect::evaluatePotion({
+			ingredient1.nativeIngredient,
+			ingredient2.nativeIngredient
+		});
+		if (!nativeResult.valid) {
 			return;
 		}
-		float cost = 0;
-		for (Effect effect : effects) {
-			if (!(player.hasPerkPurity && effect.beneficial && !controlEffect.beneficial) &&
-				!(player.hasPerkPurity && !effect.beneficial && controlEffect.beneficial)) {
-				cost += effect::getPerkCalcCost(effect, controlEffect.beneficial);
-			}
-		}
-		Potion potion = Potion(2, ingredient1, ingredient2, effects, possibleEffects, controlEffect, cost);
+		Potion potion = Potion(2, ingredient1, ingredient2, nativeResult.effects, possibleEffects,
+			nativeResult.controlEffect, nativeResult.cost);
 		potions.insert(potion);
-		if (floor(cost) > costliestPotion.cost) {
+		if (floor(nativeResult.cost) > costliestPotion.cost) {
 			costliestPotion = potion;
 		}
 	}
