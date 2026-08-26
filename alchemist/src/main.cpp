@@ -1,260 +1,235 @@
-﻿#include "version.h"  // VERSION_VERSTRING, VERSION_MAJOR
-#include <ShlObj.h>  // CSIDL_MYDOCUMENTS
-
 #include "main.h"
+#include "AlchemyPlus/AlchemyPlus.h"
+#include "DeveloperTestHub.h"
+#include "MenuHandler.h"
+#include "RenderHook.h"
 
-#include <mutex>
-
-using std::mutex;
+#include <array>
 
 namespace alchemist {
 	Potion costliestPotion;
 	set<Ingredient> lastIngredientList;
 	set<Ingredient> ingredients;
-	set<Ingredient>::iterator ingredients_it1;
-	set<Ingredient>::iterator ingredients_it2;
 	set<Potion> potions;
-	set<Potion>::iterator potion_it;
-	mutex alchemist_mutex;
-	vector<thread> threads;
 	int combinations;
 
-	void improvePotion(Potion potion);
-	void getNextPotion() {
-		alchemist_mutex.lock();
-		if (potion_it != potions.end()) {
-			Potion potion = *potion_it;
-			++potion_it;
-			alchemist_mutex.unlock();
-			return improvePotion(potion);
-		}
-		alchemist_mutex.unlock();
-	}
+	namespace {
+		struct IngredientCombination
+		{
+			std::array<std::size_t, 3> indices{};
+			std::size_t size = 0;
+		};
 
-	void improvePotion(Potion potion) {
-		for (auto ingredientIt = ingredients.begin(); ingredientIt != ingredients.end(); ++ingredientIt) {
-			if (potion.ingredient1 == *ingredientIt || potion.ingredient2 == *ingredientIt) {
-				continue;
-			}
-			NativePotionResult nativeResult = effect::evaluatePotion({
-				potion.ingredient1.nativeIngredient,
-				potion.ingredient2.nativeIngredient,
-				ingredientIt->nativeIngredient
-			});
-			if (!nativeResult.valid || nativeResult.effects.size() <= potion.effects.size()) {
-				continue;
-			}
-			Potion improvedPotion = Potion(3, potion.ingredient1, potion.ingredient2, *ingredientIt,
-				nativeResult.effects, nativeResult.controlEffect, nativeResult.cost);
-			alchemist_mutex.lock();
-			//potions.insert(improvedPotion); // WHY IS THIS LINE HERE!?
-			++combinations;
-			if (floor(nativeResult.cost) > costliestPotion.cost) {
-				costliestPotion = improvedPotion;
-			}
-			alchemist_mutex.unlock();
-		}
-		getNextPotion();
-	}
+		struct CandidateResult
+		{
+			IngredientCombination combination;
+			Potion potion;
+		};
 
-	void makePotions2(Ingredient ingredient1, Ingredient ingredient2);
-	void getNextIngredients() {
-		alchemist_mutex.lock();
-		while (ingredients_it1 != ingredients.end()) {
-			ingredients_it2++;
-			if (ingredients_it2 != ingredients.end()) {
-				Ingredient ingredient1 = *ingredients_it1;
-				Ingredient ingredient2 = *ingredients_it2;
-				alchemist_mutex.unlock();
-				return makePotions2(ingredient1, ingredient2);
-			}
-			else {
-				ingredients_it1++;
-				ingredients_it2 = ingredients_it1;
-			}
-		}
-		alchemist_mutex.unlock();
-	}
-
-	void makePotions2(Ingredient ingredient1, Ingredient ingredient2) {
-		if (ingredient1 == ingredient2) {
-			return getNextIngredients();
-		}
-		set<Effect> possibleEffects = ingredient1.effects;
-		possibleEffects.merge(ingredient2.effects);
-		for (auto it1 = ingredient1.effects.begin(); it1 != ingredient1.effects.end(); ++it1) {
-			auto it2 = ingredient2.effects.find(*it1);
-			if (it2 != ingredient2.effects.end()) {
-				possibleEffects.erase(*it1);
-			}
-		}
-		NativePotionResult nativeResult = effect::evaluatePotion({
-			ingredient1.nativeIngredient,
-			ingredient2.nativeIngredient
-		});
-		if (!nativeResult.valid) {
-			return getNextIngredients();
-		}
-		Potion potion = Potion(2, ingredient1, ingredient2, nativeResult.effects, possibleEffects,
-			nativeResult.controlEffect, nativeResult.cost);
-		alchemist_mutex.lock();
-		potions.insert(potion);
-		if (floor(nativeResult.cost) > costliestPotion.cost) {
-			costliestPotion = potion;
-		}
-		alchemist_mutex.unlock();
-		getNextIngredients();
-	}
-
-	void makePotions() {
-		potions.clear();
-
-		alchemist_mutex.lock();
-		ingredients_it1 = ingredients.begin();
-		ingredients_it2 = ingredients_it1;
-		for (int i = 0; i < ingredients.size(); ++i) {
-			while (ingredients_it1 != ingredients.end()) {
-				ingredients_it2++;
-				if (ingredients_it2 != ingredients.end()) {
-					threads.push_back(thread(makePotions2, *ingredients_it1, *ingredients_it2));
-					break;
-				}
-				else {
-					ingredients_it1++;
-					ingredients_it2 = ingredients_it1;
+		set<Effect> getPossibleEffects(const Ingredient& ingredient1, const Ingredient& ingredient2)
+		{
+			set<Effect> possibleEffects;
+			possibleEffects.insert(ingredient1.effects.begin(), ingredient1.effects.end());
+			possibleEffects.insert(ingredient2.effects.begin(), ingredient2.effects.end());
+			for (const auto& effect : ingredient1.effects) {
+				if (std::find(ingredient2.effects.begin(), ingredient2.effects.end(), effect) != ingredient2.effects.end()) {
+					possibleEffects.erase(effect);
 				}
 			}
-		}
-		alchemist_mutex.unlock();
-
-		for (auto& thread : threads) {
-			if (thread.joinable()) {
-				thread.join();
-			}
+			return possibleEffects;
 		}
 
-		threads.clear();
+		std::optional<Potion> evaluateCombination(
+			const IngredientCombination& combination,
+			const vector<const Ingredient*>& availableIngredients)
+		{
+			if (combination.size < 2 || combination.size > 3) {
+				return std::nullopt;
+			}
+			vector<const Ingredient*> selectedIngredients;
+			selectedIngredients.reserve(combination.size);
+			for (std::size_t index = 0; index < combination.size; ++index) {
+				if (combination.indices[index] >= availableIngredients.size() || !availableIngredients[combination.indices[index]]) {
+					return std::nullopt;
+				}
+				selectedIngredients.push_back(availableIngredients[combination.indices[index]]);
+			}
 
-		alchemist_mutex.lock();
-		combinations = potions.size();
-		potion_it = potions.begin();
-		for (int i = 0; i < ingredients.size(); ++i) {
-			if (potion_it != potions.end()) {
-				Potion potion = *potion_it;
-				++potion_it;
-				threads.push_back(thread(improvePotion, potion));
+			const auto nativeResult = effect::evaluatePotion(selectedIngredients);
+			if (!nativeResult.valid || !std::isfinite(nativeResult.cost)) {
+				return std::nullopt;
 			}
-		}
-		alchemist_mutex.unlock();
-
-		for (auto& thread : threads) {
-			if (thread.joinable()) {
-				thread.join();
+			const auto& ingredient1 = *selectedIngredients[0];
+			const auto& ingredient2 = *selectedIngredients[1];
+			if (combination.size == 2) {
+				return Potion(2, ingredient1, ingredient2, nativeResult.effects,
+					getPossibleEffects(ingredient1, ingredient2), nativeResult.controlEffect, nativeResult.cost);
 			}
-		}
-
-		string effectDescriptions = "";
-		for (auto effect : costliestPotion.effects) {
-			if (!(player.hasPerkPurity && effect.beneficial && !costliestPotion.controlEffect.beneficial) &&
-				!(player.hasPerkPurity && !effect.beneficial && costliestPotion.controlEffect.beneficial)) {
-				effectDescriptions += " " + effect::getPerkCalcDescription(effect, costliestPotion.controlEffect.beneficial);
-			}
-		}
-		if (costliestPotion.size == 2) {
-			costliestPotion.description = costliestPotion.name + ":" + effectDescriptions +
-				"\n Value: " + str::fromFloat(floor(costliestPotion.cost)) + "\n" + str::printSort2(costliestPotion.ingredient1.name, costliestPotion.ingredient2.name);
-		}
-		else if (costliestPotion.size == 3) {
-			costliestPotion.description = costliestPotion.name + ":" + effectDescriptions +
-				"\n Value: " + str::fromFloat(floor(costliestPotion.cost)) + "\n" + str::printSort3(costliestPotion.ingredient1.name, costliestPotion.ingredient2.name, costliestPotion.ingredient3.name);
-		}
-	}
-
-	void improvePotionST(Potion potion) {
-		for (auto ingredientIt = ingredients.begin(); ingredientIt != ingredients.end(); ++ingredientIt) {
-			if (potion.ingredient1 == *ingredientIt || potion.ingredient2 == *ingredientIt) {
-				continue;
-			}
-			NativePotionResult nativeResult = effect::evaluatePotion({
-				potion.ingredient1.nativeIngredient,
-				potion.ingredient2.nativeIngredient,
-				ingredientIt->nativeIngredient
-			});
-			if (!nativeResult.valid || nativeResult.effects.size() <= potion.effects.size()) {
-				continue;
-			}
-			Potion improvedPotion = Potion(3, potion.ingredient1, potion.ingredient2, *ingredientIt,
+			return Potion(3, ingredient1, ingredient2, *selectedIngredients[2],
 				nativeResult.effects, nativeResult.controlEffect, nativeResult.cost);
-			//potions.insert(improvedPotion); // WHY IS THIS LINE HERE!?
-			++combinations;
-			if (floor(nativeResult.cost) > costliestPotion.cost) {
-				costliestPotion = improvedPotion;
+		}
+
+		vector<IngredientCombination> buildPairCombinations(std::size_t ingredientCount)
+		{
+			vector<IngredientCombination> combinations;
+			if (ingredientCount < 2) {
+				return combinations;
+			}
+			combinations.reserve(ingredientCount * (ingredientCount - 1) / 2);
+			for (std::size_t first = 0; first + 1 < ingredientCount; ++first) {
+				for (std::size_t second = first + 1; second < ingredientCount; ++second) {
+					combinations.push_back({ { first, second, 0 }, 2 });
+				}
+			}
+			return combinations;
+		}
+
+		vector<IngredientCombination> buildTripleCombinations(std::size_t ingredientCount)
+		{
+			vector<IngredientCombination> combinations;
+			if (ingredientCount < 3) {
+				return combinations;
+			}
+			combinations.reserve(ingredientCount * (ingredientCount - 1) * (ingredientCount - 2) / 6);
+			for (std::size_t first = 0; first + 2 < ingredientCount; ++first) {
+				for (std::size_t second = first + 1; second + 1 < ingredientCount; ++second) {
+					for (std::size_t third = second + 1; third < ingredientCount; ++third) {
+						combinations.push_back({ { first, second, third }, 3 });
+					}
+				}
+			}
+			return combinations;
+		}
+
+		vector<CandidateResult> evaluateCombinations(
+			const vector<IngredientCombination>& candidates,
+			const vector<const Ingredient*>& availableIngredients,
+			bool multithreaded)
+		{
+			if (candidates.empty()) {
+				return {};
+			}
+			const auto hardwareThreads = std::thread::hardware_concurrency();
+			const std::size_t requestedWorkers = hardwareThreads > 0 ? hardwareThreads : 1;
+			const std::size_t workerCount = multithreaded ?
+				(std::min)(requestedWorkers, candidates.size()) : 1;
+			std::atomic<std::size_t> nextCandidate = 0;
+			vector<vector<CandidateResult>> workerResults(workerCount);
+			const auto evaluateWorker = [&](std::size_t workerIndex) {
+				auto& results = workerResults[workerIndex];
+				while (true) {
+					const auto candidateIndex = nextCandidate.fetch_add(1, std::memory_order_relaxed);
+					if (candidateIndex >= candidates.size()) {
+						break;
+					}
+					if (auto potion = evaluateCombination(candidates[candidateIndex], availableIngredients)) {
+						results.push_back({ candidates[candidateIndex], std::move(*potion) });
+					}
+				}
+			};
+
+			if (workerCount == 1) {
+				evaluateWorker(0);
+			} else {
+				vector<thread> workers;
+				workers.reserve(workerCount);
+				for (std::size_t workerIndex = 0; workerIndex < workerCount; ++workerIndex) {
+					workers.emplace_back(evaluateWorker, workerIndex);
+				}
+				for (auto& worker : workers) {
+					worker.join();
+				}
+			}
+
+			std::size_t resultCount = 0;
+			for (const auto& results : workerResults) {
+				resultCount += results.size();
+			}
+			vector<CandidateResult> evaluated;
+			evaluated.reserve(resultCount);
+			for (auto& results : workerResults) {
+				for (auto& result : results) {
+					evaluated.push_back(std::move(result));
+				}
+			}
+			return evaluated;
+		}
+
+		bool isBetterPotion(const Potion& candidate)
+		{
+			if (costliestPotion.size <= 0) {
+				return true;
+			}
+			if (candidate.cost != costliestPotion.cost) {
+				return candidate.cost > costliestPotion.cost;
+			}
+			return candidate.id < costliestPotion.id;
+		}
+
+		void storePotion(Potion potion)
+		{
+			const auto [it, inserted] = potions.insert(std::move(potion));
+			if (inserted && isBetterPotion(*it)) {
+				costliestPotion = *it;
 			}
 		}
-	}
 
-	void makePotionsST2(Ingredient ingredient1, Ingredient ingredient2) {
-		if (ingredient1 == ingredient2) {
-			return;
-		}
-		set<Effect> possibleEffects = ingredient1.effects;
-		possibleEffects.merge(ingredient2.effects);
-		for (auto it1 = ingredient1.effects.begin(); it1 != ingredient1.effects.end(); ++it1) {
-			auto it2 = ingredient2.effects.find(*it1);
-			if (it2 != ingredient2.effects.end()) {
-				possibleEffects.erase(*it1);
+		void setCostliestDescription()
+		{
+			if (costliestPotion.size != 2 && costliestPotion.size != 3) {
+				return;
 			}
-		}
-		NativePotionResult nativeResult = effect::evaluatePotion({
-			ingredient1.nativeIngredient,
-			ingredient2.nativeIngredient
-		});
-		if (!nativeResult.valid) {
-			return;
-		}
-		Potion potion = Potion(2, ingredient1, ingredient2, nativeResult.effects, possibleEffects,
-			nativeResult.controlEffect, nativeResult.cost);
-		potions.insert(potion);
-		if (floor(nativeResult.cost) > costliestPotion.cost) {
-			costliestPotion = potion;
-		}
-	}
-
-	void makePotionsST() {
-		potions.clear();
-		auto it_end = ingredients.end();
-		for (auto it1 = ingredients.begin(); it1 != it_end;) {
-			Ingredient ingredient1 = *it1;
-			for (auto it2 = ++it1; it2 != it_end; ++it2) {
-				Ingredient ingredient2 = *it2;
-				makePotionsST2(ingredient1, ingredient2);
-			}
-		}
-
-		combinations = potions.size();
-
-		for (Potion potion : potions) {
-			improvePotionST(potion);
-		}
-
-		string effectDescriptions = "";
-		for (auto effect : costliestPotion.effects) {
-			if (!(player.hasPerkPurity && effect.beneficial && !costliestPotion.controlEffect.beneficial) &&
-				!(player.hasPerkPurity && !effect.beneficial && costliestPotion.controlEffect.beneficial)) {
+			string effectDescriptions;
+			for (const auto& effect : costliestPotion.effects) {
 				effectDescriptions += " " + effect::getPerkCalcDescription(effect, costliestPotion.controlEffect.beneficial);
 			}
-		}
-		if (costliestPotion.size == 2) {
+			const auto ingredientText = costliestPotion.size == 2 ?
+				str::printSort2(costliestPotion.ingredient1.name, costliestPotion.ingredient2.name) :
+				str::printSort3(costliestPotion.ingredient1.name, costliestPotion.ingredient2.name, costliestPotion.ingredient3.name);
 			costliestPotion.description = costliestPotion.name + ":" + effectDescriptions +
-				"\n Value: " + str::fromFloat(floor(costliestPotion.cost)) + "\n" + str::printSort2(costliestPotion.ingredient1.name, costliestPotion.ingredient2.name);
+				"\n Value: " + str::fromFloat(floor(costliestPotion.cost)) + "\n" + ingredientText;
 		}
-		else if (costliestPotion.size == 3) {
-			costliestPotion.description = costliestPotion.name + ":" + effectDescriptions +
-				"\n Value: " + str::fromFloat(floor(costliestPotion.cost)) + "\n" + str::printSort3(costliestPotion.ingredient1.name, costliestPotion.ingredient2.name, costliestPotion.ingredient3.name);
+
+		void generatePotions(bool multithreaded)
+		{
+			potions.clear();
+			costliestPotion = Potion();
+
+			vector<const Ingredient*> availableIngredients;
+			availableIngredients.reserve(ingredients.size());
+			for (const auto& ingredient : ingredients) {
+				availableIngredients.push_back(&ingredient);
+			}
+
+			const auto pairCandidates = buildPairCombinations(availableIngredients.size());
+			const auto validPairs = evaluateCombinations(pairCandidates, availableIngredients, multithreaded);
+			for (const auto& result : validPairs) {
+				storePotion(result.potion);
+			}
+
+			const auto tripleCandidates = buildTripleCombinations(availableIngredients.size());
+			const auto validTriples = evaluateCombinations(tripleCandidates, availableIngredients, multithreaded);
+			for (const auto& result : validTriples) {
+				storePotion(result.potion);
+			}
+
+			combinations = static_cast<int>(potions.size());
+			setCostliestDescription();
 		}
+	}
+
+	void makePotions()
+	{
+		generatePotions(true);
+	}
+
+	void makePotionsST()
+	{
+		generatePotions(false);
 	}
 
 	void initAlchemist() {
+		caco::Adapter::Refresh();
 		int ignorePlayer = kIgnorePlayer.GetValue();
 		auto* playerCharacter = RE::PlayerCharacter::GetSingleton();
 		if (!playerCharacter) {
@@ -267,7 +242,7 @@ namespace alchemist {
 		auto inventory = playerCharacter->GetInventory();
 		set<Ingredient> ingredientCount;
 		for (const auto& [form, entry] : inventory) {
-			auto* ingredient = form ? form->As<IngredientItem>() : nullptr;
+			auto* ingredient = form && form->Is(RE::FormType::Ingredient) ? static_cast<IngredientItem*>(form) : nullptr;
 			if (ingredient) {
 				Ingredient ownedIngredient(ingredient);
 				ownedIngredient.inventoryCount = entry.first;
@@ -282,19 +257,37 @@ namespace alchemist {
 				}
 				if (auto* enchantment = entry.second->GetEnchantment()) {
 					for (auto* effect : enchantment->effects) {
-						if (effect::getName(effect) == "Fortify Alchemy") {
+						if (effect::isFortifyAlchemy(effect)) {
 							player.fortifyAlchemyLevel += effect::getMagnitude(effect);
+						}
+					}
+				}
+			}
+
+			if (const auto* playerCharacter = RE::PlayerCharacter::GetSingleton()) {
+				if (auto* magicTarget = const_cast<RE::PlayerCharacter*>(playerCharacter)->GetMagicTarget()) {
+					if (auto* activeEffects = magicTarget->GetActiveEffectList()) {
+						for (const auto* activeEffect : *activeEffects) {
+							if (!activeEffect || activeEffect->flags.any(RE::ActiveEffect::Flag::kInactive, RE::ActiveEffect::Flag::kDispelled)) {
+								continue;
+							}
+							if (activeEffect->flags.any(RE::ActiveEffect::Flag::kEnchanting) ||
+								(activeEffect->spell && activeEffect->spell->Is(RE::FormType::Enchantment))) {
+								continue;
+							}
+							if (effect::isFortifyAlchemy(activeEffect->GetBaseObject())) {
+								player.fortifyAlchemyLevel += activeEffect->GetMagnitude();
+							}
 						}
 					}
 				}
 			}
 		}
 
-		int protectIngredients = kProtectIngredients.GetValue();
-		vector<string> ingredientsToNotProtect = str::split(kIngredientsToUnprotect.GetValue(), ',');
+		const bool protectIngredients = kProtectIngredients.GetValue() != 0;
 		map<string, int> moreIngredients;
-		if (protectIngredients > 0) {
-			string additionalIngredients = kMoreIngredientsToProtect.GetValue();
+		if (protectIngredients) {
+			string additionalIngredients = kProtectedIngredients.GetValue();
 			vector<string> iTokens = str::split(additionalIngredients, ',');
 			for (auto& iToken : iTokens) {
 				vector<string> iParts = str::split(iToken, '|');
@@ -308,18 +301,17 @@ namespace alchemist {
 		}
 		ingredients.clear();
 		for (const auto& [form, entry] : inventory) {
-			auto* ingredient = form ? form->As<IngredientItem>() : nullptr;
-			if (ingredient && (protectIngredients == 0 || !ingredient::isProtected(ingredient, ingredientCount, moreIngredients, protectIngredients, ingredientsToNotProtect))) {
+			auto* ingredient = form && form->Is(RE::FormType::Ingredient) ? static_cast<IngredientItem*>(form) : nullptr;
+			if (ingredient && (!protectIngredients || !ingredient::isProtected(ingredient, ingredientCount, moreIngredients))) {
 				ingredients.insert(Ingredient(ingredient));
 			}
 		}
 		if (ignorePlayer == 0) {
+			player.captureAlchemyEvaluationContext();
 			player.setState();
 		}
 	}
 
-	// SINGLETHREADED: all ingredients in 2 seconds
-	// MULTITHREADED: all ingredients in 1 second or less
 	void stressTest() {
 		int stressTestCount = kNumberOfIngredientsToStressTest.GetValue();
 		ingredients.clear();
@@ -328,115 +320,41 @@ namespace alchemist {
 			return;
 		}
 		auto& allIngredients = dataHandler->GetFormArray<IngredientItem>();
-		for (std::uint32_t i = 0; i < allIngredients.size() && i < stressTestCount; ++i) {
+		const auto requestedCount = stressTestCount > 0 ? static_cast<std::size_t>(stressTestCount) : 0;
+		const std::size_t availableCount = allIngredients.size();
+		const auto selectedCount = (std::min)(availableCount, requestedCount);
+		for (std::size_t i = 0; i < selectedCount; ++i) {
 			ingredients.insert(Ingredient(allIngredients[i]));
 		}
 	}
 
-	void printIngredients() {
-		auto* dataHandler = RE::TESDataHandler::GetSingleton();
-		if (!dataHandler) {
-			return;
-		}
-		auto& allIngredients = dataHandler->GetFormArray<IngredientItem>();
-		for (auto* ingredient : allIngredients) {
-			if (ingredient) {
-				_LOG(ingredient->GetFullName());
-			}
-		}
-	}
-
-	class Scaleform_RegisterGetBestRecipeNameHandler : public RE::GFxFunctionHandler {
-	public:
-		void Call(Params& a_params) override {
-			static int performStressTest = 0;
-			performStressTest = kNumberOfIngredientsToStressTest.GetValue();
-			if (performStressTest == -1) {
-				printIngredients();
-			}
-			string translationStringCommas = kStringTranslations.GetValue();
-			vector<string> tStrings = str::split(translationStringCommas, ',');
-			string tAlchemy = "Alchemy";
-			string tNoPotions = "No potion recipes are currently available.";
-			if (tStrings.size() == 2) {
-				tAlchemy = tStrings.at(0);
-				tNoPotions = tStrings.at(1);
-			}
-			static string alchemist_result = "";
-			alchemist_result = "";
-			if (a_params.args && a_params.argCount > 0) {
-				const auto& craftDescription = a_params.args[0];
-				if (craftDescription.IsString()) {
-					string craft_description = craftDescription.GetString();
-					if (craft_description.find(tAlchemy) != string::npos) {
-					static time_t start;
-					if (performStressTest > 0) {
-						start = time(NULL);
-					}
-					initAlchemist();
-					if (performStressTest > 0) {
-						stressTest();
-					}
-					if (ingredients != lastIngredientList || player.state != player.lastState) {
-						costliestPotion = Potion(0, tNoPotions);
-						lastIngredientList = set<Ingredient>(ingredients);
-						player.lastState = player.state;
-						if (kSinglethreaded.GetValue() == 1) {
-							makePotionsST();
-						}
-						else {
-							makePotions();
-						}
-						_LOG("Calculated ingredients from " + std::to_string(combinations) + " different possible combinations.");
-					}
-					alchemist_result = costliestPotion.description;
-					if (performStressTest > 0) {
-						time_t end = time(NULL);
-						_LOG(str::fromInt(end - start) + " seconds");
-						_LOG(str::fromInt(ingredients.size()) + " ingredients");
-					}
-					}
-				}
-			}
-			if (a_params.retVal) {
-				a_params.retVal->SetString(alchemist_result);
-			}
-		}
-	};
-
-	class Scaleform_RegisterGetBestRecipeDescriptionHandler : public RE::GFxFunctionHandler {
-	public:
-		void Call(Params& a_params) override {
-			if (a_params.retVal) {
-				a_params.retVal->SetString("");
-			}
-		}
-	};
-
-	bool RegisterScaleformHandlers(RE::GFxMovieView* view, RE::GFxValue* plugin) {
-		if (!view || !plugin) {
-			return false;
-		}
-		RE::GFxValue getBestRecipeName;
-		RE::GFxValue getBestRecipeDescription;
-		view->CreateFunction(&getBestRecipeName, new Scaleform_RegisterGetBestRecipeNameHandler());
-		view->CreateFunction(&getBestRecipeDescription, new Scaleform_RegisterGetBestRecipeDescriptionHandler());
-		return plugin->SetMember("GetBestRecipeName", getBestRecipeName) &&
-			plugin->SetMember("GetBestRecipeDescription", getBestRecipeDescription);
-	}
 }
 
 void MessageHandler(SKSE::MessagingInterface::Message* msg)
 {
-	if (msg && msg->type == SKSE::MessagingInterface::kInputLoaded) {
-		alchemist::_LOG("...prosperous alchemist initialized!");
+	if (!msg) {
+		return;
+	}
+	if (msg->type == SKSE::MessagingInterface::kPreLoadGame) {
+		alchemist::devhub::Shutdown();
+	}
+	if (msg->type == SKSE::MessagingInterface::kPostPostLoad) {
+		alchemist::menu::Register();
+		alchemist::render::Install();
+	}
+	if (msg->type == SKSE::MessagingInterface::kDataLoaded) {
+		alchemist::caco::Adapter::Initialize();
+	}
+	if (msg->type == SKSE::MessagingInterface::kInputLoaded) {
+		alchemist::alchemyplus::Adapter::Initialize();
+		alchemist::menu::Register();
+		alchemist::render::Install();
 	}
 }
 
 SKSEPluginLoad(const SKSE::LoadInterface* skse)
 {
 	SKSE::Init(skse);
-	alchemist::_LOG("[MESSAGE] Initializing prosperous alchemist...");
 
 	REX::INI::SettingStore::GetSingleton()->Init("Data\\SKSE\\Plugins\\alchemist.ini", "");
 	REX::INI::SettingStore::GetSingleton()->Load();
@@ -444,21 +362,12 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse)
 
 	const auto* messaging = SKSE::GetMessagingInterface();
 	if (!messaging || messaging->Version() < SKSE::MessagingInterface::kVersion) {
-		alchemist::_LOG("Couldn't initialize messaging interface");
 		return false;
 	}
 	if (!messaging->RegisterListener("SKSE", MessageHandler)) {
-		alchemist::_LOG("Couldn't register message listener");
-		return false;
-	}
-
-	const auto* scaleform = SKSE::GetScaleformInterface();
-	if (!scaleform || !scaleform->Register(alchemist::RegisterScaleformHandlers, "alchemist")) {
-		alchemist::_LOG("Couldn't register Scaleform handlers");
 		return false;
 	}
 
 	srand(static_cast<unsigned int>(time(nullptr)));
-	alchemist::_LOG("[MESSAGE] prosperous alchemist Scaleform handlers registered");
 	return true;
 }

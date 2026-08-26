@@ -1,4 +1,10 @@
 # Custom entries
+dist
+temp
+user-paths.md
+user-paths.md-*
+config.py
+.vs
 .suo
 *.VC.opendb
 *.VC.db-shm

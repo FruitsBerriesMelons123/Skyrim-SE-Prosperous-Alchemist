@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<Solution>
-	<Configurations>
-		<BuildType Name="Release"/>
-		<Platform Name="x64"/>
-	</Configurations>
-	<Project Path="ProsperousAlchemistBootstrap.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="4c7c8d61-2b43-4a02-9a1d-4c1f6f4f8e8c"/>
-</Solution>
-
