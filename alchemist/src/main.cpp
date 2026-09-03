@@ -63,10 +63,10 @@ namespace alchemist {
 			const auto& ingredient2 = *selectedIngredients[1];
 			if (combination.size == 2) {
 				return Potion(2, ingredient1, ingredient2, nativeResult.effects,
-					getPossibleEffects(ingredient1, ingredient2), nativeResult.controlEffect, nativeResult.cost);
+					getPossibleEffects(ingredient1, ingredient2), nativeResult.controlEffect, nativeResult.isPoison, nativeResult.cost);
 			}
 			return Potion(3, ingredient1, ingredient2, *selectedIngredients[2],
-				nativeResult.effects, nativeResult.controlEffect, nativeResult.cost);
+				nativeResult.effects, nativeResult.controlEffect, nativeResult.isPoison, nativeResult.cost);
 		}
 
 		vector<IngredientCombination> buildPairCombinations(std::size_t ingredientCount)

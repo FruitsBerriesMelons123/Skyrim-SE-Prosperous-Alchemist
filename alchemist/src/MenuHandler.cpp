@@ -18,7 +18,7 @@
 
 namespace alchemist::menu {
 	namespace {
-		void QueueRecalculation();
+		void QueueRecalculation(bool a_force = false);
 		std::atomic_uint64_t menuGeneration = 0;
 		std::atomic_bool nativeAlchemyOpen = false;
 		std::atomic<float> nativeCursorX = -1.0f;
@@ -208,15 +208,19 @@ namespace alchemist::menu {
 		EquipChangeHandler equipChangeHandler;
 		InputHandler inputHandler;
 		std::atomic_bool recalculationQueued = false;
+		std::atomic_bool recalculationForceQueued = false;
 		bool menuOpenCloseHandlerRegistered = false;
 		bool inventoryChangeHandlerRegistered = false;
 		bool equipChangeHandlerRegistered = false;
 		bool inputHandlerRegistered = false;
 
-		void QueueRecalculation()
+		void QueueRecalculation(bool a_force)
 		{
 			if (devhub::ShouldSuppressInventoryRecalculation()) {
 				return;
+			}
+			if (a_force) {
+				recalculationForceQueued.store(true, std::memory_order_release);
 			}
 			bool expected = false;
 			if (!recalculationQueued.compare_exchange_strong(expected, true)) {
@@ -227,10 +231,12 @@ namespace alchemist::menu {
 			auto* taskInterface = SKSE::GetTaskInterface();
 			if (!taskInterface) {
 				recalculationQueued.store(false);
+				recalculationForceQueued.store(false);
 				return;
 			}
 			taskInterface->AddTask([generation]() {
 				recalculationQueued.store(false);
+				const bool force = recalculationForceQueued.exchange(false, std::memory_order_acq_rel);
 				const bool currentMenu = nativeAlchemyOpen.load(std::memory_order_acquire) && generation == menuGeneration.load(std::memory_order_acquire);
 				if (!ui::IsVisible() || !currentMenu) {
 					return;
@@ -247,7 +253,7 @@ namespace alchemist::menu {
 						}
 						RefreshAlchemyMenu(player.hasPerkPurity);
 					});
-				});
+				}, force);
 			});
 		}
 	}
@@ -280,9 +286,9 @@ namespace alchemist::menu {
 		}
 	}
 
-	void RequestRecalculation()
+	void RequestRecalculation(bool a_force)
 	{
-		QueueRecalculation();
+		QueueRecalculation(a_force);
 	}
 
 	void RefreshAlchemyMenu(bool a_hasPurityPerk)

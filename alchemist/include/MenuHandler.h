@@ -9,7 +9,7 @@ namespace alchemist::menu {
 	};
 
 	void Register();
-	void RequestRecalculation();
+	void RequestRecalculation(bool a_force = false);
 	void RefreshAlchemyMenu(bool a_hasPurityPerk);
 	bool GetCursorSnapshot(CursorSnapshot& a_snapshot);
 }

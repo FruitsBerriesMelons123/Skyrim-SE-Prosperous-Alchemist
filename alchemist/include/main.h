@@ -40,7 +40,6 @@ inline REX::INI::I32<> kSinglethreaded("General", "Singlethreaded", 0);
 inline REX::INI::I32<> kNumberOfIngredientsToStressTest("General", "NumberOfIngredientsToStressTest", 0);
 inline constexpr char kDefaultProtectedIngredients[] = "Berit's Ashes,Bliss Bug Thorax|11,Bone Hawk Claw,Briar Heart|3,Corkbulb Root,Corrupted Human Heart,Crimson Nirnroot|31,Daedra Heart,Deathbell|32,Dragon's Tongue|11,Ectoplasm|11,Farengar's Frost Salt,Fine-Cut Void Salts,Fire Salts|21,Frost Mirriam|11,Frost Salts|11,Giant's Toe|3,Goldfish|2,Hagraven Claw|2,Hagraven Feathers|2,Human Heart,Ice Wraith Teeth|6,Ironwood Fruit|2,Jarrin Root,Jazbay Grapes|21,Juniper Berries|2,Juvenile Mudcrab|2,Large Antlers,Mudcrab Chitin,Netch Jelly|6,Nightshade|21,Nirnroot|21,Salt Pile|11,Scathecraw|11,Simon Rodayne's Heart,Slaughterfish Scales,Taproot|4,Torchbug Abdomen|11,Torchbug Thorax|11,Troll Fat|2,Vampire Dust|3,Void Salts|12";
 inline REX::INI::Str<> kProtectedIngredients("General", "ProtectedIngredients", kDefaultProtectedIngredients);
-inline REX::INI::Str<> kStringTranslations("General", "StringTranslations", "Alchemy,No potion recipes are currently available.");
 inline REX::INI::Str<> kPotionPoison("General", "PotionPoison", "Potion of,Poison of");
 
 namespace alchemist {
@@ -125,6 +124,7 @@ namespace alchemist {
 		std::int32_t preAdjustmentGold = 0;
 		bool hasBeneficial = false;
 		bool hasHarmful = false;
+		bool isPoison = false;
 		bool usedCrucibleExemplar = false;
 		std::int32_t exemplarGoldValue = 0;
 		bool valid = false;
@@ -240,6 +240,23 @@ namespace alchemist {
 			}
 			return sorted;
 		}
+	}
+
+	struct PotionPrefixes {
+		string potion = "Potion of";
+		string poison = "Poison of";
+	};
+
+	inline PotionPrefixes getPotionPrefixes() {
+		PotionPrefixes prefixes;
+		const auto configuredPrefixes = str::split(kPotionPoison.GetValue(), ',');
+		if (!configuredPrefixes.empty()) {
+			prefixes.potion = configuredPrefixes.front();
+		}
+		if (configuredPrefixes.size() > 1) {
+			prefixes.poison = configuredPrefixes.at(1);
+		}
+		return prefixes;
 	}
 
 	class Player {
@@ -1150,6 +1167,7 @@ namespace alchemist {
 			if (calculatedEffects.empty()) {
 				return result;
 			}
+			result.isPoison = isPoison;
 			result.effects = std::move(calculatedEffects);
 			result.controlEffect = result.effects.front();
 			const auto control = std::find_if(result.effects.begin(), result.effects.end(), [controlIdentity](const auto& effect) {
@@ -1509,8 +1527,10 @@ namespace alchemist {
 		float cost;
 		float weight;
 		Effect controlEffect;
+		bool isPoison = false;
 		string description;
 		string getName() {
+			const auto prefixes = getPotionPrefixes();
 			if (!effects.empty()) {
 				const auto& primaryEffect = effects.front();
 				const bool impure = std::any_of(effects.begin(), effects.end(), [](const auto& effect) {
@@ -1522,22 +1542,11 @@ namespace alchemist {
 				const auto secondaryEffect = effects.size() > 1 ? effects[1].name : string{};
 				if (caco::Adapter::TryGetPotionName(effects.size(), primaryEffect.baseEffect,
 					primaryEffect.calcMagnitude, primaryEffect.calcDuration, primaryEffect.name,
-					secondaryEffect, primaryEffect.harmful, impure, cacoName)) {
+					secondaryEffect, isPoison, impure, prefixes.potion, prefixes.poison, cacoName)) {
 					return cacoName;
 				}
 			}
-			string translationPotionPoison = kPotionPoison.GetValue();
-			vector<string> tStrings = str::split(translationPotionPoison, ',');
-			string tPotion = "Potion of";
-			string tPoison = "Poison of";
-			if (tStrings.size() == 2) {
-				tPotion = tStrings.at(0);
-				tPoison = tStrings.at(1);
-			}
-			string title = tPoison;
-			if (!controlEffect.hostile) {
-				title = tPotion;
-			}
+			string title = isPoison ? prefixes.poison : prefixes.potion;
 			const std::string separator = (!title.empty() && title.back() == ' ') ? "" : " ";
 			return title + separator + controlEffect.name;
 		}
@@ -1547,7 +1556,7 @@ namespace alchemist {
 		bool operator== (const Potion& potion) const {
 			return id == potion.id;
 		}
-		Potion(int s, Ingredient i1, Ingredient i2, EffectList e, set<Effect> pe, Effect ce, float c) {
+		Potion(int s, Ingredient i1, Ingredient i2, EffectList e, set<Effect> pe, Effect ce, bool poison, float c) {
 			size = s;
 			id = i1.name + "," + i2.name;
 			ingredient1 = i1;
@@ -1555,6 +1564,7 @@ namespace alchemist {
 			effects = e;
 			possibleEffects = pe;
 			controlEffect = ce;
+			isPoison = poison;
 			cost = c;
 			weight = 0.0f;
 			if (!caco::Adapter::TryGetPotionWeight(effects.size(),
@@ -1565,7 +1575,7 @@ namespace alchemist {
 			}
 			name = getName();
 		};
-		Potion(int s, Ingredient i1, Ingredient i2, Ingredient i3, EffectList e, Effect ce, float c) {
+		Potion(int s, Ingredient i1, Ingredient i2, Ingredient i3, EffectList e, Effect ce, bool poison, float c) {
 			size = s;
 			id = i1.name + "," + i2.name + "," + i3.name;
 			ingredient1 = i1;
@@ -1573,6 +1583,7 @@ namespace alchemist {
 			ingredient3 = i3;
 			effects = e;
 			controlEffect = ce;
+			isPoison = poison;
 			cost = c;
 			weight = 0.0f;
 			if (!caco::Adapter::TryGetPotionWeight(effects.size(),

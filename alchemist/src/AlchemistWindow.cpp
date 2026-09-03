@@ -59,10 +59,8 @@ namespace alchemist::ui {
 		bool developerTestHubOpen = false;
 		bool settingsBuffersInitialized = false;
 		bool focusProtectedIngredientSearch = false;
-		char noRecipeMessage[512]{};
 		char potionPrefix[128]{};
 		char poisonPrefix[128]{};
-		std::string translationPrefix = "Alchemy";
 		struct ProtectedIngredientEntry {
 			std::string name;
 			int count = -1;
@@ -183,13 +181,9 @@ namespace alchemist::ui {
 		{
 			LoadProtectedIngredients();
 
-			const auto translations = str::split(kStringTranslations.GetValue(), ',');
-			translationPrefix = translations.empty() ? "Alchemy" : translations.front();
-			CopySettingText(noRecipeMessage, translations.size() > 1 ? translations.at(1) : kStringTranslations.GetValue());
-
-			const auto potionPrefixes = str::split(kPotionPoison.GetValue(), ',');
-			CopySettingText(potionPrefix, potionPrefixes.empty() ? "Potion of" : potionPrefixes.front());
-			CopySettingText(poisonPrefix, potionPrefixes.size() > 1 ? potionPrefixes.at(1) : "Poison of");
+			const auto prefixes = getPotionPrefixes();
+			CopySettingText(potionPrefix, prefixes.potion);
+			CopySettingText(poisonPrefix, prefixes.poison);
 			settingsBuffersInitialized = true;
 		}
 
@@ -324,8 +318,6 @@ namespace alchemist::ui {
 
 		void DrawRecipes()
 		{
-			ImGui::TextColored(ImVec4(1.0f, 0.84f, 0.0f, 1.0f), "Most Profitable Recipes");
-			ImGui::Separator();
 			const bool developerEnabled = kDeveloper.GetValue() == 1;
 			ImGui::SetNextItemWidth(-1.0f);
 			if (focusSearch) {
@@ -431,7 +423,6 @@ namespace alchemist::ui {
 				kSinglethreaded.SetValue(kSinglethreaded.GetValueDefault());
 				kNumberOfIngredientsToStressTest.SetValue(kNumberOfIngredientsToStressTest.GetValueDefault());
 				kProtectedIngredients.SetValue(kDefaultProtectedIngredients);
-				kStringTranslations.SetValue(kStringTranslations.GetValueDefault());
 				kPotionPoison.SetValue(kPotionPoison.GetValueDefault());
 				LoadSettingsBuffers();
 				SaveSettings();
@@ -571,18 +562,7 @@ namespace alchemist::ui {
 				++index;
 			}
 
-			ImGui::SeparatorText("Display text");
-			ImGui::SetNextItemWidth(-1.0f);
-			if (ImGui::InputTextMultiline("##NoRecipeMessage", noRecipeMessage, sizeof(noRecipeMessage), ImVec2(-1.0f, 52.0f))) {
-				kStringTranslations.SetValue(translationPrefix + "," + noRecipeMessage);
-				SaveSettings();
-			}
-			textInputActive = textInputActive || ImGui::IsItemActive();
-			ImGui::TextDisabled("Message shown when no valid potion recipe is available.");
-			if (ImGui::IsItemDeactivatedAfterEdit()) {
-				recalculate = true;
-			}
-
+			ImGui::SeparatorText("Naming");
 			ImGui::SetNextItemWidth(-1.0f);
 			if (ImGui::InputText("Potion prefix", potionPrefix, sizeof(potionPrefix))) {
 				kPotionPoison.SetValue(std::string(potionPrefix) + "," + poisonPrefix);
@@ -628,7 +608,7 @@ namespace alchemist::ui {
 			if (ImGui::BeginChild("AlchemyMainPane", ImVec2(panelWidth, 0.0f), true)) {
 				if (settingsOpen) {
 					if (DrawSettings()) {
-						menu::RequestRecalculation();
+						menu::RequestRecalculation(true);
 					}
 				} else {
 					DrawRecipes();
@@ -982,7 +962,7 @@ namespace alchemist::ui {
 
 		if (settingsOpen) {
 			if (DrawSettings()) {
-				menu::RequestRecalculation();
+				menu::RequestRecalculation(true);
 			}
 			ImGui::End();
 			return;

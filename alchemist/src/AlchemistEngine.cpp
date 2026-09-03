@@ -18,12 +18,6 @@ namespace alchemist::engine {
 		vector<RecipeResult> cachedRecipes;
 		std::uint64_t lastCacoCalculationRevision = 0;
 
-		string GetNoRecipeMessage()
-		{
-			const auto translations = str::split(kStringTranslations.GetValue(), ',');
-			return translations.size() == 2 ? translations.at(1) : "No potion recipes are currently available.";
-		}
-
 		string FormatIngredients(const Potion& potion)
 		{
 			if (potion.size == 2) {
@@ -180,7 +174,7 @@ namespace alchemist::engine {
 		const bool rebuild = a_force || ingredients != lastIngredientList || player.state != player.lastState ||
 			cacoCalculationRevision != lastCacoCalculationRevision;
 		if (rebuild) {
-			costliestPotion = Potion(0, GetNoRecipeMessage());
+			costliestPotion = Potion();
 			lastIngredientList = ingredients;
 			player.lastState = player.state;
 			lastCacoCalculationRevision = cacoCalculationRevision;
@@ -233,7 +227,7 @@ namespace alchemist::engine {
 
 		std::thread([a_onComplete, cacoCalculationRevision]() {
 			std::scoped_lock recalculateLock(recalculateMutex);
-			costliestPotion = Potion(0, GetNoRecipeMessage());
+			costliestPotion = Potion();
 			lastIngredientList = ingredients;
 			player.lastState = player.state;
 			lastCacoCalculationRevision = cacoCalculationRevision;

@@ -61,6 +61,8 @@ Run terminal commands one at a time and never invoke them through a parallel too
 
 Use the repository `build.py` wrapper for local builds when available. It truncates and flushes progress to `build.log` so a long-running build can be monitored without starting duplicate build commands.
 
+Do not change mod-version values, package names, or generated version artifacts unless the user explicitly requests a mod-version update. See `AGENTS.md` for the complete version-location matrix and propagation rules.
+
 Diagnostic commands must use the narrowest known path. Do not enumerate a drive root or broad system/user directory; for Skyrim diagnostics, inspect the exact SKSE directory directly with a bounded, non-recursive listing.
 If that exact diagnostics path is canceled as well, do not retry it in the same session, and continue with the supplied report and workspace evidence.
 
@@ -102,7 +104,7 @@ For a Release build, record the current time immediately before starting the int
 - **Potion and poison support** — Determines whether a result is a potion or poison from its dominant shared effect and displays the appropriate name.
 - **Ingredient protection** — Optionally excludes quest, crafting, Atronach Forge, Hearthfire, and other valuable ingredients from recommendations.
 - **Custom protection rules** — Adds custom ingredients with an optional inventory threshold and allows individual ingredients to be exempted from protection.
-- **Localization support** — Configures the no-recipe message and Potion/Poison name prefixes through the INI file while retaining the legacy translation field for compatibility.
+- **Localization support** — Configures Potion/Poison name prefixes through the INI file.
 - **Game-thread-safe search** — Performs Skyrim API-backed recipe evaluation on the game thread to avoid unsafe worker-thread access.
 - **Diagnostics** — Includes an optional stress-test mode and an exhaustive algorithm-completeness report displayed in the Developer Test Hub.
 
@@ -136,11 +138,7 @@ Potion of Fortify Something: effect description(s)
 Ingredient A, Ingredient B, Ingredient C
 ```
 
-Poison results use `Poison of` by default. If no valid recipe is found, the default message is:
-
-```text
-No potion recipes are currently available.
-```
+Potion and poison results use the configured `PotionPoison` prefixes, which default to `Potion of` and `Poison of`. When CACO renaming is active, its quality and secondary-effect text is retained while the configured type prefix is applied.
 
 Ingredient names are sorted alphabetically in the displayed recipe. Effect descriptions have their magnitude and duration placeholders replaced with the calculated values.
 
@@ -216,7 +214,7 @@ The adapter reads CACO's live records and settings instead of using a second har
 | Impure Potion Handling | When handling is enabled, `CACO_OptionImpurePotions` is enabled, and the resulting effects contain both `MagicAlchBeneficial` and `MagicAlchHarmful`, reduces every duration-based duration and other magnitude using CACO's truncating 20% operation. The displayed gold value is assigned separately as `int(floor(C_pre) × 0.2)`; it is not recalculated from the weakened effects. |
 | Alchemy Plus + CACO | In Automatic mode, applies Alchemy Plus's configured potency rounding to the CACO-resolved effect input before effect ordering and gold aggregation. If both impure-cost features are enabled, Alchemy Plus's signed/truncated total is the CACO pre-adjustment value before CACO's 20% operation. |
 | Crucible replacement | For a pure one-effect result, resolves `CACO_AlchemyEffectsList` and `CACO_AlchemyAllPotionList`, selects the matching `Potion0`–`Potion4` quality (or Cure Disease/Cure Poison), and uses the authored replacement form's gold value. |
-| Potion Renaming and Reweighting | Mirrors CACO's quality/type naming and one-, two-, and three-or-more-effect weight rules when the corresponding Potion Handling options are enabled. |
+| Potion Renaming and Reweighting | Preserves CACO's quality and secondary-effect naming while applying the configured `PotionPoison` type prefixes; one-, two-, and three-or-more-effect weight rules are mirrored when the corresponding Potion Handling options are enabled. |
 
 CACO 3.0 disables Potion Handling by default. In that configuration the duration-record and Crucible paths remain available, while the impure, rename, and reweight predictions remain disabled until their live CACO options are enabled. The native Skyrim crafting code does not expose a safe public operation for constructing every hypothetical candidate potion, so ordinary multi-effect values remain estimates based on the loaded records; no active crafting menu state is mutated to obtain them.
 
@@ -237,19 +235,16 @@ If the file is missing, the plugin creates it with the default settings during s
 | `developer` | `0` | Set to `1` to show the Developer Test Hub controls. Keep it at `0` during normal gameplay. |
 | `IgnorePlayer` | `0` | Uses the player's skill, perks, and worn Fortify Alchemy equipment when calculating values. Set to `1` to ignore player alchemy state. The ingredient list still comes from the player's inventory. |
 | `ProtectIngredients` | `0` | Disables ingredient protection by default. Set to `1` to exclude the configured protected ingredients from recommendations. |
-| `Singlethreaded` | `0` | Uses the multithreaded recipe evaluation path when set to `0`. Set to `1` to force the single-threaded path. |
+| `Singlethreaded` | `0` | At `0`, recipe evaluation uses worker threads; at `1`, calculation runs single-threaded on the main thread. |
 | `NumberOfIngredientsToStressTest` | `0` | Normal operation when `0`. A positive number replaces the inventory ingredient set for a diagnostic calculation using the first that many forms in the game's global ingredient list. Negative values behave like `0`. |
 | `ProtectedIngredients` | default list | Comma-separated ingredient names, editor IDs, or hexadecimal FormIDs. Each entry can optionally use `entry\|count` to keep that many copies protected. An entry without a count protects all copies. |
-| `StringTranslations` | `Alchemy,No potion recipes are currently available.` | Two comma-separated strings retained for configuration compatibility. The first value is not used for menu detection; only the second value is used as the no-recipe message. |
 | `PotionPoison` | `Potion of,Poison of` | Two comma-separated prefixes: the beneficial potion prefix followed by the harmful poison prefix. |
 
 String settings are intentionally comma-delimited. Do not add additional commas to an individual value. Ingredient names and editor IDs are matched case-insensitively; FormID entries use hexadecimal identifiers without a plugin name.
 
-Do not translate the first `StringTranslations` value expecting it to affect menu detection. The plugin classifies the active crafting submenu through runtime-matched native RTTI; the translation value is retained only for configuration compatibility.
-
 ### In-game settings
 
-While the alchemy overlay is open, select **Settings** to edit the General settings through the graphical interface. Calculation, ingredient protection, display text, and advanced diagnostic options are grouped into a scrollable settings page. The **Use single-threaded calculation** option is disabled by default; enable it to force the single-threaded recipe evaluation path. Changes are saved to `alchemist.ini` automatically, and **Reset all settings** restores the declared defaults.
+While the alchemy overlay is open, select **Settings** to edit the General settings through the graphical interface. Calculation, ingredient protection, naming, and advanced diagnostic options are grouped into a scrollable settings page. The **Use single-threaded calculation** option uses multithreaded worker-thread evaluation by default; selecting it runs recipe evaluation on the main thread. Changes are saved to `alchemist.ini` automatically, and **Reset all settings** restores the declared defaults.
 
 ## Developer Test Hub
 
@@ -267,9 +262,7 @@ developer=0
 IgnorePlayer=0
 ProtectIngredients=1
 Singlethreaded=0
-NumberOfIngredientsToStressTest=0
 ProtectedIngredients=Jarrin Root,Daedra Heart|3,Blue Butterfly Wing|10
-StringTranslations=Alchemy,No potion recipes are currently available.
 PotionPoison=Potion of,Poison of
 ```
 
@@ -432,7 +425,7 @@ build-alchemist/alchemist.dll
 
 The wrapper configures CMake with `Ninja`, sets `CMAKE_BUILD_TYPE=Release`, cleans only plugin outputs, builds it once, and deploys the DLL to the directory containing `DLL_DEPLOY`. It validates that the build artifact is newer than the recorded build start and that the deployed file has the same timestamp and SHA-256 hash. CommonLibSSE-NG and fetched dependency outputs are preserved. The native build supports only the `Release` configuration and requires an x64 MSVC toolchain.
 
-Use `python build.py --build-dir <directory>` to select a different repository-relative build directory, `python build.py --cmake <path-to-cmake>` when CMake is not on `PATH`, or `python build.py --package` to generate `dist/Prosperous-Alchemist-NG-v1.0.0.zip`. The wrapper does not accept a configuration argument; Debug, RelWithDebInfo, and MinSizeRel builds are not supported.
+Use `python build.py --build-dir <directory>` to select a different repository-relative build directory, `python build.py --cmake <path-to-cmake>` when CMake is not on `PATH`, or `python build.py --package` to generate `dist/Prosperous-Alchemist-NG-v1.0.1.zip`. The wrapper does not accept a configuration argument; Debug, RelWithDebInfo, and MinSizeRel builds are not supported.
 
 ### CMake path settings
 
@@ -570,7 +563,7 @@ If Crash Logger reports native `CraftingSubMenus::AlchemyMenu` or `IngredientIte
 ### The ImGui window stays hidden
 
 - Confirm the native crafting menu is available. If SkyUI is installed, confirm it is enabled in the active profile and that no other UI mod overrides its crafting-menu assets.
-- The plugin classifies the active `Crafting Menu` submenu through runtime-matched native RTTI during the menu-open event. It keeps the ImGui window hidden until the native crafting menu and submenu are available; this check is independent of localized display text and `StringTranslations`.
+- The plugin classifies the active `Crafting Menu` submenu through runtime-matched native RTTI during the menu-open event. It keeps the ImGui window hidden until the native crafting menu and submenu are available; this check is independent of localized display text.
 - A failed classification is intentional fail-closed behavior; correct the menu/profile issue and reopen the native alchemy menu.
 
 ### No recommendation appears
@@ -579,7 +572,6 @@ If Crash Logger reports native `CraftingSubMenus::AlchemyMenu` or `IngredientIte
 - Confirm that the game was launched through SKSE.
 - Confirm that the installed game runtime is supported by the current Address Library installation.
 - Confirm that Address Library provides the version file matching the installed runtime through the active MO2 profile.
-- Confirm that the second `StringTranslations` value contains the desired no-recipe message.
 - Make sure at least two available, unprotected ingredients share an effect.
 
 ### The INI file is not created
@@ -613,8 +605,8 @@ The generated plugin entry points register the plugin with SKSE and the plugin l
 - Address Library provides the runtime compatibility layer for supported runtimes, but the matching version library must be installed and the underlying CommonLibSSE-NG/runtime combination must be supported.
 - The recommendation cache compares ingredient names, the protected-ingredient result, tracked player state, and the active CACO calculation revision. Changing only an inventory quantity may not force a new search if those inputs remain unchanged.
 - Developer Test Hub inventory and equipment changes refresh the overlay's local snapshot and recommendation and then request a native alchemy-menu refresh. Inventory events raised during a hub task are coalesced so the final task refresh is authoritative; the workflow remains available while the menu is open.
-- Localization values support exactly two comma-separated fields per setting and do not support commas inside a translated value.
-- Protection names and display prefixes use configured strings; protected ingredients also accept editor IDs and hexadecimal FormIDs. Menu detection uses runtime-matched native submenu RTTI and is not localized through the INI.
+- `ProtectedIngredients` and `PotionPoison` use comma-separated values and do not support commas inside an individual entry or prefix.
+- Protection names and display prefixes use configured strings; protected ingredients also accept editor IDs and hexadecimal FormIDs. Menu detection uses runtime-matched native submenu RTTI and is not controlled by display text.
 - `NumberOfIngredientsToStressTest` is a diagnostic feature, not a normal gameplay setting. Positive values use the first N loaded ingredient forms; zero and negative values use the normal inventory calculation. Diagnostic results are shown only in the Developer Test Hub and are not written to disk.
 - The plugin depends on SKSE, Address Library, Skyrim's native crafting menu and D3D11 renderer, Dear ImGui (linked into the DLL), and the installed runtime. SkyUI is optional.
 - The native `CraftingMenu` and active alchemy submenu must be available for submenu classification; otherwise the plugin fails closed and keeps the ImGui window hidden.

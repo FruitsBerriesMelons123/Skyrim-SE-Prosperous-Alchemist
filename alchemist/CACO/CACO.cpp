@@ -1387,8 +1387,10 @@ namespace alchemist::caco
 		float a_duration,
 		std::string_view a_primaryName,
 		std::string_view a_secondaryName,
-		bool a_primaryHarmful,
+		bool a_isPoison,
 		bool a_impure,
+		std::string_view a_potionPrefix,
+		std::string_view a_poisonPrefix,
 		std::string& a_name) noexcept
 	{
 		a_name.clear();
@@ -1410,18 +1412,16 @@ namespace alchemist::caco
 				}
 				static constexpr std::array<std::string_view, 5> harmfulQualities{ "Weak ", "Standard ", "Potent ", "Malign ", "Devastating " };
 				static constexpr std::array<std::string_view, 5> beneficialQualities{ "Weak ", "Standard ", "Quality ", "Potent ", "Grand " };
-				quality = std::string(a_primaryHarmful ? harmfulQualities[qualityIndex] : beneficialQualities[qualityIndex]);
+				quality = std::string(a_isPoison ? harmfulQualities[qualityIndex] : beneficialQualities[qualityIndex]);
 			}
 
-			std::string type;
-			if (a_effectCount >= 3) {
-				type = a_primaryHarmful ? "Poison" : "Elixir";
-			} else if (a_effectCount == 2) {
-				type = a_primaryHarmful ? "Poison" : "Draught";
-			} else {
-				type = a_primaryHarmful ? "Poison" : "Potion";
+			const auto prefix = a_isPoison ? a_poisonPrefix : a_potionPrefix;
+			a_name = quality;
+			a_name += prefix;
+			if (!a_name.empty() && a_name.back() != ' ') {
+				a_name += ' ';
 			}
-			a_name = quality + type + " of " + std::string(a_primaryName);
+			a_name += a_primaryName;
 			if (a_effectCount == 2 && !a_secondaryName.empty()) {
 				a_name += " & ";
 				a_name += a_secondaryName;

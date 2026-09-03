@@ -17,6 +17,24 @@ See **user-paths.md** for paths for locations referenced in these instructions.
 - The mod should accurately predict potion costs in vanilla Skyrim, and also with either Alchemy Plus or CACO or both enabled.
 - The mod should be localization friendly where possible.
 
+## Mod Version Changes (Explicit User Authorization Required)
+- Do not update any mod-version value, version-bearing filename, generated version metadata, built artifact, deployed artifact, or release archive listed in this section unless the user specifically tells you to perform that mod-version update. An audit or documentation request is not authorization to change the version.
+- For any explicitly authorized mod-version update, apply the user-supplied target consistently to these direct project-owned locations:
+  - **`alchemist/include/version.h`**: update the `MYFP_VERSION_MAJOR`, `MYFP_VERSION_MINOR`, `MYFP_VERSION_PATCH`, and `MYFP_VERSION_BETA` components as required by the target release. `MYFP_VERSION_VERSTRING` is derived from those macros and should not be replaced with a separate literal. The public release version is three-part; the Windows/plugin metadata uses the corresponding four-part version, normally with a zero beta component.
+  - **`alchemist/CMakeLists.txt`**: update both the `project(... VERSION ...)` declaration and the `add_commonlibsse_plugin(... VERSION ...)` argument to the same four-part target version.
+  - **`build.py`**: update the version suffix in the default release archive path `dist/Prosperous-Alchemist-NG-v<target-public-version>.zip`.
+  - **`README.md`**: update the documented release archive path to exactly match the archive name produced by `build.py`.
+- The following locations are propagated or regenerated consequences of an authorized source update; do not hand-edit them:
+  - **`alchemist/version.rc`**: no numeric version is stored here; `FILEVERSION`, `PRODUCTVERSION`, `FileVersion`, and `ProductVersion` consume `version.h` macros automatically and should only be verified.
+  - **`build-alchemist/CMakeCache.txt`**: CMake regenerates `CMAKE_PROJECT_VERSION` and its major/minor/patch/tweak entries from `alchemist/CMakeLists.txt`.
+  - **`build-alchemist/__alchemistPlugin.cpp`**: the CommonLibSSE-NG CMake helper regenerates the `SKSEPluginInfo` `REL::Version` from the plugin `VERSION` argument.
+  - **`build-alchemist/alchemist.dll`**: rebuild to embed the new plugin and Windows file/product metadata; never patch the binary directly.
+  - **The deployed `alchemist.dll` named by `DLL_DEPLOY` in the local `user-paths.md`/`config.py` settings**: redeploy the freshly built DLL after an authorized build; the path files contain machine-specific destinations, not version values.
+  - **`dist/Prosperous-Alchemist-NG-v<target-public-version>.zip`**: generate a new archive with `python build.py --package`; do not rename or edit an existing archive in place.
+- No direct version update is required in `alchemist/version.rc`, `docs/USER_README.md`, either `alchemist.ini`, or the local path/configuration files; they were audited and contain no independent mod-version value.
+- Do not change version-looking values in the `alandtse-CommonLibSSE-NG` dependency or its nested OpenVR checkout, `.git` metadata, license text, generated dependency tree under `build-alchemist/_deps`, CMake's minimum version, ImGui's tag, or unrelated numeric literals. Those values are not the Prosperous Alchemist mod version.
+- After an explicitly authorized bump, keep the direct locations consistent, reconfigure/build to regenerate the dependent locations, package and deploy as required, and verify the resulting version metadata. Do not perform any of those version changes for an audit-only request.
+
 ## SKSE
 - Source code location listed in **user-paths.md**.
 

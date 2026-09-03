@@ -389,8 +389,10 @@ namespace alchemist::caco
 			float a_duration,
 			std::string_view a_primaryName,
 			std::string_view a_secondaryName,
-			bool a_primaryHarmful,
+			bool a_isPoison,
 			bool a_impure,
+			std::string_view a_potionPrefix,
+			std::string_view a_poisonPrefix,
 			std::string& a_name) noexcept;
 
 		[[nodiscard]] static bool TryGetPotionWeight(
