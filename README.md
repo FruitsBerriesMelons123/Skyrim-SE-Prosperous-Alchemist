@@ -1,8 +1,8 @@
-# Prosperous Alchemist
+# Prosperous Alchemist NG
 
 Prosperous Alchemist is an SKSE plugin that calculates the most valuable potion or poison currently craftable from the player's ingredients. It accounts for the alchemy skill, relevant perks, worn Fortify Alchemy equipment, ingredient effects, and optional ingredient protection rules.
 
-![Prosperous Alchemist preview](Prosperous%20Alchemist%20AE%20GOG%20SE%20VR.png)
+![Prosperous Alchemist preview](Prosperous-Alchemist-NG.jpg)
 
 > This repository contains the native plugin source and build configuration. It is not a packaged installer or a complete mod archive.
 
