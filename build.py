@@ -330,7 +330,7 @@ def verify_deployment(artifact: Path, deployed: Path) -> bool:
 
 def package_release(repo_root: Path, artifact: Path, package_path: Path | None = None) -> Path:
 	if package_path is None:
-		package_path = repo_root / "dist" / "Prosperous-Alchemist-NG-v1.0.1.zip"
+		package_path = repo_root / "dist" / "Prosperous-Alchemist-NG-v1.0.X.zip"
 	package_path.parent.mkdir(parents=True, exist_ok=True)
 
 	ini_path = repo_root / "alchemist.ini"

@@ -319,7 +319,14 @@ namespace alchemist::ui {
 		void DrawRecipes()
 		{
 			const bool developerEnabled = kDeveloper.GetValue() == 1;
-			ImGui::SetNextItemWidth(-1.0f);
+			const auto& style = ImGui::GetStyle();
+			const float settingsWidth = ImGui::CalcTextSize("Settings").x + style.FramePadding.x * 2.0f;
+			const float sortWidth = 145.0f;
+			float searchWidth = ImGui::GetContentRegionAvail().x - settingsWidth - sortWidth - style.ItemSpacing.x * 2.0f;
+			if (developerEnabled) {
+				searchWidth -= ImGui::CalcTextSize("Test").x + style.FramePadding.x * 2.0f + style.ItemSpacing.x;
+			}
+			ImGui::SetNextItemWidth((std::max)(1.0f, searchWidth));
 			if (focusSearch) {
 				ImGui::SetKeyboardFocusHere();
 				focusSearch = false;
@@ -328,6 +335,7 @@ namespace alchemist::ui {
 			searchInputFocused.store(ImGui::IsItemActive(), std::memory_order_release);
 			searchRectMin = ImGui::GetItemRectMin();
 			searchRectMax = ImGui::GetItemRectMax();
+			ImGui::SameLine();
 			if (developerEnabled) {
 				DrawDeveloperToggle();
 				ImGui::SameLine();
@@ -338,12 +346,8 @@ namespace alchemist::ui {
 				searchInputFocused.store(false, std::memory_order_release);
 				ImGui::ClearActiveID();
 			}
-			if (developerTestHubOpen) {
-				ImGui::NewLine();
-			} else {
-				ImGui::SameLine();
-			}
-			ImGui::SetNextItemWidth(developerTestHubOpen ? -1.0f : 145.0f);
+			ImGui::SameLine();
+			ImGui::SetNextItemWidth(sortWidth);
 			ImGui::Combo("##RecipeSort", &sortMode, "Value (highest)\0Name (A-Z)\0");
 
 			auto recipes = engine::GetCachedRecipes();
@@ -378,7 +382,7 @@ namespace alchemist::ui {
 				ImVec2(0.0f, -ImGui::GetFrameHeightWithSpacing()))) {
 				ImGui::TableSetupColumn("Recipe", ImGuiTableColumnFlags_WidthFixed, 170.0f);
 				ImGui::TableSetupColumn("Ingredients", ImGuiTableColumnFlags_WidthStretch);
-				ImGui::TableSetupColumn("Value (Gold)", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 90.0f);
 				ImGui::TableSetupColumn("Effects", ImGuiTableColumnFlags_WidthStretch);
 				ImGui::TableHeadersRow();
 

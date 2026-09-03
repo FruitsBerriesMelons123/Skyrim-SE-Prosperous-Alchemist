@@ -1,2 +1,0 @@
-# Minimal problem-solving notes
-

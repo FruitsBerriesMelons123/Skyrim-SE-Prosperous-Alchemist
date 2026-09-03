@@ -425,7 +425,7 @@ build-alchemist/alchemist.dll
 
 The wrapper configures CMake with `Ninja`, sets `CMAKE_BUILD_TYPE=Release`, cleans only plugin outputs, builds it once, and deploys the DLL to the directory containing `DLL_DEPLOY`. It validates that the build artifact is newer than the recorded build start and that the deployed file has the same timestamp and SHA-256 hash. CommonLibSSE-NG and fetched dependency outputs are preserved. The native build supports only the `Release` configuration and requires an x64 MSVC toolchain.
 
-Use `python build.py --build-dir <directory>` to select a different repository-relative build directory, `python build.py --cmake <path-to-cmake>` when CMake is not on `PATH`, or `python build.py --package` to generate `dist/Prosperous-Alchemist-NG-v1.0.1.zip`. The wrapper does not accept a configuration argument; Debug, RelWithDebInfo, and MinSizeRel builds are not supported.
+Use `python build.py --build-dir <directory>` to select a different repository-relative build directory, `python build.py --cmake <path-to-cmake>` when CMake is not on `PATH`, or `python build.py --package` to generate `dist/Prosperous-Alchemist-NG-v1.0.X.zip`. The wrapper does not accept a configuration argument; Debug, RelWithDebInfo, and MinSizeRel builds are not supported.
 
 ### CMake path settings
 

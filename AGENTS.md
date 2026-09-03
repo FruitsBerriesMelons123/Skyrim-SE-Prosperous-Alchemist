@@ -22,8 +22,6 @@ See **user-paths.md** for paths for locations referenced in these instructions.
 - For any explicitly authorized mod-version update, apply the user-supplied target consistently to these direct project-owned locations:
   - **`alchemist/include/version.h`**: update the `MYFP_VERSION_MAJOR`, `MYFP_VERSION_MINOR`, `MYFP_VERSION_PATCH`, and `MYFP_VERSION_BETA` components as required by the target release. `MYFP_VERSION_VERSTRING` is derived from those macros and should not be replaced with a separate literal. The public release version is three-part; the Windows/plugin metadata uses the corresponding four-part version, normally with a zero beta component.
   - **`alchemist/CMakeLists.txt`**: update both the `project(... VERSION ...)` declaration and the `add_commonlibsse_plugin(... VERSION ...)` argument to the same four-part target version.
-  - **`build.py`**: update the version suffix in the default release archive path `dist/Prosperous-Alchemist-NG-v<target-public-version>.zip`.
-  - **`README.md`**: update the documented release archive path to exactly match the archive name produced by `build.py`.
 - The following locations are propagated or regenerated consequences of an authorized source update; do not hand-edit them:
   - **`alchemist/version.rc`**: no numeric version is stored here; `FILEVERSION`, `PRODUCTVERSION`, `FileVersion`, and `ProductVersion` consume `version.h` macros automatically and should only be verified.
   - **`build-alchemist/CMakeCache.txt`**: CMake regenerates `CMAKE_PROJECT_VERSION` and its major/minor/patch/tweak entries from `alchemist/CMakeLists.txt`.
@@ -74,8 +72,8 @@ See **user-paths.md** for paths for locations referenced in these instructions.
 
 ## Example files
 Should be kept up-to-date with their base file.
-**example-config.py** is the example file for **config.py**.
-**example-user-paths.md** is the example file for **user-paths.md**.
+**config.example.py** is the example file for **config.py**.
+**user-paths.example.md** is the example file for **user-paths.md**.
 
 ## README
 - All project copilot instructions should be reflected generically in the project readme.
