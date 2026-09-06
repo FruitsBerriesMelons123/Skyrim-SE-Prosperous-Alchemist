@@ -190,6 +190,45 @@ namespace alchemist::caco
 			return a_potion ? a_harmful : a_beneficial;
 		}
 
+		inline constexpr bool ShouldApplyBenefactor(
+			bool a_potion,
+			bool a_beneficial,
+			bool a_includeTypePerks,
+			bool a_mixedPotion = false) noexcept
+		{
+			return a_includeTypePerks && a_potion && !a_mixedPotion && a_beneficial;
+		}
+
+		inline constexpr bool ShouldApplyBenefactorFallback(
+			bool a_potion,
+			bool a_beneficial,
+			bool a_includeTypePerks,
+			bool a_hasBenefactor,
+			bool a_benefactorApplied,
+			bool a_benefactorEntryPointFound,
+			bool a_mixedPotion = false) noexcept
+		{
+			return ShouldApplyBenefactor(a_potion, a_beneficial, a_includeTypePerks, a_mixedPotion) &&
+				a_hasBenefactor && !a_benefactorApplied && !a_benefactorEntryPointFound;
+		}
+
+		inline constexpr bool ShouldApplyPhysicianFallback(
+			bool a_cacoActive,
+			bool a_hasPhysician,
+			bool a_physicianApplied,
+			bool a_physicianEffect) noexcept
+		{
+			return !a_cacoActive && a_hasPhysician && !a_physicianApplied && a_physicianEffect;
+		}
+
+		inline constexpr bool ShouldApplyPoisoner(
+			bool a_potion,
+			bool a_harmful,
+			bool a_includeTypePerks) noexcept
+		{
+			return a_includeTypePerks && !a_potion && a_harmful;
+		}
+
 		inline float CalculateEffectCost(
 			float a_baseCost,
 			float a_magnitude,
@@ -310,6 +349,19 @@ namespace alchemist::caco
 	static_assert(algorithm::ShouldRemoveOpposingAlchemyEffect(true, false, true) == true);
 	static_assert(algorithm::ShouldRemoveOpposingAlchemyEffect(false, true, false) == true);
 	static_assert(algorithm::ShouldRemoveOpposingAlchemyEffect(false, false, true) == false);
+	static_assert(algorithm::ShouldApplyBenefactor(true, true, true));
+	static_assert(!algorithm::ShouldApplyBenefactor(true, true, true, true));
+	static_assert(!algorithm::ShouldApplyBenefactor(false, true, true));
+	static_assert(!algorithm::ShouldApplyBenefactor(true, false, true));
+	static_assert(!algorithm::ShouldApplyBenefactor(true, true, false));
+		static_assert(algorithm::ShouldApplyBenefactorFallback(true, true, true, true, false, false));
+		static_assert(!algorithm::ShouldApplyBenefactorFallback(true, true, true, true, false, true));
+		static_assert(!algorithm::ShouldApplyBenefactorFallback(true, true, true, true, true, false));
+	static_assert(!algorithm::ShouldApplyBenefactorFallback(true, true, true, true, false, false, true));
+	static_assert(algorithm::ShouldApplyPoisoner(false, true, true));
+	static_assert(!algorithm::ShouldApplyPoisoner(true, true, true));
+	static_assert(!algorithm::ShouldApplyPoisoner(false, false, true));
+	static_assert(!algorithm::ShouldApplyPoisoner(false, true, false));
 
 	// A pure one-effect result can use the authored CACO exemplar instead of a calculated value.
 	struct ExemplarResult
@@ -342,6 +394,7 @@ namespace alchemist::caco
 			float a_fallbackPerkMultiplier,
 			bool a_potion,
 			bool a_includeTypePerks,
+			bool a_mixedPotion,
 			const AlchemyEvaluationContext& a_context,
 			float& a_multiplier) noexcept;
 		[[nodiscard]] static bool TryGetAlchemyEffectivenessMultipliers(
@@ -350,6 +403,7 @@ namespace alchemist::caco
 			float a_fallbackPerkMultiplier,
 			bool a_potion,
 			bool a_includeTypePerks,
+			bool a_mixedPotion,
 			const AlchemyEvaluationContext& a_context,
 			float& a_magnitudeMultiplier,
 			float& a_durationMultiplier) noexcept;
@@ -360,6 +414,7 @@ namespace alchemist::caco
 			float a_fallbackAlchemistMultiplier,
 			bool a_potion,
 			bool a_includeTypePerks,
+			bool a_mixedPotion,
 			const AlchemyEvaluationContext& a_context,
 			float& a_magnitudeMultiplier,
 			float& a_durationMultiplier) noexcept;

@@ -55,6 +55,96 @@ namespace alchemist::ui {
 		std::atomic_bool searchInputFocused = false;
 		char searchText[128]{};
 		int sortMode = 0;
+		int currentPage = 1;
+		std::string lastSearchText;
+		int lastSortMode = -1;
+		bool pageChanged = false;
+		std::string selectedRecipeIngredientDetails;
+
+		struct PaginationInfo {
+			int totalPages = 0;
+			int startIndex = 0;
+			int endIndex = 0;
+			int pageItemCount = 0;
+		};
+
+		PaginationInfo CalculatePagination(std::size_t totalItems, int page)
+		{
+			PaginationInfo info;
+			if (totalItems == 0) {
+				return info;
+			}
+
+			if (totalItems <= 200) {
+				info.totalPages = 1;
+				info.startIndex = 0;
+				info.endIndex = static_cast<int>(totalItems);
+				info.pageItemCount = static_cast<int>(totalItems);
+				return info;
+			}
+
+			// totalItems > 200: find the number S between 100 and 200 that most evenly splits the total number
+			// (so its remainder is as close to the rest as possible)
+			int bestS = 200;
+			int bestDiff = (std::numeric_limits<int>::max)();
+			int bestPages = 1;
+			int bestRemainder = 0;
+
+			const int total = static_cast<int>(totalItems);
+			for (int S = 200; S >= 100; --S) {
+				const int q = total / S;
+				const int r = total % S;
+				const int diff = (r == 0) ? 0 : (S - r);
+				if (diff < bestDiff) {
+					bestDiff = diff;
+					bestS = S;
+					bestRemainder = (r == 0) ? S : r;
+					bestPages = (r == 0) ? q : (q + 1);
+					if (diff == 0) {
+						break;
+					}
+				}
+			}
+
+			info.totalPages = (std::max)(1, bestPages);
+			const int clampedPage = std::clamp(page, 1, info.totalPages);
+			const int p = clampedPage - 1;
+
+			if (p < info.totalPages - 1) {
+				info.pageItemCount = bestS;
+				info.startIndex = p * bestS;
+			} else {
+				info.pageItemCount = bestRemainder;
+				info.startIndex = p * bestS;
+			}
+
+			info.endIndex = info.startIndex + info.pageItemCount;
+			return info;
+		}
+
+		int FindRecipePage(const std::vector<engine::RecipeResult>& recipes, const std::string& ingredientDetails)
+		{
+			const auto selectedRecipe = std::find_if(recipes.begin(), recipes.end(), [&ingredientDetails](const auto& recipe) {
+				return recipe.ingredientDetails == ingredientDetails;
+			});
+			if (selectedRecipe == recipes.end()) {
+				return 0;
+			}
+
+			const auto selectedIndex = static_cast<std::size_t>(std::distance(recipes.begin(), selectedRecipe));
+			const auto firstPage = CalculatePagination(recipes.size(), 1);
+			for (int page = 1; page <= firstPage.totalPages; ++page) {
+				const auto pageInfo = CalculatePagination(recipes.size(), page);
+				if (selectedIndex >= static_cast<std::size_t>(pageInfo.startIndex) &&
+					selectedIndex < static_cast<std::size_t>(pageInfo.endIndex)) {
+					return page;
+				}
+			}
+
+			return 0;
+		}
+
+		bool showEffectsColumn = false;
 		bool settingsOpen = false;
 		bool developerTestHubOpen = false;
 		bool settingsBuffersInitialized = false;
@@ -321,8 +411,16 @@ namespace alchemist::ui {
 			const bool developerEnabled = kDeveloper.GetValue() == 1;
 			const auto& style = ImGui::GetStyle();
 			const float settingsWidth = ImGui::CalcTextSize("Settings").x + style.FramePadding.x * 2.0f;
-			const float sortWidth = 145.0f;
-			float searchWidth = ImGui::GetContentRegionAvail().x - settingsWidth - sortWidth - style.ItemSpacing.x * 2.0f;
+			const char* const sortLabels[] = {
+				"Value \xe2\x86\x93",
+				"Value \xe2\x86\x91",
+				"Name \xe2\x86\x91",
+				"Name \xe2\x86\x93"
+			};
+			const char* currentSortLabel = (sortMode >= 0 && sortMode < 4) ? sortLabels[sortMode] : sortLabels[0];
+			const float sortWidth = ImGui::CalcTextSize(currentSortLabel).x + style.FramePadding.x * 2.0f + ImGui::GetFrameHeight();
+			const float effectsCheckboxWidth = ImGui::GetFrameHeight() + style.ItemInnerSpacing.x + ImGui::CalcTextSize("Effects").x;
+			float searchWidth = ImGui::GetContentRegionAvail().x - settingsWidth - sortWidth - effectsCheckboxWidth - style.ItemSpacing.x * 3.0f;
 			if (developerEnabled) {
 				searchWidth -= ImGui::CalcTextSize("Test").x + style.FramePadding.x * 2.0f + style.ItemSpacing.x;
 			}
@@ -347,63 +445,389 @@ namespace alchemist::ui {
 				ImGui::ClearActiveID();
 			}
 			ImGui::SameLine();
+			ImGui::Checkbox("Effects", &showEffectsColumn);
+			ImGui::SameLine();
 			ImGui::SetNextItemWidth(sortWidth);
-			ImGui::Combo("##RecipeSort", &sortMode, "Value (highest)\0Name (A-Z)\0");
+			ImGui::Combo("##RecipeSort", &sortMode, "Value \xe2\x86\x93\0Value \xe2\x86\x91\0Name \xe2\x86\x91\0Name \xe2\x86\x93\0");
 
-			auto recipes = engine::GetCachedRecipes();
-			const std::string_view query(searchText);
-			recipes.erase(std::remove_if(recipes.begin(), recipes.end(), [query](const engine::RecipeResult& recipe) {
-				return !ContainsInsensitive(recipe.name, query) && !ContainsInsensitive(recipe.ingredients, query) &&
-					!ContainsInsensitive(recipe.effects, query);
-			}), recipes.end());
-			if (sortMode == 1) {
-				std::sort(recipes.begin(), recipes.end(), [](const auto& left, const auto& right) {
-					if (left.name != right.name) {
-						return left.name < right.name;
-					}
-					if (left.calculatedValue != right.calculatedValue) {
-						return left.calculatedValue > right.calculatedValue;
-					}
-					return left.ingredients < right.ingredients;
-				});
-			} else {
-				std::sort(recipes.begin(), recipes.end(), [](const auto& left, const auto& right) {
-					if (left.calculatedValue != right.calculatedValue) {
-						return left.calculatedValue > right.calculatedValue;
-					}
-					if (left.name != right.name) {
-						return left.name < right.name;
-					}
-					return left.ingredients < right.ingredients;
-				});
+			if (std::string_view(searchText) != lastSearchText) {
+				currentPage = 1;
+				pageChanged = true;
+				lastSearchText = searchText;
+			}
+			if (sortMode != lastSortMode) {
+				currentPage = 1;
+				pageChanged = true;
+				lastSortMode = sortMode;
 			}
 
-			if (ImGui::BeginTable("RecipeTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable,
-				ImVec2(0.0f, -ImGui::GetFrameHeightWithSpacing()))) {
+			const auto progress = engine::GetCalculationProgress();
+			const bool isUpdating = progress.isUpdating;
+
+			static bool wasUpdating = false;
+			static std::chrono::steady_clock::time_point lastCompletionTime{};
+
+			if (wasUpdating && !isUpdating) {
+				lastCompletionTime = std::chrono::steady_clock::now();
+			}
+			wasUpdating = isUpdating;
+
+			const auto now = std::chrono::steady_clock::now();
+			const bool showCompletedBanner = !isUpdating && (lastCompletionTime.time_since_epoch().count() > 0) &&
+				(std::chrono::duration_cast<std::chrono::milliseconds>(now - lastCompletionTime).count() < 1500);
+
+			static std::vector<engine::RecipeResult> processedRecipes;
+			static std::uint64_t lastProcessedCacheGeneration = 0;
+			static std::string lastProcessedSearchText;
+			static int lastProcessedSortMode = -1;
+			static bool lastProcessedFilterPotionsBySelectedIngredients = false;
+			static std::vector<std::uint32_t> lastProcessedSelectedIngredientFormIDs;
+
+			const std::uint64_t currentCacheGen = engine::GetRecipeCacheGeneration();
+			const std::string_view currentQuery(searchText);
+			const bool filterPotionsBySelectedIngredients = kFilterPotionsBySelectedIngredients.GetValue() != 0;
+			const auto selectedIngredientFormIDs = filterPotionsBySelectedIngredients ?
+				menu::GetSelectedIngredientFormIDs() : std::vector<std::uint32_t>{};
+			const bool selectedIngredientFilterChanged = filterPotionsBySelectedIngredients != lastProcessedFilterPotionsBySelectedIngredients ||
+				selectedIngredientFormIDs != lastProcessedSelectedIngredientFormIDs;
+
+			if (currentCacheGen != lastProcessedCacheGeneration || currentQuery != lastProcessedSearchText || sortMode != lastProcessedSortMode ||
+				selectedIngredientFilterChanged) {
+				processedRecipes = engine::GetCachedRecipes();
+				processedRecipes.erase(std::remove_if(processedRecipes.begin(), processedRecipes.end(), [](const engine::RecipeResult& recipe) {
+					return recipe.displayedValue < 1;
+				}), processedRecipes.end());
+				if (!currentQuery.empty()) {
+					processedRecipes.erase(std::remove_if(processedRecipes.begin(), processedRecipes.end(), [currentQuery](const engine::RecipeResult& recipe) {
+						return !ContainsInsensitive(recipe.name, currentQuery) && !ContainsInsensitive(recipe.ingredients, currentQuery) &&
+							!ContainsInsensitive(recipe.effects, currentQuery);
+					}), processedRecipes.end());
+				}
+				if (filterPotionsBySelectedIngredients && !selectedIngredientFormIDs.empty()) {
+					processedRecipes.erase(std::remove_if(processedRecipes.begin(), processedRecipes.end(), [&selectedIngredientFormIDs](const auto& recipe) {
+						return !std::all_of(selectedIngredientFormIDs.begin(), selectedIngredientFormIDs.end(), [&recipe](const auto formID) {
+							return std::find(recipe.ingredientFormIDs.begin(), recipe.ingredientFormIDs.end(), formID) != recipe.ingredientFormIDs.end();
+						});
+					}), processedRecipes.end());
+				}
+
+				if (sortMode == 0) {
+					std::sort(processedRecipes.begin(), processedRecipes.end(), [](const auto& left, const auto& right) {
+						if (left.calculatedValue != right.calculatedValue) {
+							return left.calculatedValue > right.calculatedValue;
+						}
+						if (left.name != right.name) {
+							return left.name < right.name;
+						}
+						return left.ingredients < right.ingredients;
+					});
+				} else if (sortMode == 1) {
+					std::sort(processedRecipes.begin(), processedRecipes.end(), [](const auto& left, const auto& right) {
+						if (left.calculatedValue != right.calculatedValue) {
+							return left.calculatedValue < right.calculatedValue;
+						}
+						if (left.name != right.name) {
+							return left.name < right.name;
+						}
+						return left.ingredients < right.ingredients;
+					});
+				} else if (sortMode == 2) {
+					std::sort(processedRecipes.begin(), processedRecipes.end(), [](const auto& left, const auto& right) {
+						if (left.name != right.name) {
+							return left.name < right.name;
+						}
+						if (left.calculatedValue != right.calculatedValue) {
+							return left.calculatedValue > right.calculatedValue;
+						}
+						return left.ingredients < right.ingredients;
+					});
+				} else if (sortMode == 3) {
+					std::sort(processedRecipes.begin(), processedRecipes.end(), [](const auto& left, const auto& right) {
+						if (left.name != right.name) {
+							return left.name > right.name;
+						}
+						if (left.calculatedValue != right.calculatedValue) {
+							return left.calculatedValue > right.calculatedValue;
+						}
+						return left.ingredients < right.ingredients;
+					});
+				}
+
+				if (selectedIngredientFilterChanged && !selectedRecipeIngredientDetails.empty()) {
+					const int selectedRecipePage = FindRecipePage(processedRecipes, selectedRecipeIngredientDetails);
+					if (selectedRecipePage > 0 && selectedRecipePage != currentPage) {
+						currentPage = selectedRecipePage;
+						pageChanged = true;
+					}
+				}
+
+				lastProcessedCacheGeneration = currentCacheGen;
+				lastProcessedSearchText = currentQuery;
+				lastProcessedSortMode = sortMode;
+				lastProcessedFilterPotionsBySelectedIngredients = filterPotionsBySelectedIngredients;
+				lastProcessedSelectedIngredientFormIDs = selectedIngredientFormIDs;
+			}
+
+			const auto& recipes = processedRecipes;
+
+			const bool selectedIngredientFilterActive = filterPotionsBySelectedIngredients && !selectedIngredientFormIDs.empty();
+			if (!selectedRecipeIngredientDetails.empty() && !selectedIngredientFilterActive) {
+				const bool stillPossible = std::any_of(recipes.begin(), recipes.end(), [](const auto& recipe) {
+					return recipe.ingredientDetails == selectedRecipeIngredientDetails;
+				});
+				if (!stillPossible) {
+					selectedRecipeIngredientDetails.clear();
+				}
+			}
+
+			if (isUpdating && recipes.empty()) {
+				const auto avail = ImGui::GetContentRegionAvail();
+				const float barWidth = (std::min)(avail.x * 0.85f, 380.0f);
+				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (std::max)(10.0f, (avail.y - 90.0f) * 0.35f));
+				ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (avail.x - barWidth) * 0.5f);
+				ImGui::BeginGroup();
+				ImGui::TextColored(ImVec4(1.0f, 0.84f, 0.0f, 1.0f), "Updating potion list...");
+				char overlay[128];
+				if (progress.total > 0) {
+					snprintf(overlay, sizeof(overlay), "%d%% (%zu / %zu)",
+						static_cast<int>(progress.progressFraction * 100.0f), progress.current, progress.total);
+				} else {
+					snprintf(overlay, sizeof(overlay), "%d%%", static_cast<int>(progress.progressFraction * 100.0f));
+				}
+				ImGui::ProgressBar(progress.progressFraction, ImVec2(barWidth, 22.0f), overlay);
+				if (!progress.phase.empty()) {
+					ImGui::TextDisabled("%s", progress.phase.c_str());
+				}
+				ImGui::EndGroup();
+				return;
+			}
+
+			if (isUpdating || showCompletedBanner) {
+				char overlay[128];
+				float fraction = progress.progressFraction;
+				if (showCompletedBanner) {
+					fraction = 1.0f;
+					snprintf(overlay, sizeof(overlay), "Recalculation complete! - 100%%");
+				} else if (progress.total > 0) {
+					snprintf(overlay, sizeof(overlay), "%s (%zu / %zu) - %d%%",
+						progress.phase.c_str(), progress.current, progress.total, static_cast<int>(fraction * 100.0f));
+				} else if (!progress.phase.empty()) {
+					snprintf(overlay, sizeof(overlay), "%s - %d%%",
+						progress.phase.c_str(), static_cast<int>(fraction * 100.0f));
+				} else {
+					snprintf(overlay, sizeof(overlay), "Recalculating... %d%%",
+						static_cast<int>(fraction * 100.0f));
+				}
+				ImGui::Spacing();
+				if (showCompletedBanner) {
+					ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.2f, 0.75f, 0.3f, 1.0f));
+					ImGui::ProgressBar(1.0f, ImVec2(-1.0f, 18.0f), overlay);
+					ImGui::PopStyleColor();
+				} else {
+					ImGui::ProgressBar(fraction, ImVec2(-1.0f, 18.0f), overlay);
+				}
+				ImGui::Spacing();
+			} else if (engine::IsRecipeListStale()) {
+				const auto reason = engine::GetStaleReason();
+				ImGui::Spacing();
+				const ImVec4 amber(1.0f, 0.75f, 0.2f, 1.0f);
+				if (!reason.empty()) {
+					ImGui::TextColored(amber, "Notice: Potion list may be outdated (%s).", reason.c_str());
+				} else {
+					ImGui::TextColored(amber, "Notice: Potion list may be outdated.");
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Recalculate##ManualStale")) {
+					engine::RequestManualRecalculate();
+				}
+				ImGui::Spacing();
+			}
+
+			const std::size_t totalPotions = recipes.size();
+			auto pageInfo = CalculatePagination(totalPotions, currentPage);
+			if (pageInfo.totalPages > 0 && currentPage > pageInfo.totalPages) {
+				currentPage = pageInfo.totalPages;
+				pageChanged = true;
+				pageInfo = CalculatePagination(totalPotions, currentPage);
+			}
+			if (currentPage < 1) {
+				currentPage = 1;
+				pageChanged = true;
+				if (pageInfo.totalPages > 0) {
+					pageInfo = CalculatePagination(totalPotions, currentPage);
+				}
+			}
+
+			const int startIndex = pageInfo.startIndex;
+			const int pageItemCount = pageInfo.pageItemCount;
+			bool scrollToSelectedRecipe = selectedIngredientFilterChanged && !selectedRecipeIngredientDetails.empty();
+
+			const float footerChildHeight = ImGui::GetFrameHeight() + 6.0f;
+			const float footerSpacing = style.ItemSpacing.y;
+			const float tableHeight = -(footerChildHeight + footerSpacing);
+
+			const int columnCount = showEffectsColumn ? 4 : 3;
+			const char* tableId = showEffectsColumn ? "RecipeTableEffects" : "RecipeTableNoEffects";
+			if (ImGui::BeginTable(tableId, columnCount, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable,
+				ImVec2(0.0f, tableHeight))) {
+				if (pageChanged) {
+					ImGui::SetScrollY(0.0f);
+					pageChanged = false;
+				}
 				ImGui::TableSetupColumn("Recipe", ImGuiTableColumnFlags_WidthFixed, 170.0f);
 				ImGui::TableSetupColumn("Ingredients", ImGuiTableColumnFlags_WidthStretch);
 				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 90.0f);
-				ImGui::TableSetupColumn("Effects", ImGuiTableColumnFlags_WidthStretch);
+				if (showEffectsColumn) {
+					ImGui::TableSetupColumn("Effects", ImGuiTableColumnFlags_WidthStretch);
+				}
 				ImGui::TableHeadersRow();
 
-				for (std::size_t index = 0; index < recipes.size(); ++index) {
-					const auto& recipe = recipes[index];
+				ImGuiContext& g = *GImGui;
+				ImGuiTable* table = g.CurrentTable;
+				bool anyRowClicked = false;
+
+				for (int index = 0; index < pageItemCount; ++index) {
+					const auto& recipe = recipes[static_cast<std::size_t>(startIndex + index)];
 					ImGui::TableNextRow();
+					const float rowY1 = table ? table->RowPosY1 : ImGui::GetCursorScreenPos().y;
+
 					ImGui::TableSetColumnIndex(0);
-					if (recipe.isBest) {
-						TextColoredWrappedInCell(ImVec4(1.0f, 0.84f, 0.0f, 1.0f), recipe.name.c_str());
-					} else {
-						TextWrappedInCell(recipe.name.c_str());
-					}
+					TextWrappedInCell(recipe.name.c_str());
 					ImGui::TableSetColumnIndex(1);
 					TextWrappedInCell(recipe.ingredients.c_str());
 					ImGui::TableSetColumnIndex(2);
 					ImGui::Text("%d", recipe.displayedValue);
-					ImGui::TableSetColumnIndex(3);
-					TextWrappedInCell(recipe.effects.c_str());
+					if (showEffectsColumn) {
+						ImGui::TableSetColumnIndex(3);
+						TextWrappedInCell(recipe.effects.c_str());
+					}
+
+					if (table) {
+						const float rowY2 = (std::max)(table->RowPosY2, rowY1 + ImGui::GetTextLineHeightWithSpacing());
+						const ImVec2 mousePos = g.IO.MousePos;
+						const bool isRowHovered = (table->HoveredColumnBody >= 0 && table->HoveredColumnBody < table->ColumnsCount &&
+							table->HoveredColumnBorder == -1 && table->ResizedColumn == -1 &&
+							mousePos.y >= rowY1 && mousePos.y < rowY2 &&
+							table->InnerClipRect.Contains(mousePos) &&
+							!ImGui::IsAnyItemActive());
+
+						if (isRowHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+							selectedRecipeIngredientDetails = recipe.ingredientDetails;
+							anyRowClicked = true;
+						}
+
+						const bool rowNowSelected = (!selectedRecipeIngredientDetails.empty() && recipe.ingredientDetails == selectedRecipeIngredientDetails);
+						if (rowNowSelected) {
+							ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg1, ImGui::GetColorU32(ImGuiCol_Header));
+							if (scrollToSelectedRecipe) {
+								ImGui::SetScrollHereY(0.5f);
+								scrollToSelectedRecipe = false;
+							}
+						}
+					}
 				}
+
+				if (table && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && cursorOverWindow.load(std::memory_order_acquire) && !anyRowClicked) {
+					const ImVec2 mousePos = g.IO.MousePos;
+					const bool onScrollbar = (table->InnerWindow && mousePos.x >= table->InnerClipRect.Max.x);
+					const bool resizingColumn = (table->ResizedColumn != -1 || table->HoveredColumnBorder != -1);
+					if (!onScrollbar && !resizingColumn) {
+						selectedRecipeIngredientDetails.clear();
+					}
+				}
+
 				ImGui::EndTable();
 			}
+
+			ImGui::Spacing();
+			ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.10f, 0.08f, 0.06f, 0.90f));
+			ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 3.0f);
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 2.0f));
+			if (ImGui::BeginChild("RecipePaginationFooter", ImVec2(0.0f, footerChildHeight), true, ImGuiWindowFlags_NoScrollbar)) {
+				if (isUpdating || (totalPotions == 0 && (progress.isUpdating || (progress.progressFraction > 0.0f && progress.progressFraction < 1.0f)))) {
+					ImGui::AlignTextToFramePadding();
+					ImGui::TextColored(ImVec4(0.92f, 0.82f, 0.45f, 1.0f), "Finalizing potion list... Loading page data");
+				} else if (totalPotions == 0) {
+					ImGui::AlignTextToFramePadding();
+					if (searchText[0] != '\0') {
+						ImGui::TextDisabled("No recipes match the search filter");
+					} else {
+						ImGui::TextDisabled("No recipes available");
+					}
+				} else if (pageInfo.totalPages <= 1) {
+					ImGui::AlignTextToFramePadding();
+					ImGui::TextColored(ImVec4(0.92f, 0.82f, 0.45f, 1.0f), "%zu potions", totalPotions);
+				} else {
+					const float btnPaddingX = 5.0f;
+					ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3.0f, style.ItemSpacing.y));
+					ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(btnPaddingX, style.FramePadding.y));
+
+					const int startPrev = (std::max)(1, currentPage - 3);
+					const int endNext = (std::min)(pageInfo.totalPages, currentPage + 3);
+
+					const bool disableFirst = (currentPage <= 1);
+					if (disableFirst) {
+						ImGui::BeginDisabled();
+					}
+					const float firstBtnWidth = ImGui::CalcTextSize("<<").x + btnPaddingX * 2.0f;
+					if (ImGui::Button("<<##FirstPage", ImVec2(firstBtnWidth, 0.0f))) {
+						currentPage = 1;
+						pageChanged = true;
+					}
+					if (disableFirst) {
+						ImGui::EndDisabled();
+					}
+
+					for (int p = startPrev; p < currentPage; ++p) {
+						ImGui::SameLine();
+						char numStr[16];
+						snprintf(numStr, sizeof(numStr), "%d", p);
+						const float btnWidth = ImGui::CalcTextSize(numStr).x + btnPaddingX * 2.0f;
+						char btnLabel[32];
+						snprintf(btnLabel, sizeof(btnLabel), "%s##Page%d", numStr, p);
+						if (ImGui::Button(btnLabel, ImVec2(btnWidth, 0.0f))) {
+							currentPage = p;
+							pageChanged = true;
+						}
+					}
+
+					ImGui::SameLine();
+					ImGui::AlignTextToFramePadding();
+					ImGui::TextColored(ImVec4(0.92f, 0.82f, 0.45f, 1.0f), "Page %d of %d (%zu potions)", currentPage, pageInfo.totalPages, totalPotions);
+
+					for (int p = currentPage + 1; p <= endNext; ++p) {
+						ImGui::SameLine();
+						char numStr[16];
+						snprintf(numStr, sizeof(numStr), "%d", p);
+						const float btnWidth = ImGui::CalcTextSize(numStr).x + btnPaddingX * 2.0f;
+						char btnLabel[32];
+						snprintf(btnLabel, sizeof(btnLabel), "%s##Page%d", numStr, p);
+						if (ImGui::Button(btnLabel, ImVec2(btnWidth, 0.0f))) {
+							currentPage = p;
+							pageChanged = true;
+						}
+					}
+
+					ImGui::SameLine();
+					const bool disableLast = (currentPage >= pageInfo.totalPages);
+					if (disableLast) {
+						ImGui::BeginDisabled();
+					}
+					const float lastBtnWidth = ImGui::CalcTextSize(">>").x + btnPaddingX * 2.0f;
+					if (ImGui::Button(">>##LastPage", ImVec2(lastBtnWidth, 0.0f))) {
+						currentPage = pageInfo.totalPages;
+						pageChanged = true;
+					}
+					if (disableLast) {
+						ImGui::EndDisabled();
+					}
+
+					ImGui::PopStyleVar(2);
+				}
+			}
+			ImGui::EndChild();
+			ImGui::PopStyleVar(2);
+			ImGui::PopStyleColor();
 		}
 
 		bool DrawSettings()
@@ -428,6 +852,10 @@ namespace alchemist::ui {
 				kNumberOfIngredientsToStressTest.SetValue(kNumberOfIngredientsToStressTest.GetValueDefault());
 				kProtectedIngredients.SetValue(kDefaultProtectedIngredients);
 				kPotionPoison.SetValue(kPotionPoison.GetValueDefault());
+				kCacheDurationSeconds.SetValue(kCacheDurationSeconds.GetValueDefault());
+				kStaleRecalculateThresholdMs.SetValue(kStaleRecalculateThresholdMs.GetValueDefault());
+				kCraftDebounceMs.SetValue(kCraftDebounceMs.GetValueDefault());
+				kFilterPotionsBySelectedIngredients.SetValue(kFilterPotionsBySelectedIngredients.GetValueDefault());
 				LoadSettingsBuffers();
 				SaveSettings();
 				recalculate = true;
@@ -454,6 +882,37 @@ namespace alchemist::ui {
 				recalculate = true;
 			}
 			ImGui::TextDisabled("Disable this option to use the multithreaded calculation path.");
+
+			int cacheDuration = kCacheDurationSeconds.GetValue();
+			ImGui::SetNextItemWidth(120.0f);
+			if (ImGui::InputInt("Cache duration (seconds)", &cacheDuration, 10, 60)) {
+				kCacheDurationSeconds.SetValue((std::max)(0, cacheDuration));
+				SaveSettings();
+			}
+			ImGui::TextDisabled("How long to keep master recipe cache in memory after closing the alchemy menu (default 180s).");
+
+			int staleThreshold = kStaleRecalculateThresholdMs.GetValue();
+			ImGui::SetNextItemWidth(120.0f);
+			if (ImGui::InputInt("Stale recalculate threshold (ms)", &staleThreshold, 50, 250)) {
+				kStaleRecalculateThresholdMs.SetValue((std::max)(0, staleThreshold));
+				SaveSettings();
+			}
+			ImGui::TextDisabled("If calculation took longer than this, defer recalculations during crafting and show manual Recalculate button (default 500ms).");
+
+			int debounceMs = kCraftDebounceMs.GetValue();
+			ImGui::SetNextItemWidth(120.0f);
+			if (ImGui::InputInt("Craft debounce delay (ms)", &debounceMs, 50, 100)) {
+				kCraftDebounceMs.SetValue((std::max)(0, debounceMs));
+				SaveSettings();
+			}
+			ImGui::TextDisabled("Delay before running background recalculation after rapid crafting clicks (default 400ms).");
+
+			bool filterPotionsBySelectedIngredients = kFilterPotionsBySelectedIngredients.GetValue() != 0;
+			if (ImGui::Checkbox("Filter potions by selected ingredients", &filterPotionsBySelectedIngredients)) {
+				kFilterPotionsBySelectedIngredients.SetValue(filterPotionsBySelectedIngredients ? 1 : 0);
+				SaveSettings();
+			}
+			ImGui::TextDisabled("Show only potions made from ingredients currently selected in the Skyrim alchemy menu. With no ingredients selected, all potions are shown.");
 
 			ImGui::SeparatorText("Ingredient protection");
 			bool protectIngredients = kProtectIngredients.GetValue() != 0;
@@ -609,7 +1068,7 @@ namespace alchemist::ui {
 			const auto panelWidth = (std::max)(0.0f, (contentSize.x - panelSpacing) * 0.5f);
 			bool leftTextInputActive = false;
 
-			if (ImGui::BeginChild("AlchemyMainPane", ImVec2(panelWidth, 0.0f), true)) {
+			if (ImGui::BeginChild("AlchemyMainPane", ImVec2(panelWidth, 0.0f), true, ImGuiWindowFlags_NoScrollbar)) {
 				if (settingsOpen) {
 					if (DrawSettings()) {
 						menu::RequestRecalculation(true);
@@ -676,6 +1135,7 @@ namespace alchemist::ui {
 		if (ImGui::GetCurrentContext()) {
 			ImGui::ClearActiveID();
 		}
+		selectedRecipeIngredientDetails.clear();
 		mouseWheelDelta.store(0.0f, std::memory_order_release);
 		cursorOverWindow.store(false, std::memory_order_release);
 		draggingWindow = false;
@@ -735,6 +1195,13 @@ namespace alchemist::ui {
 					io.AddKeyEvent(ImGuiKey_Backspace, false);
 					continue;
 				}
+				if (key == VK_RETURN) {
+					io.AddKeyEvent(ImGuiKey_Enter, true);
+					io.AddKeyEvent(ImGuiKey_Enter, false);
+					io.AddKeyEvent(ImGuiKey_KeypadEnter, true);
+					io.AddKeyEvent(ImGuiKey_KeypadEnter, false);
+					continue;
+				}
 				if (key == VK_DELETE) {
 					io.AddKeyEvent(ImGuiKey_Delete, true);
 					io.AddKeyEvent(ImGuiKey_Delete, false);
@@ -757,6 +1224,16 @@ namespace alchemist::ui {
 	bool IsSearchInputFocused()
 	{
 		return searchInputFocused.load(std::memory_order_acquire) || (IsVisible() && ImGui::GetIO().WantTextInput);
+	}
+
+	void ClearSearchFocus()
+	{
+		focusSearch = false;
+		focusProtectedIngredientSearch = false;
+		searchInputFocused.store(false, std::memory_order_release);
+		if (ImGui::GetCurrentContext()) {
+			ImGui::ClearActiveID();
+		}
 	}
 
 	bool IsVisible()
@@ -854,7 +1331,7 @@ namespace alchemist::ui {
 			ImGui::SetNextWindowSize(expandedWindowSize, ImGuiCond_Always);
 			windowSizeIsCollapsed = false;
 		}
-		if (!ImGui::Begin("Prosperous Alchemist", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize)) {
+		if (!ImGui::Begin("Prosperous Alchemist", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar)) {
 			const auto windowPosition = ImGui::GetWindowPos();
 			const auto windowSize = ImGui::GetWindowSize();
 			cursorOverWindow.store(

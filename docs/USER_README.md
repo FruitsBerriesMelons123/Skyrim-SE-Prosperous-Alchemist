@@ -57,8 +57,9 @@ Prosperous Alchemist does not require an ESP or ESL or ship a replacement Scalef
 1. Launch Skyrim through SKSE.
 2. Open an Alchemy Table.
 3. Review the automatically opened Prosperous Alchemist overlay.
-4. Search or sort the recipe table and review each potion or poison's effects, value, and ingredients.
-5. Close the ImGui window or the alchemy crafting menu when finished.
+4. Search the recipe name, ingredients, or effects, choose a sort mode, and optionally enable the **Effects** column.
+5. Select a recipe by clicking its row. Use the pagination controls when the filtered list spans multiple pages.
+6. Close the ImGui window or the alchemy crafting menu when finished.
 
 A typical result looks like this:
 
@@ -68,7 +69,13 @@ Potion of Fortify Something: effect description(s)
 Ingredient A, Ingredient B, Ingredient C
 ```
 
-Ingredient names are displayed alphabetically. The result is calculated from available, unprotected ingredients and is cached until the ingredient set, protected-ingredient result, tracked player state, or active CACO setting revision changes.
+Ingredient names are displayed alphabetically. Each recipe also retains the actual Skyrim ingredient forms behind its display names, so ingredients that share a name are not treated as interchangeable. The result is calculated from available, unprotected ingredient forms.
+
+By default, the browser filters the displayed recipes to those containing every ingredient currently selected in Skyrim's native alchemy menu. With no ingredients selected, all calculated recipes are shown. Disable **Filter potions by selected ingredients** in Settings to show the complete calculated list regardless of the native menu selection. The filter only changes the browser view; it does not change calculations or consume ingredients.
+
+Recipe calculations use a long-lived in-memory cache and update incrementally when new ingredient forms become available. Player-state changes can reevaluate cached recipes, and repeated changes are coalesced before background processing begins. Superseded work is cancelled. The cache is not saved to disk and is retained after closing the menu only for the configured cache duration.
+
+During a calculation, the overlay shows the current phase and progress. A completion message is shown briefly when the list is ready. If a previous calculation was slow, the existing list may be marked as outdated while the plugin waits for a stable request; select **Recalculate** to request an immediate update.
 
 Potion and poison names use the configured `PotionPoison` prefixes. When CACO renaming is active, its quality and secondary-effect text is retained while the configured type prefix is applied.
 
@@ -94,6 +101,10 @@ If the file does not exist, it is created with default settings when the plugin 
 | `IgnorePlayer` | `0` | Uses the player's Alchemy skill, perks, and worn Fortify Alchemy equipment. Set to `1` to ignore player alchemy state. |
 | `ProtectIngredients` | `0` | Ingredient protection is disabled by default. Set to `1` to exclude the configured protected ingredients from recommendations. |
 | `Singlethreaded` | `0` | At `0`, recipe evaluation uses worker threads; at `1`, calculation runs single-threaded on the main thread. |
+| `FilterPotionsBySelectedIngredients` | `1` | Show only recipes containing every ingredient currently selected in Skyrim's native alchemy menu. With no ingredients selected, all calculated recipes are shown. |
+| `CacheDurationSeconds` | `180` | Keep the in-memory master recipe cache after closing the alchemy menu for this many seconds. Set to `0` to expire it immediately; no cache file is written. |
+| `StaleRecalculateThresholdMs` | `500` | Keep the current list visible as potentially outdated after a calculation longer than this threshold and show a manual **Recalculate** button. Set to `0` to disable this guard. |
+| `CraftDebounceMs` | `400` | Delay non-forced background recalculation after rapid crafting or inventory changes so repeated requests are coalesced. |
 | `NumberOfIngredientsToStressTest` | `0` | Normal operation when `0`. A positive value evaluates the first N loaded ingredient forms for diagnostics. Negative values behave like `0`; results are shown in the Developer Test Hub and are not written to disk. |
 | `ProtectedIngredients` | default list | Comma-separated ingredient names, editor IDs, or hexadecimal FormIDs. Use `entry\|count` to keep that many copies protected. An entry without a count protects all copies. |
 | `PotionPoison` | `Potion of,Poison of` | Two comma-separated prefixes applied to beneficial potion and harmful poison names. CACO quality and secondary-effect text remains when CACO renaming is active. |
@@ -106,13 +117,17 @@ developer=0
 IgnorePlayer=0
 ProtectIngredients=1
 Singlethreaded=0
+FilterPotionsBySelectedIngredients=1
+CacheDurationSeconds=180
+StaleRecalculateThresholdMs=500
+CraftDebounceMs=400
 ProtectedIngredients=Jarrin Root,Daedra Heart|3,Blue Butterfly Wing|10
 PotionPoison=Potion of,Poison of
 ```
 
 ### In-game settings
 
-Open the alchemy overlay and select **Settings** to change these options without editing the INI manually. Settings are grouped into calculation, ingredient protection, naming, and advanced diagnostics sections. **Use single-threaded calculation** uses multithreaded worker-thread evaluation by default; selecting it runs recipe evaluation on the main thread. Protection remains off until **Protect ingredients** is checked. Use **Clear all protected ingredients** to remove every configured entry, or **Reset all settings** to restore the default list. Changes are saved automatically.
+Open the alchemy overlay and select **Settings** to change these options without editing the INI manually. Settings are grouped into calculation, ingredient protection, naming, and advanced diagnostics sections. The calculation section includes the selected-ingredient filter, cache duration, stale recalculation threshold, and craft debounce delay. **Use single-threaded calculation** uses multithreaded worker-thread evaluation by default; selecting it runs recipe evaluation on the main thread. Protection remains off until **Protect ingredients** is checked. Use **Clear all protected ingredients** to remove every configured entry, or **Reset all settings** to restore the default list. Changes are saved automatically.
 
 ### Advanced diagnostics
 
@@ -123,7 +138,7 @@ Open the alchemy overlay and select **Settings** to change these options without
 ### Optional compatibility mods
 
 - **Alchemy Plus:** When `AlchemyPlus.dll` and a readable `SKSE/Plugins/AlchemyPlus.json` are present, the plugin applies supported enabled potency-rounding and impure-cost settings to its prediction. The adapter does not install Alchemy Plus hooks or change game records.
-- **Complete Alchemy & Cooking Overhaul (CACO):** The plugin resolves CACO's loaded records and duration settings at `kDataLoaded`. When the required live records are available, it uses CACO effect variants, settings, optional impure processing, Crucible exemplars, naming, and reweighting in its prediction. CACO Potion Handling remains controlled by CACO's own options; missing or incomplete records leave the adapter inactive rather than changing the non-CACO path.
+- **Complete Alchemy & Cooking Overhaul (CACO):** The plugin resolves CACO's loaded records and duration settings at `kDataLoaded`. When a calculation source and the live Skyrim alchemy settings are available, it uses CACO effect variants, mixed-effect handling, optional impure processing, Crucible exemplars, naming, and reweighting in its prediction. Missing optional lists, settings, or duration variants disable only the dependent behavior; a missing duration variant falls back to the source ingredient effect, while a missing active calculation source leaves the non-CACO path unchanged. CACO Potion Handling remains controlled by CACO's own options.
 - The two adapters are independent. When both are active, Automatic mode composes CACO's live calculation with Alchemy Plus's supported rounding and impure-cost behavior.
 
 ## Troubleshooting
@@ -170,7 +185,9 @@ Prosperous Alchemist does not create a runtime or Developer Test Hub log. For a 
 - The plugin depends on SKSE, Address Library, Skyrim's native crafting menu and D3D11 renderer, Dear ImGui linked into the plugin, and a supported game runtime. SkyUI is optional.
 - The calculation is an estimate based on Skyrim effect data and the configured player bonuses; it is not a guarantee for every modded effect or game setup.
 - Protection names and display prefixes use configured strings; protected ingredients also accept editor IDs and hexadecimal FormIDs. Menu detection uses the runtime-matched native crafting submenu and is not controlled by display text.
-- Inventory quantity changes alone may not invalidate the recommendation cache when the ingredient set and protected-ingredient result remain unchanged; player-state changes and CACO option revisions do invalidate it.
+- Inventory quantity changes alone may not invalidate the recommendation cache when the native ingredient forms and protected-ingredient result remain unchanged; player-state changes and CACO option revisions do invalidate it. The cache is in memory only and expires according to `CacheDurationSeconds`.
+- The recipe browser's selected-ingredient filter compares native ingredient FormIDs, not display names, so duplicate-name ingredients remain distinct. If the native menu cannot expose its selected entries, the filter has no selected forms to apply and the complete calculated list remains visible.
+- Values are estimates based on the available record data. CACO and Alchemy Plus compatibility improves prediction inputs and post-processing, but Skyrim's private potion-construction path is not invoked to preview every hypothetical recipe.
 - `NumberOfIngredientsToStressTest` is a diagnostic feature. Positive values use the first N loaded ingredient forms; zero and negative values use the normal inventory calculation. Results are shown in the Developer Test Hub and are not written to disk.
 - The Developer Test Hub is hidden unless `[General] developer=1`; it is a diagnostic tool that deliberately changes player state and inventory without automatically restoring them, and should not be enabled in a normal gameplay profile. Its comparison records remain in memory only.
 - There is no automatic crafting or ingredient consumption.

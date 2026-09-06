@@ -1,10 +1,18 @@
 # Custom entries
+potions-predicted-*.csv
+relevant.md
+*.diff
+code-part*.md
+potion_prediction_test.log
+links/
+archive/
 updates.md
 requests.md
-minimal.md
 problems.md
-dist
-temp
+dist/
+temp/
+vcpkg/
+vcpkg-packages/
 user-paths.md
 user-paths.md-*
 config.py
@@ -30,6 +38,7 @@ config.py
 *.exp
 *.iobj
 *.ipdb
+*q/rules
 
 # CMake and project-specific generated files
 /build*/

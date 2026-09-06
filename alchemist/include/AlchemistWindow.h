@@ -9,6 +9,7 @@ namespace alchemist::ui {
 	void ProcessKeyboardInput();
 	void ResetInputState();
 	bool IsSearchInputFocused();
+	void ClearSearchFocus();
 	bool IsVisible();
 	bool IsCursorOverWindow();
 	void DrawCursor();

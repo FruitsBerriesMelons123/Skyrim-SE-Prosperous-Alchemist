@@ -121,6 +121,8 @@ namespace alchemist::devhub {
 	bool ShouldSuppressInventoryRecalculation();
 	View GetView();
 
+	void ProvisionIngredientByName(const std::string& name, int quantity);
+	void ProvisionIngredientByFormId(std::uint32_t formId, int quantity);
 	void ProvisionAll();
 	void ProvisionBeneficial();
 	void ProvisionPoison();

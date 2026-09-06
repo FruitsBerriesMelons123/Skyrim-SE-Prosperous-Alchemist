@@ -41,6 +41,11 @@ inline REX::INI::I32<> kNumberOfIngredientsToStressTest("General", "NumberOfIngr
 inline constexpr char kDefaultProtectedIngredients[] = "Berit's Ashes,Bliss Bug Thorax|11,Bone Hawk Claw,Briar Heart|3,Corkbulb Root,Corrupted Human Heart,Crimson Nirnroot|31,Daedra Heart,Deathbell|32,Dragon's Tongue|11,Ectoplasm|11,Farengar's Frost Salt,Fine-Cut Void Salts,Fire Salts|21,Frost Mirriam|11,Frost Salts|11,Giant's Toe|3,Goldfish|2,Hagraven Claw|2,Hagraven Feathers|2,Human Heart,Ice Wraith Teeth|6,Ironwood Fruit|2,Jarrin Root,Jazbay Grapes|21,Juniper Berries|2,Juvenile Mudcrab|2,Large Antlers,Mudcrab Chitin,Netch Jelly|6,Nightshade|21,Nirnroot|21,Salt Pile|11,Scathecraw|11,Simon Rodayne's Heart,Slaughterfish Scales,Taproot|4,Torchbug Abdomen|11,Torchbug Thorax|11,Troll Fat|2,Vampire Dust|3,Void Salts|12";
 inline REX::INI::Str<> kProtectedIngredients("General", "ProtectedIngredients", kDefaultProtectedIngredients);
 inline REX::INI::Str<> kPotionPoison("General", "PotionPoison", "Potion of,Poison of");
+inline REX::INI::I32<> kCacheDurationSeconds("General", "CacheDurationSeconds", 180);
+inline REX::INI::I32<> kStaleRecalculateThresholdMs("General", "StaleRecalculateThresholdMs", 500);
+inline REX::INI::I32<> kCraftDebounceMs("General", "CraftDebounceMs", 400);
+inline REX::INI::I32<> kFilterPotionsBySelectedIngredients("General", "FilterPotionsBySelectedIngredients", 1);
+
 
 namespace alchemist {
 	class Effect {
@@ -137,9 +142,23 @@ namespace alchemist {
 		EffectList effects;
 		int inventoryCount;
 		bool operator< (const Ingredient& ingredient) const {
+			if (nativeIngredient && ingredient.nativeIngredient) {
+				const auto leftFormID = nativeIngredient->GetFormID();
+				const auto rightFormID = ingredient.nativeIngredient->GetFormID();
+				if (leftFormID != rightFormID) {
+					return leftFormID < rightFormID;
+				}
+				return std::less<const IngredientItem*>{}(nativeIngredient, ingredient.nativeIngredient);
+			}
+			if (nativeIngredient != ingredient.nativeIngredient) {
+				return nativeIngredient != nullptr;
+			}
 			return name < ingredient.name;
 		}
 		bool operator== (const Ingredient& ingredient) const {
+			if (nativeIngredient || ingredient.nativeIngredient) {
+				return nativeIngredient == ingredient.nativeIngredient;
+			}
 			return name == ingredient.name;
 		}
 		Ingredient(IngredientItem* ingredient);
@@ -147,10 +166,18 @@ namespace alchemist {
 			name = n;
 			inventoryCount = ic;
 		};
+
 		Ingredient() {
 			inventoryCount = 0;
 		};
 	};
+
+	inline string getIngredientIdentity(const Ingredient& ingredient)
+	{
+		return ingredient.nativeIngredient ?
+			"form:" + std::to_string(ingredient.nativeIngredient->GetFormID()) :
+			"name:" + ingredient.name;
+	}
 
 	namespace str {
 		inline std::vector<std::string> split(std::string const& str, char delim) {
@@ -734,7 +761,7 @@ namespace alchemist {
 		}
 
 		inline bool noDuration(const Effect& effect) {
-			return effect.baseEffect && effect.baseEffect->data.flags.all(
+			return !effect.durationBased && effect.baseEffect && effect.baseEffect->data.flags.all(
 				RE::EffectSetting::EffectSettingData::Flag::kNoDuration);
 		}
 
@@ -749,7 +776,8 @@ namespace alchemist {
 			bool includeTypePerks,
 			float& magnitudePowerFactor,
 			float& durationPowerFactor,
-			const Player& evaluatedPlayer) {
+			const Player& evaluatedPlayer,
+			bool mixedPotion = false) {
 			if (evaluatedPlayer.alchemyEvaluationContext.captured) {
 				return caco::Adapter::TryGetVanillaAlchemyEffectivenessMultipliers(
 					effect.baseEffect,
@@ -757,6 +785,7 @@ namespace alchemist {
 					getFallbackAlchemistMultiplier(evaluatedPlayer),
 					potion,
 					includeTypePerks,
+					mixedPotion,
 					evaluatedPlayer.alchemyEvaluationContext,
 					magnitudePowerFactor,
 					durationPowerFactor);
@@ -771,7 +800,7 @@ namespace alchemist {
 				durationPowerFactor *= 1.25f;
 			}
 			if (includeTypePerks) {
-				if (effect.beneficial && potion && evaluatedPlayer.hasPerkBenefactor) {
+				if (effect.beneficial && potion && !mixedPotion && evaluatedPlayer.hasPerkBenefactor) {
 					magnitudePowerFactor *= 1.25f;
 					durationPowerFactor *= 1.25f;
 				} else if (!effect.beneficial && !potion && evaluatedPlayer.hasPerkPoisoner) {
@@ -794,7 +823,8 @@ namespace alchemist {
 			bool magnitude,
 			bool potion,
 			bool includeTypePerks,
-			const Player& evaluatedPlayer) {
+			const Player& evaluatedPlayer,
+			bool mixedPotion = false) {
 			if (!affectsValue || value <= 0.0f) {
 				return value;
 			}
@@ -802,7 +832,7 @@ namespace alchemist {
 			float magnitudePowerFactor = 1.0f;
 			float durationPowerFactor = 1.0f;
 			if (!calculateVanillaPowerFactors(
-				effect, potion, includeTypePerks, magnitudePowerFactor, durationPowerFactor, evaluatedPlayer)) {
+				effect, potion, includeTypePerks, magnitudePowerFactor, durationPowerFactor, evaluatedPlayer, mixedPotion)) {
 				return value;
 			}
 			const float playerFactor = caco::algorithm::CalculateAlchemyActorValueMultiplier(
@@ -825,7 +855,8 @@ namespace alchemist {
 			float& magnitudePowerFactor,
 			float& durationPowerFactor,
 			const Player& evaluatedPlayer,
-			bool useCacoNative) {
+			bool useCacoNative,
+			bool mixedPotion = false) {
 			magnitudePowerFactor = 1.0f;
 			durationPowerFactor = 1.0f;
 			if (!effect.powerAffectsMagnitude && !effect.powerAffectsDuration) {
@@ -842,6 +873,7 @@ namespace alchemist {
 					alchemistMult,
 					potion,
 					includeTypePerks,
+					mixedPotion,
 					evaluatedPlayer.alchemyEvaluationContext,
 					cacoMagnitudePowerFactor,
 					cacoDurationPowerFactor)) {
@@ -851,7 +883,7 @@ namespace alchemist {
 				durationPowerFactor = cacoDurationPowerFactor;
 			} else {
 				if (!calculateVanillaPowerFactors(
-					effect, potion, includeTypePerks, magnitudePowerFactor, durationPowerFactor, evaluatedPlayer)) {
+						effect, potion, includeTypePerks, magnitudePowerFactor, durationPowerFactor, evaluatedPlayer, mixedPotion)) {
 					return false;
 				}
 			}
@@ -885,11 +917,12 @@ namespace alchemist {
 			bool includePlayerFactors,
 			caco::algorithm::EffectInput& input,
 			const Player& evaluatedPlayer,
-			bool useCacoNative) {
+			bool useCacoNative,
+			bool mixedPotion = false) {
 			float magnitudePowerFactor = 1.0f;
 			float durationPowerFactor = 1.0f;
 			if (includePlayerFactors && !calculateNativePowerFactors(
-				effect, potion, includeTypePerks, magnitudePowerFactor, durationPowerFactor, evaluatedPlayer, useCacoNative)) {
+				effect, potion, includeTypePerks, magnitudePowerFactor, durationPowerFactor, evaluatedPlayer, useCacoNative, mixedPotion)) {
 				return false;
 			}
 			input = caco::algorithm::CalculateEffectInput(
@@ -944,16 +977,17 @@ namespace alchemist {
 			bool potion,
 			bool includeTypePerks,
 			const Player& evaluatedPlayer,
-			bool applyAlchemyPlusRounding) {
+			bool applyAlchemyPlusRounding,
+			bool mixedPotion = false) {
 			Effect calculatedEffect = effect;
 			calculatedEffect.calcMagnitude = calculateLegacyEffectComponent(calculatedEffect, calculatedEffect.magnitude,
-				calculatedEffect.powerAffectsMagnitude, true, potion, includeTypePerks, evaluatedPlayer);
+				calculatedEffect.powerAffectsMagnitude, true, potion, includeTypePerks, evaluatedPlayer, mixedPotion);
 			if (applyAlchemyPlusRounding && calculatedEffect.baseEffect && calculatedEffect.powerAffectsMagnitude) {
 				calculatedEffect.calcMagnitude = alchemyplus::Adapter::ApplyMagnitudeRounding(
 					calculatedEffect.baseEffect, calculatedEffect.calcMagnitude);
 			}
 			calculatedEffect.calcDuration = calculateLegacyEffectComponent(calculatedEffect, calculatedEffect.duration,
-				calculatedEffect.powerAffectsDuration, false, potion, includeTypePerks, evaluatedPlayer);
+				calculatedEffect.powerAffectsDuration, false, potion, includeTypePerks, evaluatedPlayer, mixedPotion);
 			if (applyAlchemyPlusRounding && calculatedEffect.baseEffect && calculatedEffect.powerAffectsDuration) {
 				calculatedEffect.calcDuration = alchemyplus::Adapter::ApplyDurationRounding(
 					calculatedEffect.baseEffect, calculatedEffect.calcDuration);
@@ -973,10 +1007,11 @@ namespace alchemist {
 			Effect& result,
 			const Player& evaluatedPlayer,
 			bool useCacoNative,
-			bool applyAlchemyPlusRounding) {
+			bool applyAlchemyPlusRounding,
+			bool mixedPotion = false) {
 			caco::algorithm::EffectInput nativeInput;
 			if (!calculateNativeEffectInput(
-				effect, potion, includeTypePerks, includePlayerFactors, nativeInput, evaluatedPlayer, useCacoNative)) {
+					effect, potion, includeTypePerks, includePlayerFactors, nativeInput, evaluatedPlayer, useCacoNative, mixedPotion)) {
 				return false;
 			}
 			const double nativeContribution = calculateNativeEffectContribution(effect, nativeInput);
@@ -1018,21 +1053,11 @@ namespace alchemist {
 
 		inline Effect getAlgorithmEffect(
 			const Ingredient& ingredient,
-			std::size_t effectIndex,
-			bool useCacoNative) {
+			std::size_t effectIndex) {
 			if (effectIndex >= ingredient.effects.size()) {
 				return {};
 			}
-			const auto& source = ingredient.effects[effectIndex];
-			if (!source.sourceEffect) {
-				return source;
-			}
-			auto* baseEffect = const_cast<RE::EffectSetting*>(source.sourceBaseEffect);
-			if (useCacoNative && ingredient.nativeIngredient) {
-				baseEffect = caco::Adapter::ResolveIngredientEffect(
-					ingredient.nativeIngredient, baseEffect);
-			}
-			return Effect(source.sourceEffect, baseEffect);
+			return ingredient.effects[effectIndex];
 		}
 
 		inline NativePotionResult evaluatePotion(
@@ -1059,7 +1084,7 @@ namespace alchemist {
 				}
 				set<const RE::EffectSetting*> ingredientEffects;
 				for (std::size_t effectIndex = 0; effectIndex < ingredient->effects.size(); ++effectIndex) {
-					const auto effect = getAlgorithmEffect(*ingredient, effectIndex, cacoNative);
+					const auto effect = getAlgorithmEffect(*ingredient, effectIndex);
 					const auto* effectIdentity = getSourceIdentity(effect);
 					if (effectIdentity && ingredientEffects.insert(effectIdentity).second) {
 						auto& group = effectsBySourceIdentity[effectIdentity];
@@ -1069,7 +1094,6 @@ namespace alchemist {
 					}
 				}
 			}
-
 			struct SelectedEffect
 			{
 				Effect source;
@@ -1145,18 +1169,20 @@ namespace alchemist {
 				return result;
 			}
 			const bool potion = !selectedEffects.front().source.harmful;
+			const bool mixedPotion = std::any_of(selectedEffects.begin(), selectedEffects.end(),
+				[](const auto& selected) { return selected.source.harmful; });
 			EffectList calculatedEffects;
 			calculatedEffects.reserve(selectedEffects.size());
 			for (const auto& selected : selectedEffects) {
 				Effect calculatedEffect;
 				if (cacoNative) {
 					if (!calculateNativeEffect(
-						selected.source, potion, true, true, calculatedEffect, evaluatedPlayer, cacoNative, alchemyPlusRounding)) {
+						selected.source, potion, true, true, calculatedEffect, evaluatedPlayer, cacoNative, alchemyPlusRounding, mixedPotion)) {
 						return result;
 					}
 				} else {
 					calculatedEffect = calculateLegacyEffect(
-						selected.source, potion, true, evaluatedPlayer, alchemyPlusRounding);
+						selected.source, potion, true, evaluatedPlayer, alchemyPlusRounding, mixedPotion);
 				}
 				calculatedEffect.nativeOrderCost = selected.nativeOrderCost;
 				calculatedEffects.push_back(std::move(calculatedEffect));
@@ -1219,7 +1245,7 @@ namespace alchemist {
 			if (cacoImpureProcessing) {
 				const auto preAdjustmentGold = result.preAdjustmentGold;
 				for (auto& effect : result.effects) {
-					if (caco::Adapter::IsDurationBased(effect.baseEffect)) {
+					if (effect.durationBased) {
 						effect.calcDuration = caco::Adapter::ApplyImpureDuration(effect.calcDuration);
 					} else {
 						effect.calcMagnitude = caco::Adapter::ApplyImpureMagnitude(effect.calcMagnitude);
@@ -1426,8 +1452,9 @@ namespace alchemist {
 			if (!ingredient) {
 				return false;
 			}
-			string name = ingredient->GetFullName() ? ingredient->GetFullName() : "";
-			auto countIt = ingredients.find(Ingredient(name, 0));
+			auto countIt = std::find_if(ingredients.begin(), ingredients.end(), [ingredient](const auto& ownedIngredient) {
+				return ownedIngredient.nativeIngredient == ingredient;
+			});
 			int count = countIt != ingredients.end() ? countIt->inventoryCount : 0;
 			for (const auto& [protectedKey, protectedCount] : moreIngredients) {
 				if (isIngredientMatch(ingredient, protectedKey) && (protectedCount == 999 || count <= protectedCount)) {
@@ -1486,7 +1513,8 @@ namespace alchemist {
 		// Calculation paths begin with the source values and replace them when player or compatibility factors apply.
 		calcMagnitude = magnitude;
 		powerAffectsDuration = baseEffect && baseEffect->data.flags.all(RE::EffectSetting::EffectSettingData::Flag::kPowerAffectsDuration);
-		durationBased = caco::Adapter::IsDurationBased(baseEffect);
+		durationBased = caco::Adapter::IsDurationBased(baseEffect) ||
+			caco::Adapter::IsDurationBased(sourceBaseEffect);
 		duration = effect::getDuration(effect);
 		calcDuration = duration;
 		baseCost = baseEffect ? baseEffect->data.baseCost : effect::getBaseCost(effect);
@@ -1556,9 +1584,9 @@ namespace alchemist {
 		bool operator== (const Potion& potion) const {
 			return id == potion.id;
 		}
-		Potion(int s, Ingredient i1, Ingredient i2, EffectList e, set<Effect> pe, Effect ce, bool poison, float c) {
+		Potion(int s, Ingredient i1, Ingredient i2, EffectList e, set<Effect> pe, Effect ce, bool poison, float c, const Player& evaluatedPlayer = player) {
 			size = s;
-			id = i1.name + "," + i2.name;
+			id = getIngredientIdentity(i1) + "," + getIngredientIdentity(i2);
 			ingredient1 = i1;
 			ingredient2 = i2;
 			effects = e;
@@ -1570,14 +1598,14 @@ namespace alchemist {
 			if (!caco::Adapter::TryGetPotionWeight(effects.size(),
 				std::any_of(effects.begin(), effects.end(), [](const auto& effect) { return effect.beneficial; }),
 				std::any_of(effects.begin(), effects.end(), [](const auto& effect) { return effect.harmful; }),
-				player.hasPerkPurity, player.hasPerkConcentratedPoison, weight)) {
+				evaluatedPlayer.hasPerkPurity, evaluatedPlayer.hasPerkConcentratedPoison, weight)) {
 				weight = 0.0f;
 			}
 			name = getName();
 		};
-		Potion(int s, Ingredient i1, Ingredient i2, Ingredient i3, EffectList e, Effect ce, bool poison, float c) {
+		Potion(int s, Ingredient i1, Ingredient i2, Ingredient i3, EffectList e, Effect ce, bool poison, float c, const Player& evaluatedPlayer = player) {
 			size = s;
-			id = i1.name + "," + i2.name + "," + i3.name;
+			id = getIngredientIdentity(i1) + "," + getIngredientIdentity(i2) + "," + getIngredientIdentity(i3);
 			ingredient1 = i1;
 			ingredient2 = i2;
 			ingredient3 = i3;
@@ -1589,7 +1617,7 @@ namespace alchemist {
 			if (!caco::Adapter::TryGetPotionWeight(effects.size(),
 				std::any_of(effects.begin(), effects.end(), [](const auto& effect) { return effect.beneficial; }),
 				std::any_of(effects.begin(), effects.end(), [](const auto& effect) { return effect.harmful; }),
-				player.hasPerkPurity, player.hasPerkConcentratedPoison, weight)) {
+				evaluatedPlayer.hasPerkPurity, evaluatedPlayer.hasPerkConcentratedPoison, weight)) {
 				weight = 0.0f;
 			}
 			name = getName();
@@ -1613,6 +1641,24 @@ namespace alchemist {
 	extern set<Potion> potions;
 	extern Player player;
 	extern int combinations;
+
+	struct RecipeCalculationOutput {
+		vector<Potion> potions;
+		Potion costliestPotion;
+		int combinations = 0;
+		bool cancelled = false;
+	};
+
+	using CalculationProgressCallback = std::function<void(float progress, const char* phase, std::size_t current, std::size_t total)>;
+
+	RecipeCalculationOutput CalculateRecipesFromSnapshot(
+		const vector<Ingredient>& inputIngredients,
+		const Player& evaluatedPlayer,
+		bool multithreaded,
+		const std::atomic<bool>* cancelToken = nullptr,
+		const CalculationProgressCallback& progressCallback = nullptr,
+		const std::vector<bool>* isNewIngredient = nullptr);
+
 
 	void initAlchemist();
 	void stressTest();

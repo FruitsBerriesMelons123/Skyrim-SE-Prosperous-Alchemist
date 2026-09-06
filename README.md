@@ -21,7 +21,7 @@ For installation and gameplay instructions, see the [user-facing guide](docs/USE
 
 CommonLibSSE-NG is included as the `alandtse-CommonLibSSE-NG` Git submodule. CommonLibSSE-NG itself uses OpenVR as a nested submodule, so both levels must be initialized before configuring the build.
 
-For a fresh checkout, initialize all submodules during cloning:
+For a fresh checkout, initialize all submodules during cloning and make sure .gitconfig has been included:
 
 ```powershell
 git clone --recurse-submodules <repository-url>
@@ -32,6 +32,10 @@ If the repository was cloned without `--recurse-submodules`, run this from the r
 
 ```powershell
 git submodule update --init --recursive
+```
+
+```powershell
+git config include.path ../.gitconfig
 ```
 
 The expected submodule layout is:
@@ -86,6 +90,7 @@ For a Release build, record the current time immediately before starting the int
 - [How it works](#how-it-works)
 - [Developer Test Hub](#developer-test-hub)
 - [Calculation model](#calculation-model)
+- [Prediction parity harness](#prediction-parity-harness)
 - [AlchemyPlus compatibility](#alchemyplus-compatibility)
 - [CACO compatibility](#caco-compatibility)
 - [Configuration](#configuration)
@@ -102,10 +107,15 @@ For a Release build, record the current time immediately before starting the int
 - **Inventory-aware calculations** — Uses the ingredient forms currently in the player's inventory.
 - **Player-aware calculations** — Can use the player's Alchemy skill, Alchemist ranks, Physician, Benefactor, Poisoner, Seeker of Shadows, and worn Fortify Alchemy enchantments.
 - **Potion and poison support** — Determines whether a result is a potion or poison from its dominant shared effect and displays the appropriate name.
+- **Recipe browser** — Provides search across recipe names, ingredients, and effects; four value/name sort modes; selectable recipe rows; an optional Effects column; and pagination for large result sets.
+- **Selected-ingredient filtering** — By default, shows only recipes containing every ingredient currently selected in Skyrim's native alchemy menu. The filter can be disabled in Settings and compares native ingredient FormIDs rather than display names.
 - **Ingredient protection** — Optionally excludes quest, crafting, Atronach Forge, Hearthfire, and other valuable ingredients from recommendations.
 - **Custom protection rules** — Adds custom ingredients with an optional inventory threshold and allows individual ingredients to be exempted from protection.
+- **Responsive recalculation** — Keeps a long-lived in-memory master recipe cache, incrementally evaluates newly available ingredient combinations, reevaluates cached recipes when player state changes, and performs expensive work on a persistent background worker by default.
+- **Safe update handling** — Coalesces rapid requests with a debounce, cancels superseded work, reports progress and completion, and retains a stale cached list with a manual Recalculate action when a slow update is intentionally deferred.
+- **Form-accurate recipe identity** — Tracks the actual ingredient forms in each recipe and protection rule so ingredients with duplicate display names remain distinct.
 - **Localization support** — Configures Potion/Poison name prefixes through the INI file.
-- **Game-thread-safe search** — Performs Skyrim API-backed recipe evaluation on the game thread to avoid unsafe worker-thread access.
+- **Snapshot-based evaluation** — Captures the Skyrim state needed for a calculation before background processing, while menu refreshes and other live UI operations remain on Skyrim's task interface.
 - **Diagnostics** — Includes an optional stress-test mode and an exhaustive algorithm-completeness report displayed in the Developer Test Hub.
 
 The plugin recommends recipes; it does not automatically craft potions, consume ingredients, modify game records, or change the player's perks.
@@ -120,9 +130,13 @@ When Skyrim's native alchemy view opens, Prosperous Alchemist displays its D3D11
 4. Finds every unique pair of remaining ingredients that shares at least one effect.
 5. Tests every unique three-ingredient combination, even when it does not add another effect or extend a pair that passed independently.
 6. Applies the configured player bonuses and calculates the expected item value.
-7. Lists every valid pair and triple once, marking the highest-value result, with its name, effects, value, and sorted ingredients.
+7. Lists every valid pair and triple once, marking the highest-value result, with its name, effects, value, sorted ingredients, and native ingredient FormIDs retained for identity-sensitive filtering.
 
-The result is recalculated when the ingredient set or tracked player state changes. Otherwise, the previous result is reused. The plugin identifies the alchemy view from the runtime-matched native `CraftingMenu` submenu during the menu lifecycle event and fails closed when the expected native menu or submenu is unavailable.
+The result is recalculated when the ingredient set, tracked player state, or active CACO calculation revision changes. Otherwise, the previous result is reused. A long-lived in-memory master cache survives menu close for the configured duration and supports filtering recipes for smaller ingredient sets without rerunning the full search. New ingredient forms are processed as an incremental delta, while a player-state change reevaluates the cached combinations. Background requests are debounced and superseded work is cancelled; setting `Singlethreaded=1` uses the main-thread calculation path instead.
+
+If a recalculation exceeds the configured stale threshold, the last completed list can remain visible while the plugin marks it as potentially outdated and provides a manual **Recalculate** action. This prevents repeated expensive updates during rapid crafting changes without silently presenting the result as current. The cache and worker state are in memory only; they are not persisted to disk.
+
+The plugin identifies the alchemy view from the runtime-matched native `CraftingMenu` submenu during the menu lifecycle event and fails closed when the expected native menu or submenu is unavailable.
 
 ### Cursor and display coordinates
 
@@ -141,6 +155,14 @@ Ingredient A, Ingredient B, Ingredient C
 Potion and poison results use the configured `PotionPoison` prefixes, which default to `Potion of` and `Poison of`. When CACO renaming is active, its quality and secondary-effect text is retained while the configured type prefix is applied.
 
 Ingredient names are sorted alphabetically in the displayed recipe. Effect descriptions have their magnitude and duration placeholders replaced with the calculated values.
+
+### Recipe browser controls
+
+The browser search matches recipe names, displayed ingredient names, and effect descriptions. The sort menu provides four modes: value descending, value ascending, name ascending, and name descending. Enable **Effects** to add the calculated effect descriptions as a table column. Click a recipe row to select it; clicking elsewhere in the browser clears the selection. The selected row remains selected when filtering or sorting can still identify it by its ingredient details.
+
+Large result sets are divided into navigable pages. Search and sort changes return to the first page, while selected-ingredient changes try to keep the selected recipe visible. The browser excludes results whose displayed value is below one.
+
+When `FilterPotionsBySelectedIngredients=1` (the default), the browser reads the native alchemy menu's selected ingredient entries and keeps recipes containing **all** of their distinct native forms. With no ingredients selected, the full calculated list is shown. This filter affects the displayed list only; it does not change the calculation or consume ingredients.
 
 ## Calculation model
 
@@ -176,6 +198,22 @@ The recipe's shared effect with the highest calculated cost determines the resul
 
 The displayed value is the calculated value rounded down to a whole number. This is a recommendation based on the plugin's calculation model and should not be treated as a guarantee for every game configuration or modded effect.
 
+## Prediction parity harness
+
+`potion_prediction_test.py` is a standalone Python translation of the value-bearing prediction pipeline in `alchemist/include/main.h` and `alchemist/CACO/CACO.h`. Its first purpose is to reproduce the current SKSE plugin, not to force predictions to match a known in-game result. It reads the exported ingredient CSVs and can receive the live CACO game-setting values, CACO-native perk entry multipliers, player state, and Alchemy Plus JSON or equivalent CLI overrides that are not present in the ingredient exports.
+
+The four `potions-predicted-*.csv` files are current-plugin regression fixtures for vanilla, CACO-only, Alchemy Plus-only, and combined modes. The built-in self-tests use the supplied level-15/perk matrix and verify the recipes that can be represented by the exported records. `Blue Mountain Flower,Wheat` is intentionally absent from the CACO fixtures when it does not form a potion.
+
+Developer Test Hub CSV exports are intentionally limited to prediction inputs. `alchemist.ingredients.csv` contains the active effect fields, source and resolved FormIDs, and keyword editor IDs consumed by the prediction harness. `alchemist.potion-predictions.csv` contains `ingredients`, `predicted_value`, and `ingredient_details`; the ingredient details preserve FormIDs for recipes with duplicate display names. Diagnostic names, effects, calculation details, cost overrides, and duplicate source/resolved metadata are not exported.
+
+Run the deterministic harness tests from the repository root:
+
+```powershell
+python potion_prediction_test.py --self-test
+```
+
+For CACO parity, pass the values from the active game/configuration rather than relying on generic defaults. CACO-native perk entry-point multipliers are supplied with `--caco-*-multiplier`; Alchemy Plus settings can be loaded with `--alchemy-plus-config` or supplied with the `--ap-*` options.
+
 ## AlchemyPlus compatibility
 
 Prosperous Alchemist passively detects `AlchemyPlus.dll` during SKSE input-loaded initialization. When the DLL is present, it reads `SKSE/Plugins/AlchemyPlus.json` through Skyrim's virtual resource system, so Mod Organizer 2 virtualization is supported. A JSON file by itself does not enable compatibility: the adapter remains inactive unless a supported setting is valid and enabled. When AlchemyPlus is absent, not loaded, missing its JSON file, or has supported settings disabled, the existing Prosperous Alchemist calculation path is unchanged.
@@ -194,7 +232,7 @@ The adapter does not install AlchemyPlus hooks, call its DLL, modify Skyrim reco
 
 ## CACO compatibility
 
-Prosperous Alchemist detects `Complete Alchemy & Cooking Overhaul.esp` or `.esm` during the `kDataLoaded` lifecycle message and keeps the compatibility implementation in `alchemist/CACO`. It scans the loaded full/light plugin collections and accepts the documented `Update.esm` local form IDs as fallbacks, which supports CACO installations where records are exposed through the legacy update file. The adapter is reported as detected when the plugin or recognizable records are present, but it is active only when the required live lists, globals, options, and game settings resolve. If those records are unavailable, the existing non-CACO calculation remains unchanged.
+Prosperous Alchemist detects `Complete Alchemy & Cooking Overhaul.esp` or `.esm` during the `kDataLoaded` lifecycle message and keeps the compatibility implementation in `alchemist/CACO`. It scans the loaded full/light plugin collections and accepts the documented `Update.esm` local FormIDs as fallbacks, which supports CACO installations where records are exposed through the legacy update file. The adapter is reported as detected when the plugin or recognizable records are present, but it is active only when a calculation source and the two live Skyrim alchemy game settings resolve. Optional lists, handling globals, and individual duration variants are resolved independently; missing ones disable only their dependent behavior, and a missing duration variant falls back to the source ingredient effect. If no valid active source can be established, the existing non-CACO calculation remains unchanged.
 
 The evaluator supports four independent configurations:
 
@@ -204,6 +242,8 @@ The evaluator supports four independent configurations:
 - **Alchemy Plus + CACO** — selects the CACO calculation automatically, applies Alchemy Plus rounding to the CACO-constructed potency before the pre-adjustment gold value is formed, and applies Alchemy Plus's impure-cost correction before CACO's optional 20% impure-potion adjustment.
 
 The two compatibility adapters are detected independently; Automatic mode composes them instead of choosing one and silently discarding the other.
+
+For CACO recipes with multiple shared effects, the evaluator retains mixed beneficial/harmful effect sets, applies CACO's mixed-potion perk and impure gates where the live records enable them, and uses Crucible exemplars only for pure one-effect results. Duration-based classification includes CACO's duration keyword and its loaded record flags, not only the standard vanilla duration fields. Invalid or non-finite live inputs are rejected safely rather than converted into fabricated values.
 
 The adapter reads CACO's live records and settings instead of using a second hardcoded ingredient or magic-effect cost table:
 
@@ -236,6 +276,10 @@ If the file is missing, the plugin creates it with the default settings during s
 | `IgnorePlayer` | `0` | Uses the player's skill, perks, and worn Fortify Alchemy equipment when calculating values. Set to `1` to ignore player alchemy state. The ingredient list still comes from the player's inventory. |
 | `ProtectIngredients` | `0` | Disables ingredient protection by default. Set to `1` to exclude the configured protected ingredients from recommendations. |
 | `Singlethreaded` | `0` | At `0`, recipe evaluation uses worker threads; at `1`, calculation runs single-threaded on the main thread. |
+| `FilterPotionsBySelectedIngredients` | `1` | Filters overlay potion rows to recipes containing every ingredient currently selected in the Skyrim alchemy menu. With no ingredients selected, all calculated potions are shown; the selected potion remains selected if the filter temporarily hides it. |
+| `CacheDurationSeconds` | `180` | Keeps the in-memory master recipe cache available after the alchemy menu closes for this many seconds. Set to `0` to expire it immediately; this does not write cache data to disk. |
+| `StaleRecalculateThresholdMs` | `500` | When the last calculation took longer than this many milliseconds, allows the existing list to remain visible as stale during subsequent requests and shows a manual **Recalculate** action. Set to `0` to disable this slow-calculation guard. |
+| `CraftDebounceMs` | `400` | Waits this many milliseconds after a non-forced recalculation request before starting background work, coalescing rapid inventory/crafting changes. |
 | `NumberOfIngredientsToStressTest` | `0` | Normal operation when `0`. A positive number replaces the inventory ingredient set for a diagnostic calculation using the first that many forms in the game's global ingredient list. Negative values behave like `0`. |
 | `ProtectedIngredients` | default list | Comma-separated ingredient names, editor IDs, or hexadecimal FormIDs. Each entry can optionally use `entry\|count` to keep that many copies protected. An entry without a count protects all copies. |
 | `PotionPoison` | `Potion of,Poison of` | Two comma-separated prefixes: the beneficial potion prefix followed by the harmful poison prefix. |
@@ -244,7 +288,7 @@ String settings are intentionally comma-delimited. Do not add additional commas 
 
 ### In-game settings
 
-While the alchemy overlay is open, select **Settings** to edit the General settings through the graphical interface. Calculation, ingredient protection, naming, and advanced diagnostic options are grouped into a scrollable settings page. The **Use single-threaded calculation** option uses multithreaded worker-thread evaluation by default; selecting it runs recipe evaluation on the main thread. Changes are saved to `alchemist.ini` automatically, and **Reset all settings** restores the declared defaults.
+While the alchemy overlay is open, select **Settings** to edit the General settings through the graphical interface. Calculation, ingredient protection, naming, and advanced diagnostic options are grouped into a scrollable settings page. The page also exposes the master-cache duration, stale-recalculation threshold, craft debounce delay, and selected-ingredient filter. The **Use single-threaded calculation** option uses multithreaded worker-thread evaluation by default; selecting it runs recipe evaluation on the main thread. Changes are saved to `alchemist.ini` automatically, and **Reset all settings** restores the declared defaults.
 
 ## Developer Test Hub
 
@@ -262,6 +306,7 @@ developer=0
 IgnorePlayer=0
 ProtectIngredients=1
 Singlethreaded=0
+FilterPotionsBySelectedIngredients=1
 ProtectedIngredients=Jarrin Root,Daedra Heart|3,Blue Butterfly Wing|10
 PotionPoison=Potion of,Poison of
 ```
@@ -372,13 +417,13 @@ The current plugin build is the standalone CMake project at [`alchemist`](alchem
 
 ### Build prerequisites
 
-- Visual Studio with the **Desktop development with C++** workload, an x64 toolchain, and a Windows SDK.
-- CMake 3.21 or later and Ninja available on `PATH`.
-- Python 3.10 or later.
+- Visual Studio Build Tools with the **MSVC v143 x64/x86 build tools** component and a Windows SDK.
+- CMake 3.21 or later. Either on `PATH` or set `CMAKE_DIR` in `config.py` to its `bin` directory.
+- Ninja. Either on `PATH` or set `NINJA_DIR` in `config.py` to its directory.
+- Python 3.10 or later on `PATH`.
+- vcpkg, with the CommonLibSSE-NG manifest dependencies installed into the `x64-windows-static` triplet (see below).
 - Network access during the first configure, or populated CMake FetchContent caches, so Dear ImGui and CommonLibSSE-NG's optional instruction-decoder dependency can be downloaded.
 - The CommonLibSSE-NG submodule and its nested OpenVR submodule, initialized recursively.
-- vcpkg available on `PATH` and the dependencies from the CommonLibSSE-NG manifest.
-- The `x64-windows-static` vcpkg triplet.
 
 ### Build with `build.py`
 
@@ -391,19 +436,28 @@ git submodule update --init --recursive
 Copy the ignored local path files from their tracked templates and replace the placeholders with paths for the local machine:
 
 ```powershell
-Copy-Item example-config.py config.py
-Copy-Item example-user-paths.md user-paths.md
+Copy-Item config.example.py config.py
+Copy-Item user-paths.example.md user-paths.md
 ```
 
-The static vcpkg location must be the same in `config.py` and `user-paths.md`. Install the CommonLibSSE-NG manifest dependencies into that static triplet:
+The static vcpkg location must be the same in `config.py` and `user-paths.md`. If vcpkg is not already installed, clone it and run its bootstrap script:
 
 ```powershell
-vcpkg install `
+git clone https://github.com/microsoft/vcpkg
+.\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+```
+
+Install the CommonLibSSE-NG manifest dependencies into the static triplet, setting `--x-install-root` to the `vcpkg-packages` directory inside the repository root:
+
+```powershell
+.\vcpkg\vcpkg.exe install `
   --x-manifest-root=alandtse-CommonLibSSE-NG `
-  --x-install-root=<vcpkg install root> `
+  --x-install-root=vcpkg-packages `
   --triplet=x64-windows-static `
   --feature-flags=manifests
 ```
+
+Then set `VCPKG_STATIC_DIR` in `config.py` and `user-paths.md` to `<repository root>\vcpkg-packages\x64-windows-static`.
 
 Build and deploy the plugin:
 
@@ -425,7 +479,7 @@ build-alchemist/alchemist.dll
 
 The wrapper configures CMake with `Ninja`, sets `CMAKE_BUILD_TYPE=Release`, cleans only plugin outputs, builds it once, and deploys the DLL to the directory containing `DLL_DEPLOY`. It validates that the build artifact is newer than the recorded build start and that the deployed file has the same timestamp and SHA-256 hash. CommonLibSSE-NG and fetched dependency outputs are preserved. The native build supports only the `Release` configuration and requires an x64 MSVC toolchain.
 
-Use `python build.py --build-dir <directory>` to select a different repository-relative build directory, `python build.py --cmake <path-to-cmake>` when CMake is not on `PATH`, or `python build.py --package` to generate `dist/Prosperous-Alchemist-NG-v1.0.X.zip`. The wrapper does not accept a configuration argument; Debug, RelWithDebInfo, and MinSizeRel builds are not supported.
+Use `python build.py --build-dir <directory>` to select a different repository-relative build directory, `python build.py --cmake <path-to-cmake>` when CMake is not on `PATH`, or `python build.py --package` to generate `dist/Prosperous-Alchemist-NG-v1.1.0.zip`. The wrapper does not accept a configuration argument; Debug, RelWithDebInfo, and MinSizeRel builds are not supported.
 
 ### CMake path settings
 
@@ -603,7 +657,7 @@ The generated plugin entry points register the plugin with SKSE and the plugin l
 ## Current limitations
 
 - Address Library provides the runtime compatibility layer for supported runtimes, but the matching version library must be installed and the underlying CommonLibSSE-NG/runtime combination must be supported.
-- The recommendation cache compares ingredient names, the protected-ingredient result, tracked player state, and the active CACO calculation revision. Changing only an inventory quantity may not force a new search if those inputs remain unchanged.
+- The recommendation snapshot compares the actual native ingredient forms, the protected-ingredient result, tracked player state, and the active CACO calculation revision. Changing only an inventory quantity may not force a new search if those inputs remain unchanged. The master cache is retained in memory for `CacheDurationSeconds` and is not a disk cache.
 - Developer Test Hub inventory and equipment changes refresh the overlay's local snapshot and recommendation and then request a native alchemy-menu refresh. Inventory events raised during a hub task are coalesced so the final task refresh is authoritative; the workflow remains available while the menu is open.
 - `ProtectedIngredients` and `PotionPoison` use comma-separated values and do not support commas inside an individual entry or prefix.
 - Protection names and display prefixes use configured strings; protected ingredients also accept editor IDs and hexadecimal FormIDs. Menu detection uses runtime-matched native submenu RTTI and is not controlled by display text.
@@ -611,7 +665,7 @@ The generated plugin entry points register the plugin with SKSE and the plugin l
 - The plugin depends on SKSE, Address Library, Skyrim's native crafting menu and D3D11 renderer, Dear ImGui (linked into the DLL), and the installed runtime. SkyUI is optional.
 - The native `CraftingMenu` and active alchemy submenu must be available for submenu classification; otherwise the plugin fails closed and keeps the ImGui window hidden.
 - The ImGui main window uses the game's native window and renderer and is intended for Windows Skyrim SE/AE/VR runtimes supported by the checked-out CommonLibSSE-NG version.
-- The repository currently has no automated plugin or calculation tests; a successful Release build validates compilation and linking, not in-game behavior.
+- The repository has no automated in-game plugin tests; the deterministic Python prediction harness covers supported exported calculation records, while a successful Release build validates compilation and linking rather than in-game behavior.
 
 ## License and credits
 

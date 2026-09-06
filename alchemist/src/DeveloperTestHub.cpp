@@ -1,22 +1,30 @@
 #include "DeveloperTestHub.h"
 
 #include "AlchemistEngine.h"
+#include "AlchemistWindow.h"
 #include "main.h"
 #include "MenuHandler.h"
 
 #include <RE/A/ActorEquipManager.h>
+#include <RE/B/BSResourceNiBinaryStream.h>
 #include <Windows.h>
 #include <imgui.h>
 
+#include <filesystem>
+#include <fstream>
+
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <chrono>
+#include <cstdint>
 #include <exception>
 #include <functional>
 #include <iomanip>
 #include <map>
 #include <mutex>
 #include <optional>
+#include <random>
 #include <sstream>
 #include <set>
 #include <string_view>
@@ -27,6 +35,9 @@ namespace alchemist::devhub {
 		constexpr std::array<std::string_view, 5> kManagedPerks = { "Alchemist", "Physician", "Benefactor", "Poisoner", "Purity" };
 		constexpr std::string_view kSeekerOfShadows = "Seeker of Shadows";
 		constexpr int kMaxPerkApplyAttempts = 4;
+		constexpr int kAutoprovisionTargetCount = 99;
+		constexpr char kAutoprovisionConfigurationPath[] = "SKSE/Plugins/alchemist.ini";
+		constexpr std::uint32_t kMaximumConfigurationSize = 1024 * 1024;
 
 		struct State {
 			bool open = false;
@@ -51,6 +62,11 @@ namespace alchemist::devhub {
 
 		State state;
 		std::array<int, 18> fixtureQuantities = { 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 };
+		char provisionIngredientSearch[128]{};
+		bool focusProvisionIngredientSearch = false;
+		std::vector<std::uint32_t> pendingProvisionFormIds;
+		bool provisionConfirmationOpenPending = false;
+		bool suppressProvisionConfirmationEnter = false;
 
 		void DrawTestHint(const char* a_description)
 		{
@@ -72,9 +88,8 @@ namespace alchemist::devhub {
 			const float height = (std::max)(ImGui::GetTextLineHeight(), ImGui::CalcTextSize(a_text, nullptr, false, width).y);
 			const ImVec2 textPosition = ImGui::GetCursorScreenPos();
 			const bool clicked = ImGui::InvisibleButton("##select", ImVec2(width, height));
-			const bool hovered = ImGui::IsItemHovered();
-			if (a_selected || hovered) {
-				const auto color = ImGui::GetColorU32(a_selected ? ImGuiCol_Header : ImGuiCol_HeaderHovered);
+			if (a_selected) {
+				const auto color = ImGui::GetColorU32(ImGuiCol_Header);
 				ImGui::GetWindowDrawList()->AddRectFilled(textPosition, ImVec2(textPosition.x + width, textPosition.y + height), color);
 			}
 			ImGui::SetCursorScreenPos(textPosition);
@@ -125,14 +140,223 @@ namespace alchemist::devhub {
 			return name ? name : "";
 		}
 
+		std::string TrimWhitespace(std::string_view a_value)
+		{
+			const auto first = std::find_if(a_value.begin(), a_value.end(), [](unsigned char a_character) {
+				return !std::isspace(a_character);
+			});
+			const auto last = std::find_if(a_value.rbegin(), a_value.rend(), [](unsigned char a_character) {
+				return !std::isspace(a_character);
+			}).base();
+			return first < last ? std::string(first, last) : std::string{};
+		}
+
+		std::string NormalizeIngredientName(std::string_view a_name)
+		{
+			auto normalized = TrimWhitespace(a_name);
+			std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](unsigned char a_character) {
+				return static_cast<char>(std::tolower(a_character));
+			});
+			return normalized;
+		}
+
+		std::string ParseAutoprovisionValue(std::string_view a_contents)
+		{
+			bool inGeneralSection = false;
+			std::size_t lineStart = 0;
+			while (lineStart <= a_contents.size()) {
+				const auto lineEnd = a_contents.find('\n', lineStart);
+				auto line = a_contents.substr(lineStart, lineEnd == std::string_view::npos ? a_contents.size() - lineStart : lineEnd - lineStart);
+				if (!line.empty() && line.back() == '\r') {
+					line.remove_suffix(1);
+				}
+				if (lineStart == 0 && line.size() >= 3 && static_cast<unsigned char>(line[0]) == 0xEF &&
+					static_cast<unsigned char>(line[1]) == 0xBB && static_cast<unsigned char>(line[2]) == 0xBF) {
+					line.remove_prefix(3);
+				}
+
+				const auto trimmedLine = TrimWhitespace(line);
+				if (!trimmedLine.empty() && trimmedLine.front() == '[') {
+					const auto sectionEnd = trimmedLine.find(']');
+					inGeneralSection = sectionEnd != std::string::npos &&
+						NormalizeIngredientName(std::string_view(trimmedLine).substr(1, sectionEnd - 1)) == "general";
+				} else if (inGeneralSection && !trimmedLine.empty() && trimmedLine.front() != ';' && trimmedLine.front() != '#') {
+					const auto separator = trimmedLine.find('=');
+					if (separator != std::string::npos && NormalizeIngredientName(std::string_view(trimmedLine).substr(0, separator)) == "autoprovision") {
+						auto value = TrimWhitespace(std::string_view(trimmedLine).substr(separator + 1));
+						if (const auto comment = value.find(';'); comment != std::string::npos) {
+							value = TrimWhitespace(std::string_view(value).substr(0, comment));
+						}
+						return value;
+					}
+				}
+
+				if (lineEnd == std::string_view::npos) {
+					break;
+				}
+				lineStart = lineEnd + 1;
+			}
+			return {};
+		}
+
+		std::string ReadAutoprovisionValue()
+		{
+			RE::BSResourceNiBinaryStream fileStream{ kAutoprovisionConfigurationPath };
+			if (fileStream.good() && fileStream.stream) {
+				const auto size = fileStream.stream->totalSize;
+				if (size > 0 && size <= kMaximumConfigurationSize) {
+					std::string contents(size, '\0');
+					std::uint32_t totalRead = 0;
+					while (totalRead < size) {
+						std::uint64_t bytesRead = 0;
+						const auto error = fileStream.stream->DoRead(contents.data() + totalRead, size - totalRead, bytesRead);
+						if (error != RE::BSResource::ErrorCode::kNone || bytesRead == 0 || bytesRead > size - totalRead) {
+							break;
+						}
+						totalRead += static_cast<std::uint32_t>(bytesRead);
+					}
+					if (totalRead == size) {
+						const auto configuredValue = ParseAutoprovisionValue(contents);
+						if (!configuredValue.empty()) {
+							return configuredValue;
+						}
+					}
+				}
+			}
+
+			std::array<char, 32768> value{};
+			const auto length = GetPrivateProfileStringA(
+				"General",
+				"autoprovision",
+				"",
+				value.data(),
+				static_cast<DWORD>(value.size()),
+				"Data\\SKSE\\Plugins\\alchemist.ini");
+			return std::string(value.data(), length);
+		}
+
+		int ProvisionIngredientMatchScore(std::string_view a_name, std::string_view a_query)
+		{
+			std::string name(a_name);
+			std::string query(a_query);
+			std::transform(name.begin(), name.end(), name.begin(), [](unsigned char a_character) {
+				return static_cast<char>(std::tolower(a_character));
+			});
+			std::transform(query.begin(), query.end(), query.begin(), [](unsigned char a_character) {
+				return static_cast<char>(std::tolower(a_character));
+			});
+			const auto position = name.find(query);
+			if (position == std::string::npos) {
+				return -1;
+			}
+			return position == 0 ? 0 : static_cast<int>(position) + 1;
+		}
+
+		struct ProvisionableIngredient
+		{
+			RE::IngredientItem* form = nullptr;
+			std::string name;
+			std::string normalizedName;
+			std::string label;
+		};
+
+		bool IsProvisionableIngredient(const RE::IngredientItem* a_ingredient)
+		{
+			return a_ingredient && !a_ingredient->IsDeleted() && a_ingredient->GetPlayable() &&
+				!a_ingredient->effects.empty() && !FormName(a_ingredient).empty();
+		}
+
+		std::vector<ProvisionableIngredient> GetProvisionableIngredients()
+		{
+			std::vector<ProvisionableIngredient> ingredients;
+			auto* dataHandler = RE::TESDataHandler::GetSingleton();
+			if (!dataHandler) {
+				return ingredients;
+			}
+
+			for (auto* ingredient : dataHandler->GetFormArray<RE::IngredientItem>()) {
+				if (IsProvisionableIngredient(ingredient)) {
+					const auto name = FormName(ingredient);
+					ingredients.push_back({ ingredient, name, NormalizeIngredientName(name), name });
+				}
+			}
+			std::sort(ingredients.begin(), ingredients.end(), [](const auto& left, const auto& right) {
+				return left.name == right.name ? left.form->GetFormID() < right.form->GetFormID() : left.name < right.name;
+			});
+			std::map<std::string, int> nameCounts;
+			for (const auto& ingredient : ingredients) {
+				++nameCounts[ingredient.normalizedName];
+			}
+			for (auto& ingredient : ingredients) {
+				if (nameCounts[ingredient.normalizedName] > 1) {
+					std::ostringstream label;
+					label << ingredient.name << " [form=0x" << std::uppercase << std::hex << std::setw(8) << std::setfill('0') <<
+						ingredient.form->GetFormID() << std::dec << std::setfill(' ');
+					const auto* editorId = ingredient.form->GetFormEditorID();
+					if (editorId && *editorId) {
+						label << ", editor=" << editorId;
+					}
+					label << "]";
+					ingredient.label = label.str();
+				}
+			}
+			return ingredients;
+		}
+
+		// Hidden setting: autoprovision is intentionally omitted from the default INI and README.
+		// It is read only when the Developer Test Hub's manual ingredient button is pressed.
+		std::vector<std::string> GetAutoprovisionIngredientNames()
+		{
+			const auto configured = ReadAutoprovisionValue();
+			std::vector<std::string> names;
+			std::size_t start = 0;
+			while (start <= configured.size()) {
+				const auto end = configured.find(',', start);
+				const auto length = end == std::string::npos ? configured.size() - start : end - start;
+				const auto name = TrimWhitespace(std::string_view(configured).substr(start, length));
+				if (!name.empty()) {
+					names.push_back(name);
+				}
+				if (end == std::string::npos) {
+					break;
+				}
+				start = end + 1;
+			}
+			return names;
+		}
+
+		std::vector<std::string> GetValidAutoprovisionIngredientNames()
+		{
+			const auto configuredNames = GetAutoprovisionIngredientNames();
+			if (configuredNames.empty()) {
+				return {};
+			}
+			const auto validIngredients = GetProvisionableIngredients();
+			if (validIngredients.empty()) {
+				return {};
+			}
+			std::set<std::string> validNames;
+			for (const auto& ingredient : validIngredients) {
+				validNames.insert(ingredient.normalizedName);
+			}
+			std::vector<std::string> names;
+			names.reserve(configuredNames.size());
+			std::set<std::string> matchedNames;
+			for (const auto& configuredName : configuredNames) {
+				const auto normalizedName = NormalizeIngredientName(configuredName);
+				if (validNames.contains(normalizedName) && matchedNames.insert(normalizedName).second) {
+					names.push_back(configuredName);
+				}
+			}
+			return names;
+		}
+
 		int InventoryCount(RE::PlayerCharacter* a_player, RE::TESBoundObject* a_form)
 		{
 			if (!a_player || !a_form) {
 				return 0;
 			}
-			auto inventory = a_player->GetInventory();
-			const auto found = inventory.find(a_form);
-			return found == inventory.end() ? 0 : found->second.first;
+			return (std::max)(0, static_cast<int>(a_player->GetItemCount(a_form)));
 		}
 
 		bool IsFortifyAlchemy(RE::EnchantmentItem* a_enchantment)
@@ -224,6 +448,39 @@ namespace alchemist::devhub {
 			for (auto* form : dataHandler->GetFormArray<T>()) {
 				if (form && FormName(form) == a_name) {
 					return form;
+				}
+			}
+			return nullptr;
+		}
+
+		std::vector<RE::IngredientItem*> FindIngredientFormsByName(std::string_view a_name)
+		{
+			std::vector<RE::IngredientItem*> result;
+			const auto normalizedName = NormalizeIngredientName(a_name);
+			auto* dataHandler = RE::TESDataHandler::GetSingleton();
+			if (!dataHandler) {
+				return result;
+			}
+			for (auto* ingredient : dataHandler->GetFormArray<RE::IngredientItem>()) {
+				if (IsProvisionableIngredient(ingredient) && NormalizeIngredientName(FormName(ingredient)) == normalizedName) {
+					result.push_back(ingredient);
+				}
+			}
+			std::sort(result.begin(), result.end(), [](const auto* left, const auto* right) {
+				return left->GetFormID() < right->GetFormID();
+			});
+			return result;
+		}
+
+		RE::IngredientItem* FindIngredientByFormId(std::uint32_t a_formId)
+		{
+			auto* dataHandler = RE::TESDataHandler::GetSingleton();
+			if (!dataHandler) {
+				return nullptr;
+			}
+			for (auto* ingredient : dataHandler->GetFormArray<RE::IngredientItem>()) {
+				if (IsProvisionableIngredient(ingredient) && ingredient->GetFormID() == a_formId) {
+					return ingredient;
 				}
 			}
 			return nullptr;
@@ -488,6 +745,69 @@ namespace alchemist::devhub {
 			return result.str();
 		}
 
+		std::string EffectEditorID(const RE::EffectSetting* a_effect)
+		{
+			if (!a_effect) {
+				return {};
+			}
+			const auto* editorID = a_effect->GetFormEditorID();
+			return editorID && *editorID ? editorID : "";
+		}
+
+		std::string EffectKeywords(const RE::EffectSetting* a_effect, bool a_formIDs)
+		{
+			if (!a_effect) {
+				return {};
+			}
+			std::ostringstream result;
+			bool first = true;
+			for (const auto* keyword : a_effect->GetKeywords()) {
+				if (!keyword) {
+					continue;
+				}
+				if (!first) {
+					result << ";";
+				}
+				first = false;
+				if (a_formIDs) {
+					result << FormID(keyword->GetFormID());
+				} else {
+					const auto* editorID = keyword->GetFormEditorID();
+					if (editorID && *editorID) {
+						result << editorID;
+					}
+				}
+			}
+			return result.str();
+		}
+
+		std::string IngredientKeywords(const RE::IngredientItem* a_ingredient, bool a_formIDs)
+		{
+			if (!a_ingredient) {
+				return {};
+			}
+			std::ostringstream result;
+			bool first = true;
+			for (const auto* keyword : a_ingredient->GetKeywords()) {
+				if (!keyword) {
+					continue;
+				}
+				if (!first) {
+					result << ";";
+				}
+				first = false;
+				if (a_formIDs) {
+					result << FormID(keyword->GetFormID());
+				} else {
+					const auto* editorID = keyword->GetFormEditorID();
+					if (editorID && *editorID) {
+						result << editorID;
+					}
+				}
+			}
+			return result.str();
+		}
+
 		std::string OptionalInt(bool a_available, int a_value)
 		{
 			return a_available ? std::to_string(a_value) : "unavailable";
@@ -520,6 +840,191 @@ namespace alchemist::devhub {
 			state.busy = a_busy;
 		}
 
+		std::string CsvEscape(const std::string& a_value)
+		{
+			if (a_value.find_first_of(",\"\n\r") == std::string::npos) {
+				return a_value;
+			}
+			std::string result = "\"";
+			for (const char c : a_value) {
+				if (c == '"') result += "\"\"";
+				else result += c;
+			}
+			result += '"';
+			return result;
+		}
+
+		std::string CsvEscapeSingleLine(const std::string& a_value)
+		{
+			std::string singleLine;
+			singleLine.reserve(a_value.size());
+			bool inLineBreak = false;
+			for (const char character : a_value) {
+				if (character == '\r' || character == '\n') {
+					if (!inLineBreak) {
+						singleLine += " | ";
+					}
+					inLineBreak = true;
+				} else {
+					singleLine += character;
+					inLineBreak = false;
+				}
+			}
+			return CsvEscape(singleLine);
+		}
+
+		std::optional<std::filesystem::path> CsvPathForModule(const void* a_address, const char* a_extension)
+		{
+			char dllPath[MAX_PATH]{};
+			HMODULE hModule = nullptr;
+			if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+				reinterpret_cast<LPCSTR>(a_address), &hModule)) {
+				return std::nullopt;
+			}
+			const DWORD pathLength = GetModuleFileNameA(hModule, dllPath, MAX_PATH);
+			if (pathLength == 0 || pathLength >= MAX_PATH) {
+				return std::nullopt;
+			}
+			std::filesystem::path csvPath(std::string(dllPath, pathLength));
+			if (csvPath.empty() || csvPath.filename().empty()) {
+				return std::nullopt;
+			}
+			csvPath.replace_extension(a_extension);
+			return csvPath;
+		}
+
+		bool WriteCsvFile(const std::filesystem::path& a_csvPath, const std::string& a_content, const std::string& a_successMessage)
+		{
+			std::ofstream csv(a_csvPath, std::ios::binary | std::ios::trunc);
+			if (!csv) {
+				SetMessage("Could not open " + a_csvPath.string() + " for writing.");
+				return false;
+			}
+			csv.write(a_content.data(), static_cast<std::streamsize>(a_content.size()));
+			if (!csv) {
+				SetMessage("Could not write " + a_csvPath.string() + ".");
+				return false;
+			}
+			csv.close();
+			if (!csv) {
+				SetMessage("Could not finish writing " + a_csvPath.string() + ".");
+				return false;
+			}
+			SetMessage(a_successMessage);
+			return true;
+		}
+
+		void ExportIngredientCSVOnGameThread()
+		{
+			auto* dataHandler = RE::TESDataHandler::GetSingleton();
+			if (!dataHandler) {
+				SetMessage("Data handler unavailable; CSV not written.");
+				return;
+			}
+
+			const auto csvPath = CsvPathForModule(reinterpret_cast<const void*>(&ExportIngredientCSVOnGameThread), ".ingredients.csv");
+			if (!csvPath) {
+				SetMessage("Could not resolve the plugin path; ingredient CSV not written.");
+				return;
+			}
+
+			struct IngRow {
+				std::string ingName;
+				std::string line;
+			};
+			std::vector<IngRow> rows;
+			for (auto* ingredient : dataHandler->GetFormArray<RE::IngredientItem>()) {
+				if (!ingredient || ingredient->IsDeleted() || !ingredient->GetPlayable() ||
+					ingredient->effects.empty()) {
+					continue;
+				}
+				const auto* rawName = ingredient->GetName();
+				if (!rawName || rawName[0] == '\0') {
+					continue;
+				}
+				const std::string ingName = rawName;
+				const std::string ingFormId = FormID(ingredient->GetFormID());
+
+				for (const auto* eff : ingredient->effects) {
+					if (!eff || !eff->baseEffect) {
+						continue;
+					}
+					const auto* source = eff->baseEffect;
+					const auto* resolved = caco::Adapter::ResolveIngredientEffect(
+						ingredient, const_cast<RE::EffectSetting*>(source));
+					const auto* active = resolved ? resolved : source;
+					const auto* effectName = source->GetFullName();
+					const bool pam = active->data.flags.all(RE::EffectSetting::EffectSettingData::Flag::kPowerAffectsMagnitude);
+					const bool pad = active->data.flags.all(RE::EffectSetting::EffectSettingData::Flag::kPowerAffectsDuration);
+					const bool noMag = active->data.flags.all(RE::EffectSetting::EffectSettingData::Flag::kNoMagnitude);
+					const bool noDur = active->data.flags.all(RE::EffectSetting::EffectSettingData::Flag::kNoDuration);
+					const bool beneficial = caco::Adapter::HasBeneficialKeyword(active);
+					const bool harmful = caco::Adapter::HasHarmfulKeyword(active);
+					const bool hostile = active->IsHostile();
+
+					std::ostringstream line;
+					line << CsvEscape(ingName) << ","
+						<< ingFormId << ","
+						<< CsvEscape(effectName ? effectName : "") << ","
+						<< FormID(source->GetFormID()) << ","
+						<< active->data.baseCost << ","
+						<< eff->GetMagnitude() << ","
+						<< static_cast<int>(eff->GetDuration()) << ","
+						<< (pam ? 1 : 0) << ","
+						<< (pad ? 1 : 0) << ","
+						<< (noMag ? 1 : 0) << ","
+						<< (noDur ? 1 : 0) << ","
+						<< (beneficial ? 1 : 0) << ","
+						<< (harmful ? 1 : 0) << ","
+						<< (hostile ? 1 : 0) << ","
+						<< (caco::Adapter::IsDurationBased(active) ? 1 : 0) << ","
+						<< CsvEscape(EffectKeywords(active, false)) << ","
+						<< FormID(source->GetFormID()) << ","
+						<< FormID(active->GetFormID());
+					rows.push_back({ ingName, line.str() });
+				}
+			}
+			std::stable_sort(rows.begin(), rows.end(), [](const IngRow& a, const IngRow& b) {
+				return a.ingName < b.ingName;
+			});
+
+			std::ostringstream buf;
+			buf << "ingredient_name,form_id,effect_name,effect_form_id,base_cost,magnitude,duration,"
+				   "power_affects_magnitude,power_affects_duration,no_magnitude,no_duration,"
+				   "beneficial,harmful,hostile,duration_based,keyword_editor_ids,"
+				   "source_effect_form_id,resolved_effect_form_id\n";
+			for (const auto& row : rows) {
+				buf << row.line << "\n";
+			}
+
+			WriteCsvFile(*csvPath, buf.str(), "Exported " + std::to_string(rows.size()) + " effect row(s) to " + csvPath->filename().string() + ".");
+		}
+
+		void ExportPotionPredictionsCSVOnGameThread()
+		{
+			engine::Recalculate(true);
+			auto recipes = engine::GetCachedRecipes();
+			std::sort(recipes.begin(), recipes.end(), [](const engine::RecipeResult& a, const engine::RecipeResult& b) {
+				return a.ingredients < b.ingredients;
+			});
+
+			const auto csvPath = CsvPathForModule(reinterpret_cast<const void*>(&ExportPotionPredictionsCSVOnGameThread), ".potion-predictions.csv");
+			if (!csvPath) {
+				SetMessage("Could not resolve the plugin path; potion prediction CSV not written.");
+				return;
+			}
+
+			std::ostringstream buf;
+			buf << "ingredients,predicted_value,ingredient_details\n";
+			for (const auto& recipe : recipes) {
+				buf << CsvEscapeSingleLine(recipe.ingredients) << ","
+					<< recipe.displayedValue << ","
+					<< CsvEscapeSingleLine(recipe.ingredientDetails) << "\n";
+			}
+
+			WriteCsvFile(*csvPath, buf.str(), "Exported " + std::to_string(recipes.size()) + " prediction(s) to " + csvPath->filename().string() + ".");
+		}
+
 		bool QueueTask(std::function<void()> a_task, const std::string& a_description)
 		{
 			{
@@ -546,6 +1051,43 @@ namespace alchemist::devhub {
 					{
 						std::scoped_lock lock(state.mutex);
 						state.busy = false;
+					}
+				});
+				return true;
+			} else {
+				SetMessage("Skyrim's task interface is unavailable; no game state was changed.");
+				return false;
+			}
+		}
+
+		bool QueueAsyncTask(std::function<void(std::function<void()>)> a_task, const std::string& a_description)
+		{
+			{
+				std::scoped_lock lock(state.mutex);
+				if (!state.initialized && a_description != "initialize") {
+					state.message = "The player state is not initialized yet.";
+					return false;
+				}
+				if (state.busy) {
+					return false;
+				}
+				state.busy = true;
+				state.message = a_description;
+			}
+			if (const auto* taskInterface = SKSE::GetTaskInterface()) {
+				taskInterface->AddTask([task = std::move(a_task), description = a_description]() {
+					auto onDone = []() {
+						std::scoped_lock lock(state.mutex);
+						state.busy = false;
+					};
+					try {
+						task(onDone);
+					} catch (const std::exception&) {
+						SetMessage("Developer test task failed: " + description);
+						onDone();
+					} catch (...) {
+						SetMessage("Developer test task failed: " + description);
+						onDone();
 					}
 				});
 				return true;
@@ -726,6 +1268,37 @@ namespace alchemist::devhub {
 		void Recompute(ComparisonRecord& a_record);
 		void CopyActiveToRecord(ComparisonRecord& a_record, const ActiveState& a_active);
 
+		bool IsSkyrimActiveWindow()
+		{
+			const auto* renderWindow = RE::BSGraphics::Renderer::GetCurrentRenderWindow();
+			return renderWindow && renderWindow->hWnd && GetForegroundWindow() == reinterpret_cast<HWND>(renderWindow->hWnd);
+		}
+
+		void SimulateKeyF()
+		{
+			if (!IsSkyrimActiveWindow()) {
+				return;
+			}
+
+			ui::ClearSearchFocus();
+
+			const UINT scanCode = MapVirtualKeyA('F', MAPVK_VK_TO_VSC);
+			INPUT inputs[2]{};
+			inputs[0].type = INPUT_KEYBOARD;
+			inputs[0].ki.wVk = 'F';
+			inputs[0].ki.wScan = static_cast<WORD>(scanCode);
+			inputs[0].ki.dwFlags = 0;
+
+			inputs[1].type = INPUT_KEYBOARD;
+			inputs[1].ki.wVk = 'F';
+			inputs[1].ki.wScan = static_cast<WORD>(scanCode);
+			inputs[1].ki.dwFlags = KEYEVENTF_KEYUP;
+
+			if (IsSkyrimActiveWindow()) {
+				SendInput(2, inputs, sizeof(INPUT));
+			}
+		}
+
 		void RefreshInventoryOnGameThread(bool a_updateMessage = true)
 		{
 			auto* playerCharacter = RE::PlayerCharacter::GetSingleton();
@@ -734,6 +1307,7 @@ namespace alchemist::devhub {
 				state.busy = false;
 				return;
 			}
+			SimulateKeyF();
 			std::vector<InventoryItem> refreshed;
 			for (const auto& [form, entry] : playerCharacter->GetInventory()) {
 				auto* alchemyItem = form && form->Is(RE::FormType::AlchemyItem) ? static_cast<RE::AlchemyItem*>(form) : nullptr;
@@ -756,8 +1330,10 @@ namespace alchemist::devhub {
 			});
 			state.inventory = std::move(refreshed);
 			for (auto& fixture : state.fixtures) {
-				auto* ingredient = FindFormByName<RE::IngredientItem>(fixture.formName);
-				fixture.inventoryCount = InventoryCount(playerCharacter, ingredient);
+				fixture.inventoryCount = 0;
+				for (auto* ingredient : FindIngredientFormsByName(fixture.formName)) {
+					fixture.inventoryCount += InventoryCount(playerCharacter, ingredient);
+				}
 			}
 			const auto selected = std::find_if(state.inventory.begin(), state.inventory.end(), [](const auto& item) { return item.formId == state.selectedFormId; });
 			if (state.selectedFormId != 0 && selected == state.inventory.end()) {
@@ -1027,9 +1603,98 @@ namespace alchemist::devhub {
 				state.busy = false;
 				return;
 			}
-			auto* ingredient = FindFormByName<RE::IngredientItem>(state.fixtures[a_index].formName);
-			if (!ingredient) {
+			const auto ingredients = FindIngredientFormsByName(state.fixtures[a_index].formName);
+			if (ingredients.empty()) {
 				state.message = "Ingredient form unavailable: " + state.fixtures[a_index].formName;
+				state.busy = false;
+				return;
+			}
+			auto* playerCharacter = RE::PlayerCharacter::GetSingleton();
+			if (!playerCharacter) {
+				state.message = "Player character unavailable.";
+				state.busy = false;
+				return;
+			}
+			int added = 0;
+			int count = 0;
+			for (auto* ingredient : ingredients) {
+				const int before = InventoryCount(playerCharacter, ingredient);
+				playerCharacter->AddObjectToContainer(ingredient, nullptr, a_quantity, nullptr);
+				const int after = InventoryCount(playerCharacter, ingredient);
+				count += after;
+				const int formAdded = (std::max)(0, after - before);
+				added += formAdded;
+				state.provisioned[ingredient] += formAdded;
+			}
+			state.fixtures[a_index].inventoryCount = count;
+			const int requested = a_quantity * static_cast<int>(ingredients.size());
+			state.message = added == requested ? "Provisioned " + state.fixtures[a_index].displayName + " x" + std::to_string(added) + " across " + std::to_string(ingredients.size()) + " form(s); inventory count=" + std::to_string(count) :
+				"Provisioned " + state.fixtures[a_index].displayName + " x" + std::to_string(added) + " of " + std::to_string(requested) + " across " + std::to_string(ingredients.size()) + " form(s); inventory count=" + std::to_string(count);
+			RecalculateAndRefresh();
+			CaptureActiveState(state.activeState);
+			state.busy = false;
+		}, "Provisioning fixture...");
+	}
+
+	void ProvisionIngredientByName(const std::string& a_name, int a_quantity)
+	{
+		if (a_name.empty()) {
+			SetMessage("Ingredient name cannot be empty.");
+			return;
+		}
+		if (a_quantity <= 0) {
+			SetMessage("Ingredient quantity must be greater than zero.");
+			return;
+		}
+		QueueTask([a_name, a_quantity]() {
+			std::scoped_lock lock(state.mutex);
+			const auto ingredients = FindIngredientFormsByName(a_name);
+			if (ingredients.empty()) {
+				state.message = "Ingredient form unavailable: " + a_name;
+				state.busy = false;
+				return;
+			}
+			auto* playerCharacter = RE::PlayerCharacter::GetSingleton();
+			if (!playerCharacter) {
+				state.message = "Player character unavailable.";
+				state.busy = false;
+				return;
+			}
+			int added = 0;
+			int count = 0;
+			for (auto* ingredient : ingredients) {
+				const int before = InventoryCount(playerCharacter, ingredient);
+				playerCharacter->AddObjectToContainer(ingredient, nullptr, a_quantity, nullptr);
+				const int after = InventoryCount(playerCharacter, ingredient);
+				count += after;
+				const int formAdded = (std::max)(0, after - before);
+				added += formAdded;
+				state.provisioned[ingredient] += formAdded;
+			}
+			const int requested = a_quantity * static_cast<int>(ingredients.size());
+			state.message = added == requested ? "Provisioned " + a_name + " x" + std::to_string(added) + " across " + std::to_string(ingredients.size()) + " form(s); inventory count=" + std::to_string(count) :
+				"Provisioned " + a_name + " x" + std::to_string(added) + " of " + std::to_string(requested) + " across " + std::to_string(ingredients.size()) + " form(s); inventory count=" + std::to_string(count);
+			RecalculateAndRefresh();
+			CaptureActiveState(state.activeState);
+			state.busy = false;
+		}, "Provisioning ingredient...");
+	}
+
+	void ProvisionIngredientByFormId(std::uint32_t a_formId, int a_quantity)
+	{
+		if (a_formId == 0) {
+			SetMessage("Ingredient form ID cannot be zero.");
+			return;
+		}
+		if (a_quantity <= 0) {
+			SetMessage("Ingredient quantity must be greater than zero.");
+			return;
+		}
+		QueueTask([a_formId, a_quantity]() {
+			std::scoped_lock lock(state.mutex);
+			auto* ingredient = FindIngredientByFormId(a_formId);
+			if (!ingredient) {
+				state.message = "Ingredient form unavailable: " + FormID(a_formId);
 				state.busy = false;
 				return;
 			}
@@ -1044,13 +1709,49 @@ namespace alchemist::devhub {
 			const int count = InventoryCount(playerCharacter, ingredient);
 			const int added = (std::max)(0, count - before);
 			state.provisioned[ingredient] += added;
-			state.fixtures[a_index].inventoryCount = count;
-			state.message = added == a_quantity ? "Provisioned " + state.fixtures[a_index].displayName + " x" + std::to_string(added) + "; inventory count=" + std::to_string(count) :
-				"Provisioned " + state.fixtures[a_index].displayName + " x" + std::to_string(added) + " of " + std::to_string(a_quantity) + "; inventory count=" + std::to_string(count);
+			state.message = added == a_quantity ? "Provisioned " + FormName(ingredient) + " [form=" + FormID(a_formId) + "] x" + std::to_string(added) + "; inventory count=" + std::to_string(count) :
+				"Provisioned " + FormName(ingredient) + " [form=" + FormID(a_formId) + "] x" + std::to_string(added) + " of " + std::to_string(a_quantity) + "; inventory count=" + std::to_string(count);
 			RecalculateAndRefresh();
 			CaptureActiveState(state.activeState);
 			state.busy = false;
-		}, "Provisioning fixture...");
+		}, "Provisioning ingredient...");
+	}
+
+	void ProvisionAutoprovisionIngredients()
+	{
+		auto names = GetValidAutoprovisionIngredientNames();
+		if (names.empty()) {
+			return;
+		}
+		QueueTask([names = std::move(names)]() {
+			std::scoped_lock lock(state.mutex);
+			auto* playerCharacter = RE::PlayerCharacter::GetSingleton();
+			if (!playerCharacter) {
+				state.message = "Player character unavailable.";
+				state.busy = false;
+				return;
+			}
+			int provisionedCount = 0;
+			for (const auto& name : names) {
+				for (auto* ingredient : FindIngredientFormsByName(name)) {
+					const int before = InventoryCount(playerCharacter, ingredient);
+					const int quantity = (std::max)(0, kAutoprovisionTargetCount - before);
+					if (quantity == 0) {
+						continue;
+					}
+					playerCharacter->AddObjectToContainer(ingredient, nullptr, quantity, nullptr);
+					const int after = InventoryCount(playerCharacter, ingredient);
+					const int added = (std::max)(0, after - before);
+					if (added > 0) {
+						state.provisioned[ingredient] += added;
+						++provisionedCount;
+					}
+				}
+			}
+			state.message = "Autoprovisioned configured ingredients (" + std::to_string(provisionedCount) + " below target). Recalculating recipes...";
+			RecalculateAndRefresh();
+			state.busy = false;
+		}, "Autoprovisioning configured ingredients...");
 	}
 
 	void ProvisionIndexes(const std::vector<std::size_t>& a_indexes)
@@ -1074,25 +1775,195 @@ namespace alchemist::devhub {
 				if (index >= state.fixtures.size()) {
 					continue;
 				}
-				auto* ingredient = FindFormByName<RE::IngredientItem>(state.fixtures[index].formName);
-				if (!ingredient) {
+				const auto ingredients = FindIngredientFormsByName(state.fixtures[index].formName);
+				if (ingredients.empty()) {
 					unavailable.push_back(state.fixtures[index].formName);
 					continue;
 				}
-				const int beforeCount = InventoryCount(playerCharacter, ingredient);
-				playerCharacter->AddObjectToContainer(ingredient, nullptr, quantity, nullptr);
-				const int afterCount = InventoryCount(playerCharacter, ingredient);
-				if (afterCount < beforeCount + quantity) {
-					unavailable.push_back(state.fixtures[index].formName + " (provision failed)");
+				int totalCount = 0;
+				for (auto* ingredient : ingredients) {
+					const int beforeCount = InventoryCount(playerCharacter, ingredient);
+					playerCharacter->AddObjectToContainer(ingredient, nullptr, quantity, nullptr);
+					const int afterCount = InventoryCount(playerCharacter, ingredient);
+					totalCount += afterCount;
+					if (afterCount < beforeCount + quantity) {
+						unavailable.push_back(state.fixtures[index].formName + " [form=" + FormID(ingredient->GetFormID()) + "] (provision failed)");
+					}
+					state.provisioned[ingredient] += (std::max)(0, afterCount - beforeCount);
 				}
-				state.provisioned[ingredient] += (std::max)(0, afterCount - beforeCount);
-				state.fixtures[index].inventoryCount = afterCount;
+				state.fixtures[index].inventoryCount = totalCount;
 			}
 			state.message = unavailable.empty() ? "Requested ingredient fixtures provisioned." : "Unavailable ingredient forms: " + Join(unavailable);
 			RecalculateAndRefresh();
 			CaptureActiveState(state.activeState);
 			state.busy = false;
 		}, "Provisioning ingredient fixtures...");
+	}
+	bool ProvisionIngredientForms(const std::vector<std::uint32_t>& a_formIds)
+	{
+		if (a_formIds.empty()) {
+			return false;
+		}
+		return QueueAsyncTask([formIds = a_formIds](auto onDone) {
+			auto* playerCharacter = RE::PlayerCharacter::GetSingleton();
+			if (!playerCharacter) {
+				SetMessage("Player character unavailable.");
+				onDone();
+				return;
+			}
+			int provisionedForms = 0;
+			int totalAdded = 0;
+			std::vector<std::string> unavailable;
+			std::map<RE::TESBoundObject*, int> added;
+			for (const auto formId : formIds) {
+				auto* ingredient = FindIngredientByFormId(formId);
+				if (!IsProvisionableIngredient(ingredient)) {
+					unavailable.push_back(FormID(formId));
+					continue;
+				}
+				const int before = playerCharacter->GetItemCount(ingredient);
+				playerCharacter->AddObjectToContainer(ingredient, nullptr, 99, nullptr);
+				const int after = playerCharacter->GetItemCount(ingredient);
+				const int delta = (std::max)(0, after - before);
+				if (delta > 0) {
+					added[ingredient] = delta;
+					++provisionedForms;
+					totalAdded += delta;
+				}
+			}
+			{
+				std::scoped_lock lock(state.mutex);
+				for (const auto& [form, delta] : added) {
+					state.provisioned[form] += delta;
+				}
+				state.message = unavailable.empty() ?
+					"Provisioned " + std::to_string(totalAdded) + " ingredient(s) across " + std::to_string(provisionedForms) + " visible form(s). Recalculating recipes..." :
+					"Provisioned " + std::to_string(totalAdded) + " ingredient(s); unavailable forms: " + Join(unavailable);
+			}
+
+			RefreshInventoryOnGameThread(false);
+			menu::RefreshAlchemyMenu(player.hasPerkPurity);
+
+			engine::RecalculateAsync([onDone = std::move(onDone)]() {
+				auto* taskInterface = SKSE::GetTaskInterface();
+				if (!taskInterface) {
+					onDone();
+					return;
+				}
+				taskInterface->AddTask([onDone = std::move(onDone)]() {
+					RefreshSelectedPredictionAfterRecalculate();
+					{
+						std::scoped_lock lock(state.mutex);
+						CaptureActiveState(state.activeState);
+					}
+					onDone();
+				});
+			}, true);
+		}, "Provisioning visible ingredients...");
+	}
+
+	std::size_t GetAvailableGameIngredientCount()
+	{
+		auto* dataHandler = RE::TESDataHandler::GetSingleton();
+		if (!dataHandler) {
+			return 0;
+		}
+		const auto& ingredients = dataHandler->GetFormArray<RE::IngredientItem>();
+		std::size_t count = 0;
+		for (auto* ingredient : ingredients) {
+			if (ingredient && !ingredient->IsDeleted() && ingredient->GetPlayable() &&
+				!ingredient->effects.empty() && ingredient->GetName() && ingredient->GetName()[0] != '\0') {
+				++count;
+			}
+		}
+		return count;
+	}
+
+	int randomIngredientCount = 20;
+
+	void ProvisionRandomGameIngredients(int a_count)
+	{
+		QueueAsyncTask([a_count](auto onDone) mutable {
+			auto* playerCharacter = RE::PlayerCharacter::GetSingleton();
+			if (!playerCharacter) {
+				SetMessage("Player character unavailable.");
+				onDone();
+				return;
+			}
+			auto* dataHandler = RE::TESDataHandler::GetSingleton();
+			if (!dataHandler) {
+				SetMessage("Data handler unavailable.");
+				onDone();
+				return;
+			}
+			const auto& ingredients = dataHandler->GetFormArray<RE::IngredientItem>();
+			std::vector<RE::IngredientItem*> forms;
+			forms.reserve(ingredients.size());
+			for (auto* ingredient : ingredients) {
+				if (ingredient && !ingredient->IsDeleted() && ingredient->GetPlayable() &&
+					!ingredient->effects.empty() && ingredient->GetName() && ingredient->GetName()[0] != '\0') {
+					forms.push_back(ingredient);
+				}
+			}
+			if (forms.empty()) {
+				SetMessage("No valid playable ingredients found in loaded game data.");
+				onDone();
+				return;
+			}
+			if (a_count > static_cast<int>(forms.size())) {
+				a_count = static_cast<int>(forms.size());
+			}
+			if (a_count < 1) {
+				a_count = 1;
+			}
+			randomIngredientCount = a_count;
+
+			std::random_device rd;
+			std::mt19937 g(rd());
+			std::shuffle(forms.begin(), forms.end(), g);
+			if (forms.size() > static_cast<std::size_t>(a_count)) {
+				forms.resize(a_count);
+			}
+
+			int count = 0;
+			std::map<RE::TESBoundObject*, int> added;
+			for (auto* ingredient : forms) {
+				const int before = playerCharacter->GetItemCount(ingredient);
+				playerCharacter->AddObjectToContainer(ingredient, nullptr, 99, nullptr);
+				const int after = playerCharacter->GetItemCount(ingredient);
+				const int delta = (std::max)(0, after - before);
+				if (delta > 0) {
+					added[ingredient] = delta;
+					++count;
+				}
+			}
+			{
+				std::scoped_lock lock(state.mutex);
+				for (const auto& [form, delta] : added) {
+					state.provisioned[form] += delta;
+				}
+				state.message = "Provisioned 99 of " + std::to_string(count) + " randomly chosen ingredient form(s). Recalculating recipes...";
+			}
+
+			RefreshInventoryOnGameThread(false);
+			menu::RefreshAlchemyMenu(player.hasPerkPurity);
+
+			engine::RecalculateAsync([onDone = std::move(onDone)]() {
+				auto* taskInterface = SKSE::GetTaskInterface();
+				if (!taskInterface) {
+					onDone();
+					return;
+				}
+				taskInterface->AddTask([onDone = std::move(onDone)]() {
+					RefreshSelectedPredictionAfterRecalculate();
+					{
+						std::scoped_lock lock(state.mutex);
+						CaptureActiveState(state.activeState);
+					}
+					onDone();
+				});
+			}, true);
+		}, "Provisioning 99 of randomized ingredients...");
 	}
 
 	void ProvisionAll() { ProvisionIndexes({ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17 }); }
@@ -1537,12 +2408,18 @@ namespace alchemist::devhub {
 	{
 		std::scoped_lock lock(state.mutex);
 		state.open = false;
+		pendingProvisionFormIds.clear();
+		provisionConfirmationOpenPending = false;
+		suppressProvisionConfirmationEnter = false;
 	}
 
 	void OnMenuClosed()
 	{
 		std::scoped_lock lock(state.mutex);
 		state.open = false;
+		pendingProvisionFormIds.clear();
+		provisionConfirmationOpenPending = false;
+		suppressProvisionConfirmationEnter = false;
 	}
 
 	void Shutdown()
@@ -1550,6 +2427,9 @@ namespace alchemist::devhub {
 		std::scoped_lock lock(state.mutex);
 		state.open = false;
 		state.initialized = false;
+		pendingProvisionFormIds.clear();
+		provisionConfirmationOpenPending = false;
+		suppressProvisionConfirmationEnter = false;
 		state.managedWornGear.clear();
 		state.provisioned.clear();
 		state.pendingPerkRanks.clear();
@@ -1719,12 +2599,156 @@ namespace alchemist::devhub {
 			return false;
 		}
 		bool textInputActive = false;
+		bool provisionConfirmationOpenedThisFrame = false;
 		const auto view = GetView();
 		ImGui::Separator();
 		ImGui::TextColored(ImVec4(1.0f, 0.84f, 0.0f, 1.0f), "Developer test hub");
 
 		DrawTestHint("Add known ingredients or potions for controlled recipe, inventory, and cleanup tests.");
 		if (ImGui::CollapsingHeader("Fixture & potion provisioning")) {
+			ImGui::SeparatorText("Inventory cleanup");
+			if (ImGui::Button("Remove all ingredients")) RemoveTestIngredients();
+			DrawTestHint("Remove every ingredient from the player's inventory.");
+			if (ImGui::Button("Remove all potions & poisons")) RemoveAllPotions();
+			DrawTestHint("Remove all potions and poisons from inventory; ingredients and gear remain.");
+			if (ImGui::Button("Remove provisioned test items")) RemoveProvisionedItems();
+			DrawTestHint("Remove only the test items provisioned by the hub (fixtures, test potions, and test gear).");
+			if (ImGui::Button("Remove all non-equipped items")) RemoveAllNonEquippedItems();
+			DrawTestHint("Remove every non-equipped inventory item; equipped items remain.");
+
+			ImGui::SeparatorText("Ingredient provisioning");
+			if (ImGui::Button("Provision 99 of an ingredient")) {
+				provisionIngredientSearch[0] = '\0';
+				focusProvisionIngredientSearch = true;
+				const auto buttonRectMin = ImGui::GetItemRectMin();
+				const auto buttonRectMax = ImGui::GetItemRectMax();
+				const auto popupWidth = (std::max)(360.0f, buttonRectMax.x - buttonRectMin.x);
+				const auto popupHeight = ImGui::GetTextLineHeightWithSpacing() * 10.0f + ImGui::GetStyle().WindowPadding.y * 2.0f;
+				ImGui::SetNextWindowPos(ImVec2(buttonRectMin.x, buttonRectMax.y), ImGuiCond_Always);
+				ImGui::SetNextWindowSize(ImVec2(popupWidth, popupHeight), ImGuiCond_Always);
+				ImGui::OpenPopup("ProvisionIngredientSuggestions");
+			}
+			DrawTestHint("Type to filter loaded ingredient forms, then select one to add 99 copies or press Enter to provision all visible forms.");
+			if (!GetValidAutoprovisionIngredientNames().empty()) {
+				if (ImGui::Button("Autoprovision configured ingredients")) ProvisionAutoprovisionIngredients();
+				DrawTestHint("Adds 99 copies of each valid ingredient listed in the autoprovision setting.");
+			}
+
+			bool provisionIngredientSearchActive = false;
+			if (ImGui::BeginPopup("ProvisionIngredientSuggestions")) {
+				textInputActive = true;
+				if (focusProvisionIngredientSearch) {
+					ImGui::SetKeyboardFocusHere();
+					focusProvisionIngredientSearch = false;
+				}
+				ImGui::SetNextItemWidth(-1.0f);
+				const bool provisionIngredientSearchSubmitted = ImGui::InputTextWithHint(
+					"##ProvisionIngredientSearch",
+					"Type an ingredient...",
+					provisionIngredientSearch,
+					sizeof(provisionIngredientSearch),
+					ImGuiInputTextFlags_EnterReturnsTrue);
+				provisionIngredientSearchActive = ImGui::IsItemActive();
+				const std::string searchQuery(provisionIngredientSearch);
+				auto suggestions = GetProvisionableIngredients();
+				const auto suggestionScore = [&searchQuery](const auto& suggestion) {
+					const auto nameScore = ProvisionIngredientMatchScore(suggestion.name, searchQuery);
+					return nameScore >= 0 ? nameScore : ProvisionIngredientMatchScore(suggestion.label, searchQuery);
+				};
+				suggestions.erase(std::remove_if(suggestions.begin(), suggestions.end(), [&suggestionScore](const auto& suggestion) {
+					return suggestionScore(suggestion) < 0;
+				}), suggestions.end());
+				std::sort(suggestions.begin(), suggestions.end(), [&suggestionScore](const auto& left, const auto& right) {
+					const auto leftScore = suggestionScore(left);
+					const auto rightScore = suggestionScore(right);
+					return leftScore == rightScore ? left.label < right.label : leftScore < rightScore;
+				});
+				if (provisionIngredientSearchSubmitted && !suggestions.empty()) {
+					if (suggestions.size() == 1) {
+						ProvisionIngredientByFormId(suggestions.front().form->GetFormID(), 99);
+						provisionIngredientSearch[0] = '\0';
+						provisionIngredientSearchActive = false;
+						ImGui::CloseCurrentPopup();
+					} else {
+						pendingProvisionFormIds.clear();
+						pendingProvisionFormIds.reserve(suggestions.size());
+						for (const auto& suggestion : suggestions) {
+							pendingProvisionFormIds.push_back(suggestion.form->GetFormID());
+						}
+						ImGui::CloseCurrentPopup();
+						provisionConfirmationOpenPending = true;
+						suppressProvisionConfirmationEnter = true;
+					}
+				}
+				if (suggestions.empty()) {
+					ImGui::TextDisabled("No loaded ingredients match the search.");
+				} else if (!provisionIngredientSearchSubmitted) {
+					for (const auto& suggestion : suggestions) {
+						if (ImGui::Selectable(suggestion.label.c_str())) {
+							ProvisionIngredientByFormId(suggestion.form->GetFormID(), 99);
+							provisionIngredientSearch[0] = '\0';
+							provisionIngredientSearchActive = false;
+							ImGui::CloseCurrentPopup();
+						}
+					}
+				}
+				ImGui::EndPopup();
+			}
+			if (provisionConfirmationOpenPending) {
+				ImGui::OpenPopup("Confirm Ingredient Provisioning###ConfirmProvisionIngredients");
+				provisionConfirmationOpenPending = false;
+				provisionConfirmationOpenedThisFrame = true;
+			}
+			textInputActive = textInputActive || provisionIngredientSearchActive;
+			if (ImGui::BeginPopupModal("Confirm Ingredient Provisioning###ConfirmProvisionIngredients", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+				textInputActive = true;
+				ImGui::Text("Provision 99 of %d visible ingredient forms?", static_cast<int>(pendingProvisionFormIds.size()));
+				ImGui::TextDisabled("This will add up to %d ingredients to the player's inventory.", static_cast<int>(pendingProvisionFormIds.size() * 99));
+				const bool enterPressed = ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter);
+				const bool confirmWithEnter = !provisionConfirmationOpenedThisFrame && !suppressProvisionConfirmationEnter && enterPressed;
+				if (suppressProvisionConfirmationEnter && !enterPressed &&
+					!ImGui::IsKeyDown(ImGuiKey_Enter) && !ImGui::IsKeyDown(ImGuiKey_KeypadEnter)) {
+					suppressProvisionConfirmationEnter = false;
+				}
+				if (ImGui::Button("Confirm") || confirmWithEnter) {
+					if (ProvisionIngredientForms(pendingProvisionFormIds)) {
+						pendingProvisionFormIds.clear();
+						suppressProvisionConfirmationEnter = false;
+						ImGui::CloseCurrentPopup();
+					}
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Cancel")) {
+					pendingProvisionFormIds.clear();
+					suppressProvisionConfirmationEnter = false;
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::EndPopup();
+			}
+
+			const auto totalAvailableForms = static_cast<int>(GetAvailableGameIngredientCount());
+			if (totalAvailableForms > 0 && randomIngredientCount > totalAvailableForms) {
+				randomIngredientCount = totalAvailableForms;
+			}
+			if (randomIngredientCount < 1) {
+				randomIngredientCount = 1;
+			}
+			ImGui::SetNextItemWidth(75.0f);
+			if (ImGui::InputInt("##randomIngredientCount", &randomIngredientCount, 1, 10)) {
+				if (totalAvailableForms > 0 && randomIngredientCount > totalAvailableForms) {
+					randomIngredientCount = totalAvailableForms;
+				}
+				if (randomIngredientCount < 1) {
+					randomIngredientCount = 1;
+				}
+			}
+			ImGui::SameLine();
+			const std::string randomBtnLabel = "Provision 99 of " + std::to_string(randomIngredientCount) + " random ingredients";
+			if (ImGui::Button(randomBtnLabel.c_str())) {
+				ProvisionRandomGameIngredients(randomIngredientCount);
+			}
+			DrawTestHint("Adds 99 of the specified number of randomly chosen ingredients in loaded game data. Lowers down to the available total if exceeded.");
+
 			if (ImGui::Button("Provision all ingredient fixtures")) ProvisionAll();
 			DrawTestHint("All 18 fixtures should be added using their configured quantities; inventory counts and recipes should update.");
 			if (ImGui::Button("Provision beneficial ingredients")) ProvisionBeneficial();
@@ -1747,16 +2771,6 @@ namespace alchemist::devhub {
 			DrawTestHint("All available Fortify Enchanting potion forms in loaded data should be added to inventory.");
 			if (ImGui::Button("Provision Fortify Alchemy potions")) ProvisionFortifyAlchemyPotions(1);
 			DrawTestHint("All available Fortify Alchemy potion forms in loaded data should be added to inventory.");
-
-			ImGui::SeparatorText("Inventory cleanup");
-			if (ImGui::Button("Remove all ingredients")) RemoveTestIngredients();
-			DrawTestHint("Remove every ingredient from the player's inventory.");
-			if (ImGui::Button("Remove all potions & poisons")) RemoveAllPotions();
-			DrawTestHint("Remove all potions and poisons from inventory; ingredients and gear remain.");
-			if (ImGui::Button("Remove provisioned test items")) RemoveProvisionedItems();
-			DrawTestHint("Remove only the test items provisioned by the hub (fixtures, test potions, and test gear).");
-			if (ImGui::Button("Remove all non-equipped items")) RemoveAllNonEquippedItems();
-			DrawTestHint("Remove every non-equipped inventory item; equipped items remain.");
 
 			ImGui::SeparatorText("Ingredient fixtures");
 			if (ImGui::BeginTable("FixtureTable", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
@@ -1826,6 +2840,22 @@ namespace alchemist::devhub {
 					ImGui::EndTable();
 				}
 			}
+			ImGui::BeginDisabled(view.busy);
+			if (ImGui::Button("Export ingredient data to CSV")) {
+				QueueTask([]() {
+					ExportIngredientCSVOnGameThread();
+				}, "Exporting ingredient CSV...");
+			}
+			ImGui::EndDisabled();
+			DrawTestHint("Writes alchemist.ingredients.csv next to alchemist.dll with the active effect fields required by prediction scripts, including source and CACO-resolved FormIDs and keyword editor IDs.");
+			ImGui::BeginDisabled(view.busy);
+			if (ImGui::Button("Export potion predictions to CSV")) {
+				QueueTask([]() {
+					ExportPotionPredictionsCSVOnGameThread();
+				}, "Exporting potion predictions CSV...");
+			}
+			ImGui::EndDisabled();
+			DrawTestHint("Refreshes the current ingredient list, then writes alchemist.potion-predictions.csv next to alchemist.dll with ingredients, predicted/displayed values, and FormID-bearing ingredient details for prediction fixtures.");
 		}
 
 		DrawTestHint("Change skill, perks, Seeker of Shadows, or Fortify Alchemy gear to test calculation inputs.");
@@ -1976,9 +3006,13 @@ namespace alchemist::devhub {
 				ImGui::Text("Comparison status: %s", view.current.status.c_str());
 				const auto recipes = engine::GetCachedRecipes();
 				if (ImGui::BeginCombo("Prediction recipe", view.current.recipeIngredients.c_str())) {
-					for (std::size_t index = 0; index < recipes.size(); ++index) {
+					const std::size_t maxComboItems = (std::min)(recipes.size(), static_cast<std::size_t>(200));
+					for (std::size_t index = 0; index < maxComboItems; ++index) {
 						const bool selectedRecipe = recipes[index].ingredientDetails == view.current.recipeIngredientDetails;
 						if (ImGui::Selectable((recipes[index].name + " | " + recipes[index].ingredients + " | " + recipes[index].ingredientDetails).c_str(), selectedRecipe)) SelectPrediction(index);
+					}
+					if (recipes.size() > maxComboItems) {
+						ImGui::TextDisabled("... and %zu more recipes", recipes.size() - maxComboItems);
 					}
 					ImGui::EndCombo();
 				}

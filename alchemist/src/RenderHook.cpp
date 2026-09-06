@@ -142,6 +142,11 @@ namespace alchemist::render {
 					0
 				};
 				builder.AddRanges(latinExtended);
+				static const ImWchar arrowsRange[] = {
+					0x2190, 0x21FF, // Arrows (including ↑ U+2191 and ↓ U+2193)
+					0
+				};
+				builder.AddRanges(arrowsRange);
 				builder.BuildRanges(&glyphRanges);
 			}
 

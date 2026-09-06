@@ -10,9 +10,9 @@
 #include "RE/B/ButtonEvent.h"
 #include "RE/B/BSWin32MouseDevice.h"
 #include "RE/M/MenuCursor.h"
-#include "RE/S/SendUIMessage.h"
 
 #include <atomic>
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 
@@ -131,6 +131,7 @@ namespace alchemist::menu {
 					menuGeneration.fetch_add(1, std::memory_order_acq_rel);
 					devhub::OnMenuClosed();
 					ui::SetVisible(false);
+					engine::NotifyAlchemyMenuClosed();
 					return RE::BSEventNotifyControl::kContinue;
 				}
 
@@ -153,11 +154,13 @@ namespace alchemist::menu {
 					CaptureNativeCursor();
 					menuGeneration.fetch_add(1, std::memory_order_acq_rel);
 					ui::SetVisible(true);
+					engine::NotifyAlchemyMenuOpened();
 					QueueRecalculation();
 				} else {
 					nativeAlchemyOpen.store(false, std::memory_order_release);
 					menuGeneration.fetch_add(1, std::memory_order_acq_rel);
 					ui::SetVisible(false);
+					engine::NotifyAlchemyMenuClosed();
 				}
 				return RE::BSEventNotifyControl::kContinue;
 			}
@@ -311,9 +314,6 @@ namespace alchemist::menu {
 		auto* alchemyMenu = static_cast<RE::CraftingSubMenus::CraftingSubMenus::AlchemyMenu*>(submenu);
 		alchemyMenu->playerHasPurityPerk = a_hasPurityPerk;
 		alchemyMenu->UpdateCraftingInfo(RE::ActorValue::kAlchemy);
-		if (auto* playerCharacter = RE::PlayerCharacter::GetSingleton()) {
-			RE::SendUIMessage::SendInventoryUpdateMessage(playerCharacter, nullptr);
-		}
 		alchemyMenu->playerHasPurityPerk = a_hasPurityPerk;
 	}
 
@@ -327,5 +327,42 @@ namespace alchemist::menu {
 		a_snapshot.width = nativeCursorWidth.load(std::memory_order_relaxed);
 		a_snapshot.height = nativeCursorHeight.load(std::memory_order_relaxed);
 		return true;
+	}
+
+	std::vector<std::uint32_t> GetSelectedIngredientFormIDs()
+	{
+		std::vector<std::uint32_t> selectedFormIDs;
+		if (!nativeAlchemyOpen.load(std::memory_order_acquire)) {
+			return selectedFormIDs;
+		}
+
+		auto* uiInterface = RE::UI::GetSingleton();
+		if (!uiInterface) {
+			return selectedFormIDs;
+		}
+		auto craftingMenu = uiInterface->GetMenu<RE::CraftingMenu>();
+		if (!craftingMenu) {
+			return selectedFormIDs;
+		}
+		auto* submenu = craftingMenu->GetCraftingSubMenu();
+		if (!IsAlchemySubMenu(submenu)) {
+			return selectedFormIDs;
+		}
+
+		auto* alchemyMenu = static_cast<RE::CraftingSubMenus::CraftingSubMenus::AlchemyMenu*>(submenu);
+		for (const auto selectedIndex : alchemyMenu->selectedIndexes) {
+			if (selectedIndex >= alchemyMenu->ingredientEntries.size()) {
+				continue;
+			}
+			const auto& entry = alchemyMenu->ingredientEntries[selectedIndex];
+			if (!entry.ingredient || !entry.ingredient->object) {
+				continue;
+			}
+			selectedFormIDs.push_back(entry.ingredient->object->GetFormID());
+		}
+
+		std::sort(selectedFormIDs.begin(), selectedFormIDs.end());
+		selectedFormIDs.erase(std::unique(selectedFormIDs.begin(), selectedFormIDs.end()), selectedFormIDs.end());
+		return selectedFormIDs;
 	}
 }

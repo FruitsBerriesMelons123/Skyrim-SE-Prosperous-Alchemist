@@ -1,4 +1,4 @@
-# Agent Instructions
+# Instructions
 
 ## Base Paths
 See **user-paths.md** for paths for locations referenced in these instructions.
@@ -7,7 +7,7 @@ See **user-paths.md** for paths for locations referenced in these instructions.
 - I use Mod Organizer 2. It uses the profile listed in **user-paths.md**. Do not attempt to launch Skyrim yourself.
 
 ## Project Guidelines
-- Before planning or coding read **problems.md** which should have implementation details on what has been attempted to be coded for specific issues in the past. This file should always be kept up-to-date with the latest changes and kept organized in the most recommended way for its intended use. It should be updated after planning but before coding, and then once again after finishing coding. New notes should be added at the top of the file and should include full timestamps. When performing analysis **problems.md** must be updated immediately after finding any valuable information. Also keep the **minimal.md** log up-to-date while preserving its minimal structure.
+- Before planning or coding read **problems.md** which should have implementation details on what has been attempted to be coded for specific issues in the past. This file should always be kept up-to-date with the latest changes and kept organized in the most recommended way for its intended use. It should be updated after planning but before coding, and then once again after finishing coding. New notes should be added at the top of the file and should include full timestamps. When performing analysis **problems.md** must be updated immediately after finding any valuable information.
 - Check **updates.md** and if it has been a full day since git submodules were updated, perform an update, including nested submodules, to their latest remote commits and record the update check.
 - Do not put source files in the root directory. Prefer to put them in the alchemist folder or make a new appropriately named folder if that is more appropriate.
 - Do not remove any mod functionality. If this you ever think this is a good idea, write your reason in **requests.md** and then move on to something else.
@@ -16,6 +16,7 @@ See **user-paths.md** for paths for locations referenced in these instructions.
 - If multiple options are considered for a task, list all of them in **problems.md** even the ones that weren't ultimately chosen.
 - The mod should accurately predict potion costs in vanilla Skyrim, and also with either Alchemy Plus or CACO or both enabled.
 - The mod should be localization friendly where possible.
+- Do not hardcode things unless absolutely necessary. Hardcoded things should be noted in the readme and why it was necessary to be hardcoded.
 
 ## Mod Version Changes (Explicit User Authorization Required)
 - Do not update any mod-version value, version-bearing filename, generated version metadata, built artifact, deployed artifact, or release archive listed in this section unless the user specifically tells you to perform that mod-version update. An audit or documentation request is not authorization to change the version.
@@ -48,6 +49,19 @@ See **user-paths.md** for paths for locations referenced in these instructions.
 ## Complete Alchemy and Cooking Overhaul (CACO)
 - Source code location listed in **user-paths.md**.
 - See also **caco.md**.
+
+## Ingredients
+### ingredient_name,form_id,editor_id,effect_name,effect_form_id,base_cost,magnitude,duration,power_affects_magnitude,power_affects_duration,no_magnitude,no_duration,beneficial,harmful,hostile
+- See **ingredients-vanilla.csv** for the full ingredient list used in vanilla skyrim.
+- See **ingredients-caco.csv** for the full ingredient list used in CACO.
+
+## Potions
+These need to be regenerated manually by the user if the skse plugin algorithm is modified.
+### Predicted with no perks and alchemy level at 15
+- See **potions-predicted-vanilla.csv** for the full potion list as predicted in vanilla skyrim.
+- See **potions-predicted-caco.csv** for the full potion list as predicted with CACO enabled and Alchemy Plus disabled.
+- See **potions-predicted-ap.csv** for the full potion list as predicted with CACO disabled and Alchemy Plus enabled.
+- See **potions-predicted-caco-ap.csv** for the full potion list as predicted with CACO enabled and Alchemy Plus enabled.
 
 ## Temp Python Scripts
 - Create temporary python scripts in **temp** to perform these specific tasks instead of doing them yourself. They should all have verbose terminal output describing their current action and progress.

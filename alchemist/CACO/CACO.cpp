@@ -20,6 +20,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <exception>
 #include <limits>
 #include <set>
 #include <string>
@@ -863,6 +864,7 @@ namespace alchemist::caco
 			float a_fallback,
 			bool a_potion,
 			bool a_includeTypePerks,
+			bool a_mixedPotion,
 			const AlchemyEvaluationContext& a_context,
 			float& a_magnitudeMultiplier,
 			float& a_durationMultiplier) noexcept
@@ -887,6 +889,7 @@ namespace alchemist::caco
 			std::set<const RE::BGSPerk*> inspectedPerks;
 			bool physicianApplied = false;
 			bool benefactorApplied = false;
+			bool benefactorEntryPointFound = false;
 			bool poisonerApplied = false;
 			bool seekerApplied = false;
 
@@ -915,6 +918,14 @@ namespace alchemist::caco
 					(a_perk == a_context.seeker.perk && !a_context.seeker.nativeContract)) {
 					return;
 				}
+				const bool benefactorPerk = IsBenefactorPerk(a_perk);
+				const bool poisonerPerk = IsPoisonerPerk(a_perk);
+				if ((benefactorPerk && !algorithm::ShouldApplyBenefactor(
+						a_potion, a_effect && Adapter::HasBeneficialKeyword(a_effect), a_includeTypePerks, a_mixedPotion)) ||
+					(poisonerPerk && !algorithm::ShouldApplyPoisoner(
+						a_potion, a_effect && Adapter::HasHarmfulKeyword(a_effect), a_includeTypePerks))) {
+					return;
+				}
 				for (const auto* entry : a_perk->perkEntries) {
 					if (!entry || entry->GetType() != RE::PERK_ENTRY_TYPE::kEntryPoint) {
 						continue;
@@ -929,6 +940,9 @@ namespace alchemist::caco
 					if (!std::isfinite(functionData->data) || functionData->data <= 0.0f ||
 						entryPoint->entryData.function.get() != RE::BGSEntryPointFunction::ENTRY_POINT_FUNCTIONS::kMultiplyValue) {
 						continue;
+					}
+					if (IsBenefactorPerk(a_perk)) {
+						benefactorEntryPointFound = true;
 					}
 					bool effectSpecific = false;
 					bool typeSpecific = false;
@@ -960,17 +974,28 @@ namespace alchemist::caco
 			} catch (...) {
 			}
 
-			if (a_context.hasPhysician && !physicianApplied && IsPhysicianEffect(a_effect)) {
+			if (algorithm::ShouldApplyPhysicianFallback(
+				Adapter::IsActive(),
+				a_context.hasPhysician,
+				physicianApplied,
+				IsPhysicianEffect(a_effect))) {
 				otherMagnitude *= 1.25;
 				otherDuration *= 1.25;
 			}
-			if (a_includeTypePerks && a_context.hasBenefactor && !benefactorApplied && a_potion &&
-				a_effect && Adapter::HasBeneficialKeyword(a_effect)) {
+			if (algorithm::ShouldApplyBenefactorFallback(
+				a_potion,
+				a_effect && Adapter::HasBeneficialKeyword(a_effect),
+				a_includeTypePerks,
+				a_context.hasBenefactor,
+				benefactorApplied,
+				benefactorEntryPointFound,
+				a_mixedPotion)) {
 				otherMagnitude *= 1.25;
 				otherDuration *= 1.25;
 			}
-			if (a_includeTypePerks && a_context.hasPoisoner && !poisonerApplied && !a_potion &&
-				a_effect && Adapter::HasHarmfulKeyword(a_effect)) {
+			if (algorithm::ShouldApplyPoisoner(
+				a_potion, a_effect && Adapter::HasHarmfulKeyword(a_effect), a_includeTypePerks) &&
+				a_context.hasPoisoner && !poisonerApplied) {
 				otherMagnitude *= 1.25;
 				otherDuration *= 1.25;
 			}
@@ -1093,17 +1118,17 @@ namespace alchemist::caco
 			}
 			const bool optionRecordsFound = g_state.disablePotionHandling || g_state.impurePotions ||
 				g_state.reweightPotions || g_state.renamePotions;
-			const bool optionRecordsReady = g_state.disablePotionHandling && g_state.impurePotions &&
-				g_state.reweightPotions && g_state.renamePotions;
 			const bool cacoRecordsFound = coreListsFound || ingredientListsFound != 0 || durationGlobalsFound != 0;
-			const bool recordsReady = coreListsFound && ingredientListsFound == kFamilies.size() * 4 &&
-				durationGlobalsFound == kFamilies.size() && optionRecordsReady && g_state.alchemySettingsReady;
 			const bool pluginFound = plugin.file != nullptr;
 			g_state.detected = pluginFound || cacoRecordsFound || optionRecordsFound || g_state.cureDisease || g_state.curePoison;
-			g_state.active = g_state.detected && recordsReady;
+			const bool calculationRecordsFound = pluginFound || coreListsFound || ingredientListsFound != 0;
+			g_state.active = calculationRecordsFound && g_state.alchemySettingsReady;
 			g_state.initialized = true;
 			RefreshOptions();
 
+		} catch (const std::exception&) {
+			g_state = {};
+			g_state.initialized = true;
 		} catch (...) {
 			g_state = {};
 			g_state.initialized = true;
@@ -1118,6 +1143,11 @@ namespace alchemist::caco
 		try {
 			RefreshOptions();
 			RefreshCalculationRevision();
+		} catch (const std::exception&) {
+			g_state.potionHandlingEnabled = false;
+			g_state.impureProcessingEnabled = false;
+			g_state.reweightingEnabled = false;
+			g_state.renamingEnabled = false;
 		} catch (...) {
 			g_state.potionHandlingEnabled = false;
 			g_state.impureProcessingEnabled = false;
@@ -1173,6 +1203,7 @@ namespace alchemist::caco
 			a_fallbackPerkMultiplier,
 			false,
 			false,
+			false,
 			a_context,
 			a_multiplier);
 	}
@@ -1183,6 +1214,7 @@ namespace alchemist::caco
 		float a_fallbackPerkMultiplier,
 		bool a_potion,
 		bool a_includeTypePerks,
+		bool a_mixedPotion,
 		const AlchemyEvaluationContext& a_context,
 		float& a_multiplier) noexcept
 	{
@@ -1193,6 +1225,7 @@ namespace alchemist::caco
 			a_fallbackPerkMultiplier,
 			a_potion,
 			a_includeTypePerks,
+			a_mixedPotion,
 			a_context,
 			a_multiplier,
 			durationMultiplier);
@@ -1204,6 +1237,7 @@ namespace alchemist::caco
 		float a_fallbackPerkMultiplier,
 		bool a_potion,
 		bool a_includeTypePerks,
+		bool a_mixedPotion,
 		const AlchemyEvaluationContext& a_context,
 		float& a_magnitudeMultiplier,
 		float& a_durationMultiplier) noexcept
@@ -1230,6 +1264,7 @@ namespace alchemist::caco
 			a_fallbackPerkMultiplier,
 			a_potion,
 			a_includeTypePerks,
+			a_mixedPotion,
 			a_context,
 			magnitudePerkMultiplier,
 			durationPerkMultiplier);
@@ -1248,6 +1283,7 @@ namespace alchemist::caco
 		float a_fallbackAlchemistMultiplier,
 		bool a_potion,
 		bool a_includeTypePerks,
+		bool a_mixedPotion,
 		const AlchemyEvaluationContext& a_context,
 		float& a_magnitudeMultiplier,
 		float& a_durationMultiplier) noexcept
@@ -1268,6 +1304,7 @@ namespace alchemist::caco
 			a_fallbackAlchemistMultiplier,
 			a_potion,
 			a_includeTypePerks,
+			a_mixedPotion,
 			a_context,
 			magnitudePerkMultiplier,
 			durationPerkMultiplier);
@@ -1290,9 +1327,20 @@ namespace alchemist::caco
 
 	bool Adapter::IsDurationBased(const RE::EffectSetting* a_effect) noexcept
 	{
-		return a_effect && (a_effect->HasKeywordString(kDurationBasedKeyword) ||
-			a_effect->data.flags.all(RE::EffectSetting::EffectSettingData::Flag::kNoMagnitude) &&
-			a_effect->data.flags.all(RE::EffectSetting::EffectSettingData::Flag::kPowerAffectsDuration));
+		if (!a_effect) {
+			return false;
+		}
+		if (a_effect->HasKeywordString(kDurationBasedKeyword)) {
+			return true;
+		}
+		if (!a_effect->data.flags.all(RE::EffectSetting::EffectSettingData::Flag::kPowerAffectsDuration)) {
+			return false;
+		}
+		// CACO reclassifies effects like Silence, Resist Disease, and Slow to scale with duration
+		// instead of magnitude. The no-magnitude flag is not reliable on these records, but
+		// power-affects-magnitude being false is the validated signal.
+		return a_effect->data.flags.all(RE::EffectSetting::EffectSettingData::Flag::kNoMagnitude) ||
+			!a_effect->data.flags.all(RE::EffectSetting::EffectSettingData::Flag::kPowerAffectsMagnitude);
 	}
 
 	RE::EffectSetting* Adapter::ResolveIngredientEffect(

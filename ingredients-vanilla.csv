@@ -1,0 +1,721 @@
+ingredient_name,form_id,effect_name,effect_form_id,base_cost,magnitude,duration,power_affects_magnitude,power_affects_duration,no_magnitude,no_duration,beneficial,harmful,hostile,duration_based,keyword_editor_ids,source_effect_form_id,resolved_effect_form_id
+Abecean Longfin,0x106E1B,Weakness to Frost,0x73F2E,0.5,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFrost,0x73F2E,0x73F2E
+Abecean Longfin,0x106E1B,Fortify Sneak,0x3EB22,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifySneak;MagicAlchBeneficial,0x3EB22,0x3EB22
+Abecean Longfin,0x106E1B,Weakness to Poison,0x90042,1,2,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;USKPMagicAlchWeaknessPoison,0x90042,0x90042
+Abecean Longfin,0x106E1B,Fortify Restoration,0x3EB28,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyRestoration;MagicAlchBeneficial,0x3EB28,0x3EB28
+Alocasia Fruit,0xFE004D62,Regenerate Stamina,0x3EB08,0.1,6,300,1,0,0,0,1,0,0,0,MagicAlchFortifyStaminaRate;MagicAlchBeneficial,0x3EB08,0x3EB08
+Alocasia Fruit,0xFE004D62,Light,0xFE004846,0.5,0,60,0,1,0,0,1,0,0,1,WISpellColorful;MagicAlchBeneficial,0xFE004846,0xFE004846
+Alocasia Fruit,0xFE004D62,Ravage Magicka,0x73F27,1,3,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F27,0x73F27
+Alocasia Fruit,0xFE004D62,Regenerate Health,0x3EB06,0.1,6,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Aloe Vera Leaves,0xFE0060D0,Restore Health,0x3EB15,0.5,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Aloe Vera Leaves,0xFE0060D0,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Aloe Vera Leaves,0xFE0060D0,Damage Magicka,0x3A2B6,2.2,5,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2B6,0x3A2B6
+Aloe Vera Leaves,0xFE0060D0,Invisibility,0x3EB3D,100,0,2,0,1,1,0,1,0,0,1,MagicInvisibility;MagicAlchBeneficial;MagicAlchDurationBased,0x3EB3D,0x3EB3D
+Ambrosia,0xFE004836,Restore Health,0x3EB15,0.5,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Ambrosia,0xFE004836,Regenerate Health,0x3EB06,0.1,6,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Ambrosia,0xFE004836,Fortify Health,0x3EAF3,0.35,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyHealth;MagicAlchBeneficial,0x3EAF3,0x3EAF3
+Ambrosia,0xFE004836,Cure Poison,0x109ADD,0.2,3,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0x109ADD,0x109ADD
+Ancestor Moth Wing,0x20059BA,Damage Stamina,0x3A2C6,1.8,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2C6,0x3A2C6
+Ancestor Moth Wing,0x20059BA,Fortify Conjuration,0x3EB25,0.25,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyConjuration;MagicAlchBeneficial,0x3EB25,0x3EB25
+Ancestor Moth Wing,0x20059BA,Damage Magicka Regen,0x73F2B,0.5,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Ancestor Moth Wing,0x20059BA,Fortify Enchanting,0x3EB29,0.6,1,30,1,0,0,0,1,0,0,0,MagicAlchFortifyEnchanting;MagicAlchBeneficial,0x3EB29,0x3EB29
+Angelfish,0x50008EB,Regenerate Health,0x3EB06,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Angelfish,0x50008EB,Resist Fire,0x3EAEA,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFire;MagicAlchBeneficial,0x3EAEA,0x3EAEA
+Angelfish,0x50008EB,Fortify Archery,0x3EB1B,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMarksman;MagicAlchBeneficial,0x3EB1B,0x3EB1B
+Angelfish,0x50008EB,Waterbreathing,0x3AC2D,30,0,5,0,1,1,0,1,0,0,1,MagicAlchBeneficial;MagicAlchDurationBased,0x3AC2D,0x3AC2D
+Angler Larvae,0x50008F0,Lingering Damage Health,0x10AA4A,12,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10AA4A,0x10AA4A
+Angler Larvae,0x50008F0,Regenerate Stamina,0x3EB08,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyStaminaRate;MagicAlchBeneficial,0x3EB08,0x3EB08
+Angler Larvae,0x50008F0,Waterbreathing,0x3AC2D,30,0,5,0,1,1,0,1,0,0,1,MagicAlchBeneficial;MagicAlchDurationBased,0x3AC2D,0x3AC2D
+Angler Larvae,0x50008F0,Fortify Two-handed,0x3EB1A,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyTwoHanded;MagicAlchBeneficial,0x3EB1A,0x3EB1A
+Ash Creep Cluster,0x401CD74,Damage Stamina,0x3A2C6,1.8,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2C6,0x3A2C6
+Ash Creep Cluster,0x401CD74,Invisibility,0x3EB3D,100,0,4,0,1,1,0,1,0,0,1,MagicInvisibility;MagicAlchBeneficial;MagicAlchDurationBased,0x3EB3D,0x3EB3D
+Ash Creep Cluster,0x401CD74,Resist Fire,0x3EAEA,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFire;MagicAlchBeneficial,0x3EAEA,0x3EAEA
+Ash Creep Cluster,0x401CD74,Fortify Destruction,0x3EB26,0.5,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyDestruction;MagicAlchBeneficial,0x3EB26,0x3EB26
+Ash Hopper Jelly,0x401CD71,Restore Health,0x3EB15,0.5,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Ash Hopper Jelly,0x401CD71,Fortify Light Armor,0x3EB1F,0.5,2,60,1,0,0,0,1,0,0,0,MagicAlchFortifyLightArmor;MagicAlchBeneficial,0x3EB1F,0x3EB1F
+Ash Hopper Jelly,0x401CD71,Resist Shock,0x3EAEC,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistShock;MagicAlchBeneficial,0x3EAEC,0x3EAEC
+Ash Hopper Jelly,0x401CD71,Weakness to Frost,0x73F2E,0.5,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFrost,0x73F2E,0x73F2E
+Ashen Grass Pod,0x4016E26,Resist Fire,0x3EAEA,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistFire;MagicAlchBeneficial,0x3EAEA,0x3EAEA
+Ashen Grass Pod,0x4016E26,Weakness to Shock,0x73F2F,0.7,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessShock,0x73F2F,0x73F2F
+Ashen Grass Pod,0x4016E26,Fortify Lockpicking,0x3EB21,0.5,2,30,1,0,0,0,1,0,0,0,MagicAlchFortifyLockpicking;MagicAlchBeneficial,0x3EB21,0x3EB21
+Ashen Grass Pod,0x4016E26,Fortify Sneak,0x3EB22,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifySneak;MagicAlchBeneficial,0x3EB22,0x3EB22
+Aster Bloom Core,0xFE004D66,Resist Magic,0x39E51,1,2,60,1,0,0,0,1,0,0,0,MagicAlchResistMagic;MagicAlchBeneficial,0x39E51,0x39E51
+Aster Bloom Core,0xFE004D66,Fortify Light Armor,0x3EB1F,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyLightArmor;MagicAlchBeneficial,0x3EB1F,0x3EB1F
+Aster Bloom Core,0xFE004D66,Fortify Block,0x3EB1C,0.5,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyBlock;MagicAlchBeneficial,0x3EB1C,0x3EB1C
+Aster Bloom Core,0xFE004D66,Paralysis,0x73F30,500,0,2,0,1,1,0,0,1,1,1,MagicParalysis;MagicAlchHarmful,0x73F30,0x73F30
+Bear Claws,0x6BC02,Restore Stamina,0x3EB16,0.6,4,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Bear Claws,0x6BC02,Fortify Health,0x3EAF3,0.35,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyHealth;MagicAlchBeneficial,0x3EAF3,0x3EAF3
+Bear Claws,0x6BC02,Fortify One-handed,0x3EB19,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyOneHanded;MagicAlchBeneficial,0x3EB19,0x3EB19
+Bear Claws,0x6BC02,Damage Magicka Regen,0x73F2B,0.5,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Bee,0xA9195,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Bee,0xA9195,Ravage Stamina,0x73F23,1.6,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F23,0x73F23
+Bee,0xA9195,Regenerate Stamina,0x3EB08,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyStaminaRate;MagicAlchBeneficial,0x3EB08,0x3EB08
+Bee,0xA9195,Weakness to Shock,0x73F2F,0.7,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessShock,0x73F2F,0x73F2F
+Beehive Husk,0xA9191,Resist Poison,0x90041,0.5,2,60,1,0,0,0,1,0,0,0,MagicAlchResistPoison;MagicAlchBeneficial,0x90041,0x90041
+Beehive Husk,0xA9191,Fortify Light Armor,0x3EB1F,0.5,2,60,1,0,0,0,1,0,0,0,MagicAlchFortifyLightArmor;MagicAlchBeneficial,0x3EB1F,0x3EB1F
+Beehive Husk,0xA9191,Fortify Sneak,0x3EB22,0.5,2,60,1,0,0,0,1,0,0,0,MagicAlchFortifySneak;MagicAlchBeneficial,0x3EB22,0x3EB22
+Beehive Husk,0xA9191,Fortify Destruction,0x3EB26,0.5,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyDestruction;MagicAlchBeneficial,0x3EB26,0x3EB26
+Berit's Ashes,0x705B7,Damage Stamina,0x3A2C6,1.8,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2C6,0x3A2C6
+Berit's Ashes,0x705B7,Resist Fire,0x3EAEA,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFire;MagicAlchBeneficial,0x3EAEA,0x3EAEA
+Berit's Ashes,0x705B7,Fortify Conjuration,0x3EB25,0.25,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyConjuration;MagicAlchBeneficial,0x3EB25,0x3EB25
+Berit's Ashes,0x705B7,Ravage Stamina,0x73F23,1.6,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F23,0x73F23
+Bittergreen Petals,0xFE004D68,Lingering Damage Stamina,0x10DE5E,1.8,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10DE5E,0x10DE5E
+Bittergreen Petals,0xFE004D68,Invisibility,0x3EB3D,100,0,6,0,1,1,0,1,0,0,1,MagicInvisibility;MagicAlchBeneficial;MagicAlchDurationBased,0x3EB3D,0x3EB3D
+Bittergreen Petals,0xFE004D68,Cure Poison,0x109ADD,0.2,2,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0x109ADD,0x109ADD
+Bittergreen Petals,0xFE004D68,Damage Magicka,0x3A2B6,2.2,4,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2B6,0x3A2B6
+Bleeding Crown,0x4DA20,Weakness to Fire,0x73F2D,0.6,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFire,0x73F2D,0x73F2D
+Bleeding Crown,0x4DA20,Fortify Block,0x3EB1C,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyBlock;MagicAlchBeneficial,0x3EB1C,0x3EB1C
+Bleeding Crown,0x4DA20,Weakness to Poison,0x90042,1,2,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;USKPMagicAlchWeaknessPoison,0x90042,0x90042
+Bleeding Crown,0x4DA20,Resist Magic,0x39E51,1,1,60,1,0,0,0,1,0,0,0,MagicAlchResistMagic;MagicAlchBeneficial,0x39E51,0x39E51
+Blind Watcher's Eye,0xFE004822,Light,0xFE004846,0.5,0,60,0,1,0,0,1,0,0,1,WISpellColorful;MagicAlchBeneficial,0xFE004846,0xFE004846
+Blind Watcher's Eye,0xFE004822,Fortify Magicka,0x3EAF8,0.3,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMagicka;MagicAlchBeneficial,0x3EAF8,0x3EAF8
+Blind Watcher's Eye,0xFE004822,Fortify Alteration,0x3EB24,0.2,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyAlteration;MagicAlchBeneficial,0x3EB24,0x3EB24
+Blind Watcher's Eye,0xFE004822,Spell Absorption,0xFE004812,0.1,50,60,0,1,0,0,1,0,0,1,MagicAlchBeneficial,0xFE004812,0xFE004812
+Bliss Bug Thorax,0x6059155,Weakness to Fire,0x73F2D,0.6,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFire,0x73F2D,0x73F2D
+Bliss Bug Thorax,0x6059155,Resist Fire,0x3EAEA,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFire;MagicAlchBeneficial,0x3EAEA,0x3EAEA
+Bliss Bug Thorax,0x6059155,Fortify Heavy Armor,0x3EB1E,0.5,2,60,1,0,0,0,1,0,0,0,MagicAlchFortifyHeavyArmor;MagicAlchBeneficial,0x3EB1E,0x3EB1E
+Bliss Bug Thorax,0x6059155,Fortify Illusion,0x3EB27,0.4,1,60,1,0,0,0,1,0,0,0,MagicAlchFortifyIllusion;MagicAlchBeneficial,0x3EB27,0x3EB27
+Blister Pod Cap,0xFE004D6A,Restore Magicka,0x3EB17,0.6,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Blister Pod Cap,0xFE004D6A,Fortify Magicka,0x3EAF8,0.3,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMagicka;MagicAlchBeneficial,0x3EAF8,0x3EAF8
+Blister Pod Cap,0xFE004D6A,Night Eye,0xFE004803,0.75,0,60,0,1,0,0,1,0,0,1,MagicNightEye,0xFE004803,0xFE004803
+Blister Pod Cap,0xFE004D6A,Invisibility,0x3EB3D,100,0,6,0,1,1,0,1,0,0,1,MagicInvisibility;MagicAlchBeneficial;MagicAlchDurationBased,0x3EB3D,0x3EB3D
+Blisterwort,0x4DA25,Damage Stamina,0x3A2C6,1.8,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2C6,0x3A2C6
+Blisterwort,0x4DA25,Frenzy,0x73F29,15,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicInfluence;MagicInfluenceFrenzy,0x73F29,0x73F29
+Blisterwort,0x4DA25,Restore Health,0x3EB15,0.5,3,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Blisterwort,0x4DA25,Fortify Smithing,0x3EB1D,0.75,4,30,1,0,0,0,1,0,0,0,MagicAlchFortifySmithing;MagicAlchBeneficial,0x3EB1D,0x3EB1D
+Blue Butterfly Wing,0x727DE,Damage Stamina,0x3A2C6,1.8,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2C6,0x3A2C6
+Blue Butterfly Wing,0x727DE,Fortify Conjuration,0x3EB25,0.25,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyConjuration;MagicAlchBeneficial,0x3EB25,0x3EB25
+Blue Butterfly Wing,0x727DE,Damage Magicka Regen,0x73F2B,0.5,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Blue Butterfly Wing,0x727DE,Fortify Enchanting,0x3EB29,0.6,1,30,1,0,0,0,1,0,0,0,MagicAlchFortifyEnchanting;MagicAlchBeneficial,0x3EB29,0x3EB29
+Blue Dartwing,0xE4F0C,Resist Shock,0x3EAEC,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistShock;MagicAlchBeneficial,0x3EAEC,0x3EAEC
+Blue Dartwing,0xE4F0C,Fortify Pickpocket,0x3EB20,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyPickPocket;MagicAlchBeneficial,0x3EB20,0x3EB20
+Blue Dartwing,0xE4F0C,Restore Health,0x3EB15,0.5,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Blue Dartwing,0xE4F0C,Fear,0x73F20,5,1,30,1,0,0,0,0,1,1,0,MagicInfluenceFear;MagicAlchHarmful;MagicInfluence,0x73F20,0x73F20
+Blue Mountain Flower,0x77E1C,Restore Health,0x3EB15,0.5,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Blue Mountain Flower,0x77E1C,Fortify Conjuration,0x3EB25,0.25,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyConjuration;MagicAlchBeneficial,0x3EB25,0x3EB25
+Blue Mountain Flower,0x77E1C,Fortify Health,0x3EAF3,0.35,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyHealth;MagicAlchBeneficial,0x3EAF3,0x3EAF3
+Blue Mountain Flower,0x77E1C,Damage Magicka Regen,0x73F2B,0.5,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Boar Tusk,0x401CD6F,Fortify Stamina,0x3EAF9,0.3,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyStamina;MagicAlchBeneficial,0x3EAF9,0x3EAF9
+Boar Tusk,0x401CD6F,Fortify Health,0x3EAF3,0.35,4,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealth;MagicAlchBeneficial,0x3EAF3,0x3EAF3
+Boar Tusk,0x401CD6F,Fortify Block,0x3EB1C,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyBlock;MagicAlchBeneficial,0x3EB1C,0x3EB1C
+Boar Tusk,0x401CD6F,Frenzy,0x73F29,15,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicInfluence;MagicInfluenceFrenzy,0x73F29,0x73F29
+Bog Beacon,0xFE004D6C,Restore Magicka,0x3EB17,0.6,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Bog Beacon,0xFE004D6C,Fortify Heavy Armor,0x3EB1E,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchFortifyHeavyArmor;MagicAlchBeneficial,0x3EB1E,0x3EB1E
+Bog Beacon,0xFE004D6C,Fear,0x73F20,5,2,30,1,0,0,0,0,1,1,0,MagicInfluenceFear;MagicAlchHarmful;MagicInfluence,0x73F20,0x73F20
+Bog Beacon,0xFE004D6C,Damage Stamina,0x3A2C6,1.8,4,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2C6,0x3A2C6
+Bone Meal,0x34CDD,Damage Stamina,0x3A2C6,1.8,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2C6,0x3A2C6
+Bone Meal,0x34CDD,Resist Fire,0x3EAEA,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFire;MagicAlchBeneficial,0x3EAEA,0x3EAEA
+Bone Meal,0x34CDD,Fortify Conjuration,0x3EB25,0.25,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyConjuration;MagicAlchBeneficial,0x3EB25,0x3EB25
+Bone Meal,0x34CDD,Ravage Stamina,0x73F23,1.6,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F23,0x73F23
+Briar Heart,0x3AD61,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Briar Heart,0x3AD61,Fortify Block,0x3EB1C,0.5,2,60,1,0,0,0,1,0,0,0,MagicAlchFortifyBlock;MagicAlchBeneficial,0x3EB1C,0x3EB1C
+Briar Heart,0x3AD61,Paralysis,0x73F30,500,0,1,0,1,1,0,0,1,1,1,MagicParalysis;MagicAlchHarmful,0x73F30,0x73F30
+Briar Heart,0x3AD61,Fortify Magicka,0x3EAF8,0.3,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMagicka;MagicAlchBeneficial,0x3EAF8,0x3EAF8
+Bungler's Bane,0xFE004802,Slow,0x73F25,1,50,10,0,1,0,0,0,1,1,1,MagicAlchHarmful;MagicSlow,0x73F25,0x73F25
+Bungler's Bane,0xFE004802,Ravage Stamina,0x73F23,1.6,3,20,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F23,0x73F23
+Bungler's Bane,0xFE004802,Damage Stamina Regen,0x73F2C,0.3,100,10,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2C,0x73F2C
+Bungler's Bane,0xFE004802,Resist Magic,0x39E51,1,2,60,1,0,0,0,1,0,0,0,MagicAlchResistMagic;MagicAlchBeneficial,0x39E51,0x39E51
+Burnt Spriggan Wood,0x401CD6E,Weakness to Fire,0x73F2D,0.6,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFire,0x73F2D,0x73F2D
+Burnt Spriggan Wood,0x401CD6E,Fortify Alteration,0x3EB24,0.2,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyAlteration;MagicAlchBeneficial,0x3EB24,0x3EB24
+Burnt Spriggan Wood,0x401CD6E,Damage Magicka Regen,0x73F2B,0.5,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Burnt Spriggan Wood,0x401CD6E,Slow,0x73F25,1,50,5,0,1,0,0,0,1,1,1,MagicAlchHarmful;MagicSlow,0x73F25,0x73F25
+Butterfly Wing,0x727E0,Restore Health,0x3EB15,0.5,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Butterfly Wing,0x727E0,Fortify Barter,0x3EB23,2,1,30,1,0,0,0,1,0,0,0,MagicAlchFortifySpeechcraft;MagicAlchBeneficial,0x3EB23,0x3EB23
+Butterfly Wing,0x727E0,Lingering Damage Stamina,0x10DE5E,1.8,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10DE5E,0x10DE5E
+Butterfly Wing,0x727E0,Damage Magicka,0x3A2B6,2.2,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2B6,0x3A2B6
+Canis Root,0x6ABCB,Damage Stamina,0x3A2C6,1.8,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2C6,0x3A2C6
+Canis Root,0x6ABCB,Fortify One-handed,0x3EB19,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyOneHanded;MagicAlchBeneficial,0x3EB19,0x3EB19
+Canis Root,0x6ABCB,Fortify Archery,0x3EB1B,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMarksman;MagicAlchBeneficial,0x3EB1B,0x3EB1B
+Canis Root,0x6ABCB,Paralysis,0x73F30,500,0,1,0,1,1,0,0,1,1,1,MagicParalysis;MagicAlchHarmful,0x73F30,0x73F30
+Charred Skeever Hide,0x52695,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Charred Skeever Hide,0x52695,Cure Disease,0xAE722,0.5,2,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0xAE722,0xAE722
+Charred Skeever Hide,0x52695,Resist Poison,0x90041,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistPoison;MagicAlchBeneficial,0x90041,0x90041
+Charred Skeever Hide,0x52695,Restore Health,0x3EB15,0.5,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Chaurus Eggs,0x3AD56,Weakness to Poison,0x90042,1,2,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;USKPMagicAlchWeaknessPoison,0x90042,0x90042
+Chaurus Eggs,0x3AD56,Fortify Stamina,0x3EAF9,0.3,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyStamina;MagicAlchBeneficial,0x3EAF9,0x3EAF9
+Chaurus Eggs,0x3AD56,Damage Magicka,0x3A2B6,2.2,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2B6,0x3A2B6
+Chaurus Eggs,0x3AD56,Invisibility,0x3EB3D,100,0,4,0,1,1,0,1,0,0,1,MagicInvisibility;MagicAlchBeneficial;MagicAlchDurationBased,0x3EB3D,0x3EB3D
+Chaurus Hunter Antennae,0x20183B7,Damage Stamina,0x3A2C6,1.8,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2C6,0x3A2C6
+Chaurus Hunter Antennae,0x20183B7,Fortify Conjuration,0x3EB25,0.25,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyConjuration;MagicAlchBeneficial,0x3EB25,0x3EB25
+Chaurus Hunter Antennae,0x20183B7,Damage Magicka Regen,0x73F2B,0.5,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Chaurus Hunter Antennae,0x20183B7,Fortify Enchanting,0x3EB29,0.6,1,30,1,0,0,0,1,0,0,0,MagicAlchFortifyEnchanting;MagicAlchBeneficial,0x3EB29,0x3EB29
+Chicken's Egg,0x23D77,Resist Magic,0x39E51,1,1,60,1,0,0,0,1,0,0,0,MagicAlchResistMagic;MagicAlchBeneficial,0x39E51,0x39E51
+Chicken's Egg,0x23D77,Damage Magicka Regen,0x73F2B,0.5,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Chicken's Egg,0x23D77,Waterbreathing,0x3AC2D,30,0,5,0,1,1,0,1,0,0,1,MagicAlchBeneficial;MagicAlchDurationBased,0x3AC2D,0x3AC2D
+Chicken's Egg,0x23D77,Lingering Damage Stamina,0x10DE5E,1.8,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10DE5E,0x10DE5E
+Chokeberry,0xFE004838,Damage Health,0x3EB42,3,3,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Chokeberry,0xFE004838,Ravage Health,0x73F26,0.4,3,20,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F26,0x73F26
+Chokeberry,0xFE004838,Lingering Damage Health,0x10AA4A,12,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10AA4A,0x10AA4A
+Chokeberry,0xFE004838,Weakness to Poison,0x90042,1,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;USKPMagicAlchWeaknessPoison,0x90042,0x90042
+Chokeweed,0xFE004804,Weakness to Frost,0x73F2E,0.5,4,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFrost,0x73F2E,0x73F2E
+Chokeweed,0xFE004804,Restore Stamina,0x3EB16,0.6,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Chokeweed,0xFE004804,Cure Disease,0xAE722,0.5,2,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0xAE722,0xAE722
+Chokeweed,0xFE004804,Damage Magicka,0x3A2B6,2.2,4,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2B6,0x3A2B6
+Coda Flower,0xFE004805,Damage Health,0x3EB42,3,3,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Coda Flower,0xFE004805,Lingering Damage Stamina,0x10DE5E,1.8,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10DE5E,0x10DE5E
+Coda Flower,0xFE004805,Ravage Magicka,0x73F27,1,3,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F27,0x73F27
+Coda Flower,0xFE004805,Fortify Carry Weight,0x3EB01,0.15,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyCarryWeight;MagicAlchBeneficial,0x3EB01,0x3EB01
+Comberry,0xFE004806,Damage Stamina,0x3A2C6,1.8,4,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2C6,0x3A2C6
+Comberry,0xFE004806,Spell Absorption,0xFE004812,0.1,50,60,0,1,0,0,1,0,0,1,MagicAlchBeneficial,0xFE004812,0xFE004812
+Comberry,0xFE004806,Restore Magicka,0x3EB17,0.6,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Comberry,0xFE004806,Fortify Destruction,0x3EB26,0.5,6,60,1,0,0,0,1,0,0,0,MagicAlchFortifyDestruction;MagicAlchBeneficial,0x3EB26,0x3EB26
+Congealed Putrescence,0xFE004807,Ravage Health,0x73F26,0.4,3,20,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F26,0x73F26
+Congealed Putrescence,0xFE004807,Restore Magicka,0x3EB17,0.6,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Congealed Putrescence,0xFE004807,Weakness to Fire,0x73F2D,0.6,4,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFire,0x73F2D,0x73F2D
+Congealed Putrescence,0xFE004807,Fortify Conjuration,0x3EB25,0.25,6,60,1,0,0,0,1,0,0,0,MagicAlchFortifyConjuration;MagicAlchBeneficial,0x3EB25,0x3EB25
+Corkbulb Root,0xFE004809,Paralysis,0x73F30,500,0,2,0,1,1,0,0,1,1,1,MagicParalysis;MagicAlchHarmful,0x73F30,0x73F30
+Corkbulb Root,0xFE004809,Restore Health,0x3EB15,0.5,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Corkbulb Root,0xFE004809,Resist Shock,0x3EAEC,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistShock;MagicAlchBeneficial,0x3EAEC,0x3EAEC
+Corkbulb Root,0xFE004809,Fortify Archery,0x3EB1B,0.5,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMarksman;MagicAlchBeneficial,0x3EB1B,0x3EB1B
+Creep Cluster,0xB2183,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Creep Cluster,0xB2183,Damage Stamina Regen,0x73F2C,0.3,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2C,0x73F2C
+Creep Cluster,0xB2183,Fortify Carry Weight,0x3EB01,0.15,4,300,1,0,0,0,1,0,0,0,MagicAlchFortifyCarryWeight;MagicAlchBeneficial,0x3EB01,0x3EB01
+Creep Cluster,0xB2183,Weakness to Magic,0x73F51,1,2,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessMagic,0x73F51,0x73F51
+Crimson Nirnroot,0xB701A,Damage Health,0x3EB42,3,6,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Crimson Nirnroot,0xB701A,Damage Stamina,0x3A2C6,1.8,9,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2C6,0x3A2C6
+Crimson Nirnroot,0xB701A,Invisibility,0x3EB3D,100,0,4,0,1,1,0,1,0,0,1,MagicInvisibility;MagicAlchBeneficial;MagicAlchDurationBased,0x3EB3D,0x3EB3D
+Crimson Nirnroot,0xB701A,Resist Magic,0x39E51,1,1,60,1,0,0,0,1,0,0,0,MagicAlchResistMagic;MagicAlchBeneficial,0x39E51,0x39E51
+Cyrodilic Spadetail,0x106E19,Damage Stamina,0x3A2C6,1.8,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2C6,0x3A2C6
+Cyrodilic Spadetail,0x106E19,Fortify Restoration,0x3EB28,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyRestoration;MagicAlchBeneficial,0x3EB28,0x3EB28
+Cyrodilic Spadetail,0x106E19,Fear,0x73F20,5,1,30,1,0,0,0,0,1,1,0,MagicInfluenceFear;MagicAlchHarmful;MagicInfluence,0x73F20,0x73F20
+Cyrodilic Spadetail,0x106E19,Ravage Health,0x73F26,0.4,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F26,0x73F26
+Daedra Heart,0x3AD5B,Restore Health,0x3EB15,0.5,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Daedra Heart,0x3AD5B,Damage Stamina Regen,0x73F2C,0.3,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2C,0x73F2C
+Daedra Heart,0x3AD5B,Damage Magicka,0x3A2B6,2.2,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2B6,0x3A2B6
+Daedra Heart,0x3AD5B,Fear,0x73F20,5,1,30,1,0,0,0,0,1,1,0,MagicInfluenceFear;MagicAlchHarmful;MagicInfluence,0x73F20,0x73F20
+Daedra Silk,0xFE00480A,Lingering Damage Stamina,0x10DE5E,1.8,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10DE5E,0x10DE5E
+Daedra Silk,0xFE00480A,Paralysis,0x73F30,500,0,2,0,1,1,0,0,1,1,1,MagicParalysis;MagicAlchHarmful,0x73F30,0x73F30
+Daedra Silk,0xFE00480A,Night Eye,0xFE004803,0.75,0,60,0,1,0,0,1,0,0,1,MagicNightEye,0xFE004803,0xFE004803
+Daedra Silk,0xFE00480A,Invisibility,0x3EB3D,100,0,6,0,1,1,0,1,0,0,1,MagicInvisibility;MagicAlchBeneficial;MagicAlchDurationBased,0x3EB3D,0x3EB3D
+Daedra Venin,0xFE00480B,Ravage Health,0x73F26,0.4,3,20,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F26,0x73F26
+Daedra Venin,0xFE00480B,Paralysis,0x73F30,500,0,2,0,1,1,0,0,1,1,1,MagicParalysis;MagicAlchHarmful,0x73F30,0x73F30
+Daedra Venin,0xFE00480B,Fortify Destruction,0x3EB26,0.5,6,60,1,0,0,0,1,0,0,0,MagicAlchFortifyDestruction;MagicAlchBeneficial,0x3EB26,0x3EB26
+Daedra Venin,0xFE00480B,Spell Absorption,0xFE004812,0.1,50,60,0,1,0,0,1,0,0,1,MagicAlchBeneficial,0xFE004812,0xFE004812
+Daedroth Teeth,0xFE004826,Resist Frost,0x3EAEB,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistFrost;MagicAlchBeneficial,0x3EAEB,0x3EAEB
+Daedroth Teeth,0xFE004826,Light,0xFE004846,0.5,0,60,0,1,0,0,1,0,0,1,WISpellColorful;MagicAlchBeneficial,0xFE004846,0xFE004846
+Daedroth Teeth,0xFE004826,Damage Magicka Regen,0x73F2B,0.5,100,10,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Daedroth Teeth,0xFE004826,Regenerate Stamina,0x3EB08,0.1,6,300,1,0,0,0,1,0,0,0,MagicAlchFortifyStaminaRate;MagicAlchBeneficial,0x3EB08,0x3EB08
+Deathbell,0x516C8,Damage Health,0x3EB42,3,3,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Deathbell,0x516C8,Ravage Stamina,0x73F23,1.6,2,20,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F23,0x73F23
+Deathbell,0x516C8,Slow,0x73F25,1,50,5,0,1,0,0,0,1,1,1,MagicAlchHarmful;MagicSlow,0x73F25,0x73F25
+Deathbell,0x516C8,Weakness to Poison,0x90042,1,2,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;USKPMagicAlchWeaknessPoison,0x90042,0x90042
+Dragon's Tongue,0x889A2,Resist Fire,0x3EAEA,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFire;MagicAlchBeneficial,0x3EAEA,0x3EAEA
+Dragon's Tongue,0x889A2,Fortify Barter,0x3EB23,2,1,30,1,0,0,0,1,0,0,0,MagicAlchFortifySpeechcraft;MagicAlchBeneficial,0x3EB23,0x3EB23
+Dragon's Tongue,0x889A2,Fortify Illusion,0x3EB27,0.4,1,60,1,0,0,0,1,0,0,0,MagicAlchFortifyIllusion;MagicAlchBeneficial,0x3EB27,0x3EB27
+Dragon's Tongue,0x889A2,Fortify Two-handed,0x3EB1A,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyTwoHanded;MagicAlchBeneficial,0x3EB1A,0x3EB1A
+Dreugh Wax,0xFE004827,Weakness to Magic,0x73F51,1,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessMagic,0x73F51,0x73F51
+Dreugh Wax,0xFE004827,Frenzy,0x73F29,15,1,20,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicInfluence;MagicInfluenceFrenzy,0x73F29,0x73F29
+Dreugh Wax,0xFE004827,Fortify Enchanting,0x3EB29,0.6,2,30,1,0,0,0,1,0,0,0,MagicAlchFortifyEnchanting;MagicAlchBeneficial,0x3EB29,0x3EB29
+Dreugh Wax,0xFE004827,Fortify Smithing,0x3EB1D,0.75,5,30,1,0,0,0,1,0,0,0,MagicAlchFortifySmithing;MagicAlchBeneficial,0x3EB1D,0x3EB1D
+Dwarven Oil,0xF11C0,Weakness to Magic,0x73F51,1,2,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessMagic,0x73F51,0x73F51
+Dwarven Oil,0xF11C0,Fortify Illusion,0x3EB27,0.4,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyIllusion;MagicAlchBeneficial,0x3EB27,0x3EB27
+Dwarven Oil,0xF11C0,Regenerate Magicka,0x3EB07,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyMagickaRate;MagicAlchBeneficial,0x3EB07,0x3EB07
+Dwarven Oil,0xF11C0,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Ectoplasm,0x3AD63,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Ectoplasm,0x3AD63,Fortify Destruction,0x3EB26,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyDestruction;MagicAlchBeneficial,0x3EB26,0x3EB26
+Ectoplasm,0x3AD63,Fortify Magicka,0x3EAF8,0.3,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMagicka;MagicAlchBeneficial,0x3EAF8,0x3EAF8
+Ectoplasm,0x3AD63,Damage Health,0x3EB42,3,2,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Elves Ear,0x34D31,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Elves Ear,0x34D31,Fortify Archery,0x3EB1B,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMarksman;MagicAlchBeneficial,0x3EB1B,0x3EB1B
+Elves Ear,0x34D31,Weakness to Frost,0x73F2E,0.5,2,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFrost,0x73F2E,0x73F2E
+Elves Ear,0x34D31,Resist Fire,0x3EAEA,0.5,3,30,1,0,0,0,1,0,0,0,MagicAlchResistFire;MagicAlchBeneficial,0x3EAEA,0x3EAEA
+Elytra Ichor,0xFE004828,Restore Magicka,0x3EB17,0.6,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Elytra Ichor,0xFE004828,Invisibility,0x3EB3D,100,0,6,0,1,1,0,1,0,0,1,MagicInvisibility;MagicAlchBeneficial;MagicAlchDurationBased,0x3EB3D,0x3EB3D
+Elytra Ichor,0xFE004828,Slow,0x73F25,1,50,10,0,1,0,0,0,1,1,1,MagicAlchHarmful;MagicSlow,0x73F25,0x73F25
+Elytra Ichor,0xFE004828,Fear,0x73F20,5,2,30,1,0,0,0,0,1,1,0,MagicInfluenceFear;MagicAlchHarmful;MagicInfluence,0x73F20,0x73F20
+Emperor Parasol Moss,0x401FF75,Damage Health,0x3EB42,3,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Emperor Parasol Moss,0x401FF75,Fortify Magicka,0x3EAF8,0.3,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMagicka;MagicAlchBeneficial,0x3EAF8,0x3EAF8
+Emperor Parasol Moss,0x401FF75,Regenerate Health,0x3EB06,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Emperor Parasol Moss,0x401FF75,Fortify Two-handed,0x3EB1A,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyTwoHanded;MagicAlchBeneficial,0x3EB1A,0x3EB1A
+Eye of Sabre Cat,0x6BC07,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Eye of Sabre Cat,0x6BC07,Ravage Health,0x73F26,0.4,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F26,0x73F26
+Eye of Sabre Cat,0x6BC07,Damage Magicka,0x3A2B6,2.2,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2B6,0x3A2B6
+Eye of Sabre Cat,0x6BC07,Restore Health,0x3EB15,0.5,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Falmer Ear,0x3AD5D,Damage Health,0x3EB42,3,2,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Falmer Ear,0x3AD5D,Frenzy,0x73F29,15,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicInfluence;MagicInfluenceFrenzy,0x73F29,0x73F29
+Falmer Ear,0x3AD5D,Resist Poison,0x90041,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistPoison;MagicAlchBeneficial,0x90041,0x90041
+Falmer Ear,0x3AD5D,Fortify Lockpicking,0x3EB21,0.5,2,30,1,0,0,0,1,0,0,0,MagicAlchFortifyLockpicking;MagicAlchBeneficial,0x3EB21,0x3EB21
+Felsaad Tern Feathers,0x403CD8E,Restore Health,0x3EB15,0.5,1,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Felsaad Tern Feathers,0x403CD8E,Fortify Light Armor,0x3EB1F,0.5,2,60,1,0,0,0,1,0,0,0,MagicAlchFortifyLightArmor;MagicAlchBeneficial,0x3EB1F,0x3EB1F
+Felsaad Tern Feathers,0x403CD8E,Cure Disease,0xAE722,0.5,5,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0xAE722,0xAE722
+Felsaad Tern Feathers,0x403CD8E,Resist Magic,0x39E51,1,1,60,1,0,0,0,1,0,0,0,MagicAlchResistMagic;MagicAlchBeneficial,0x39E51,0x39E51
+Fire Petal,0xFE004829,Damage Health,0x3EB42,3,3,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Fire Petal,0xFE004829,Resist Fire,0x3EAEA,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistFire;MagicAlchBeneficial,0x3EAEA,0x3EAEA
+Fire Petal,0xFE004829,Spell Absorption,0xFE004812,0.1,50,60,0,1,0,0,1,0,0,1,MagicAlchBeneficial,0xFE004812,0xFE004812
+Fire Petal,0xFE004829,Paralysis,0x73F30,500,0,2,0,1,1,0,0,1,1,1,MagicParalysis;MagicAlchHarmful,0x73F30,0x73F30
+Fire Salts,0x3AD5E,Weakness to Frost,0x73F2E,0.5,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFrost,0x73F2E,0x73F2E
+Fire Salts,0x3AD5E,Resist Fire,0x3EAEA,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFire;MagicAlchBeneficial,0x3EAEA,0x3EAEA
+Fire Salts,0x3AD5E,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Fire Salts,0x3AD5E,Regenerate Magicka,0x3EB07,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyMagickaRate;MagicAlchBeneficial,0x3EB07,0x3EB07
+Flame Stalk,0xFE00482A,Restore Health,0x3EB15,0.5,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Flame Stalk,0xFE00482A,Resist Frost,0x3EAEB,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistFrost;MagicAlchBeneficial,0x3EAEB,0x3EAEB
+Flame Stalk,0xFE00482A,Weakness to Fire,0x73F2D,0.6,4,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFire,0x73F2D,0x73F2D
+Flame Stalk,0xFE00482A,Invisibility,0x3EB3D,100,0,6,0,1,1,0,1,0,0,1,MagicInvisibility;MagicAlchBeneficial;MagicAlchDurationBased,0x3EB3D,0x3EB3D
+Flame Stalk,0x6095E23,Restore Health,0x3EB15,0.5,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Flame Stalk,0x6095E23,Resist Frost,0x3EAEB,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistFrost;MagicAlchBeneficial,0x3EAEB,0x3EAEB
+Flame Stalk,0x6095E23,Weakness to Fire,0x73F2D,0.6,4,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFire,0x73F2D,0x73F2D
+Flame Stalk,0x6095E23,Invisibility,0x3EB3D,100,0,6,0,1,1,0,1,0,0,1,MagicInvisibility;MagicAlchBeneficial;MagicAlchDurationBased,0x3EB3D,0x3EB3D
+Fly Amanita,0x4DA00,Resist Fire,0x3EAEA,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFire;MagicAlchBeneficial,0x3EAEA,0x3EAEA
+Fly Amanita,0x4DA00,Fortify Two-handed,0x3EB1A,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyTwoHanded;MagicAlchBeneficial,0x3EB1A,0x3EB1A
+Fly Amanita,0x4DA00,Frenzy,0x73F29,15,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicInfluence;MagicInfluenceFrenzy,0x73F29,0x73F29
+Fly Amanita,0x4DA00,Regenerate Stamina,0x3EB08,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyStaminaRate;MagicAlchBeneficial,0x3EB08,0x3EB08
+Frost Mirriam,0x34D32,Resist Frost,0x3EAEB,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFrost;MagicAlchBeneficial,0x3EAEB,0x3EAEB
+Frost Mirriam,0x34D32,Fortify Sneak,0x3EB22,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifySneak;MagicAlchBeneficial,0x3EB22,0x3EB22
+Frost Mirriam,0x34D32,Ravage Magicka,0x73F27,1,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F27,0x73F27
+Frost Mirriam,0x34D32,Damage Stamina Regen,0x73F2C,0.3,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2C,0x73F2C
+Frost Salts,0x3AD5F,Weakness to Fire,0x73F2D,0.6,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFire,0x73F2D,0x73F2D
+Frost Salts,0x3AD5F,Resist Frost,0x3EAEB,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFrost;MagicAlchBeneficial,0x3EAEB,0x3EAEB
+Frost Salts,0x3AD5F,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Frost Salts,0x3AD5F,Fortify Conjuration,0x3EB25,0.25,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyConjuration;MagicAlchBeneficial,0x3EB25,0x3EB25
+Fungus Stalk,0xFE00482B,Restore Magicka,0x3EB17,0.6,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Fungus Stalk,0xFE00482B,Fortify Health,0x3EAF3,0.35,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealth;MagicAlchBeneficial,0x3EAF3,0x3EAF3
+Fungus Stalk,0xFE00482B,Fortify Stamina,0x3EAF9,0.3,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyStamina;MagicAlchBeneficial,0x3EAF9,0x3EAF9
+Fungus Stalk,0xFE00482B,Waterbreathing,0x3AC2D,30,0,8,0,1,1,0,1,0,0,1,MagicAlchBeneficial;MagicAlchDurationBased,0x3AC2D,0x3AC2D
+Garlic,0x34D22,Resist Poison,0x90041,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistPoison;MagicAlchBeneficial,0x90041,0x90041
+Garlic,0x34D22,Fortify Stamina,0x3EAF9,0.3,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyStamina;MagicAlchBeneficial,0x3EAF9,0x3EAF9
+Garlic,0x34D22,Regenerate Magicka,0x3EB07,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyMagickaRate;MagicAlchBeneficial,0x3EB07,0x3EB07
+Garlic,0x34D22,Regenerate Health,0x3EB06,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Giant Lichen,0x7E8C1,Weakness to Shock,0x73F2F,0.7,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessShock,0x73F2F,0x73F2F
+Giant Lichen,0x7E8C1,Ravage Health,0x73F26,0.4,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F26,0x73F26
+Giant Lichen,0x7E8C1,Weakness to Poison,0x90042,1,2,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;USKPMagicAlchWeaknessPoison,0x90042,0x90042
+Giant Lichen,0x7E8C1,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Giant's Toe,0x3AD64,Damage Stamina,0x3A2C6,1.8,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2C6,0x3A2C6
+Giant's Toe,0x3AD64,Fortify Health,0x3EAF3,0.35,4,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealth;MagicAlchBeneficial,0x3EAF3,0x3EAF3
+Giant's Toe,0x3AD64,Fortify Carry Weight,0x3EB01,0.15,4,300,1,0,0,0,1,0,0,0,MagicAlchFortifyCarryWeight;MagicAlchBeneficial,0x3EB01,0x3EB01
+Giant's Toe,0x3AD64,Damage Stamina Regen,0x73F2C,0.3,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2C,0x73F2C
+Glassfish,0x50008EE,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Glassfish,0x50008EE,Invisibility,0x3EB3D,100,0,4,0,1,1,0,1,0,0,1,MagicInvisibility;MagicAlchBeneficial;MagicAlchDurationBased,0x3EB3D,0x3EB3D
+Glassfish,0x50008EE,Fortify Illusion,0x3EB27,0.4,1,60,1,0,0,0,1,0,0,0,MagicAlchFortifyIllusion;MagicAlchBeneficial,0x3EB27,0x3EB27
+Glassfish,0x50008EE,Fortify Persuasion,0xD6947,0.5,1,30,1,0,0,0,1,0,0,0,MagicAlchFortifySpeechcraft;MagicAlchBeneficial,0xD6947,0xD6947
+Gleamblossom,0x200B097,Resist Magic,0x39E51,1,1,60,1,0,0,0,1,0,0,0,MagicAlchResistMagic;MagicAlchBeneficial,0x39E51,0x39E51
+Gleamblossom,0x200B097,Fear,0x73F20,5,1,30,1,0,0,0,0,1,1,0,MagicInfluenceFear;MagicAlchHarmful;MagicInfluence,0x73F20,0x73F20
+Gleamblossom,0x200B097,Regenerate Health,0x3EB06,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Gleamblossom,0x200B097,Paralysis,0x73F30,500,0,1,0,1,1,0,0,1,1,1,MagicParalysis;MagicAlchHarmful,0x73F30,0x73F30
+Glow Dust,0x3AD73,Damage Magicka,0x3A2B6,2.2,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2B6,0x3A2B6
+Glow Dust,0x3AD73,Damage Magicka Regen,0x73F2B,0.5,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Glow Dust,0x3AD73,Fortify Destruction,0x3EB26,0.5,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyDestruction;MagicAlchBeneficial,0x3EB26,0x3EB26
+Glow Dust,0x3AD73,Resist Shock,0x3EAEC,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistShock;MagicAlchBeneficial,0x3EAEC,0x3EAEC
+Glowing Mushroom,0x7EE01,Resist Shock,0x3EAEC,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistShock;MagicAlchBeneficial,0x3EAEC,0x3EAEC
+Glowing Mushroom,0x7EE01,Fortify Destruction,0x3EB26,0.5,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyDestruction;MagicAlchBeneficial,0x3EB26,0x3EB26
+Glowing Mushroom,0x7EE01,Fortify Smithing,0x3EB1D,0.75,4,30,1,0,0,0,1,0,0,0,MagicAlchFortifySmithing;MagicAlchBeneficial,0x3EB1D,0x3EB1D
+Glowing Mushroom,0x7EE01,Fortify Health,0x3EAF3,0.35,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyHealth;MagicAlchBeneficial,0x3EAF3,0x3EAF3
+Gnarl Bark,0xFE00482C,Damage Health,0x3EB42,3,3,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Gnarl Bark,0xFE00482C,Regenerate Health,0x3EB06,0.1,6,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Gnarl Bark,0xFE00482C,Fortify Heavy Armor,0x3EB1E,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchFortifyHeavyArmor;MagicAlchBeneficial,0x3EB1E,0x3EB1E
+Gnarl Bark,0xFE00482C,Resist Fire,0x3EAEA,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistFire;MagicAlchBeneficial,0x3EAEA,0x3EAEA
+Gold Kanet,0xFE00482D,Paralysis,0x73F30,500,0,2,0,1,1,0,0,1,1,1,MagicParalysis;MagicAlchHarmful,0x73F30,0x73F30
+Gold Kanet,0xFE00482D,Ravage Health,0x73F26,0.4,3,20,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F26,0x73F26
+Gold Kanet,0xFE00482D,Weakness to Frost,0x73F2E,0.5,4,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFrost,0x73F2E,0x73F2E
+Gold Kanet,0xFE00482D,Fortify Smithing,0x3EB1D,0.75,5,30,1,0,0,0,1,0,0,0,MagicAlchFortifySmithing;MagicAlchBeneficial,0x3EB1D,0x3EB1D
+Goldfish,0x50008EF,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Goldfish,0x50008EF,Fortify Heavy Armor,0x3EB1E,0.5,2,60,1,0,0,0,1,0,0,0,MagicAlchFortifyHeavyArmor;MagicAlchBeneficial,0x3EB1E,0x3EB1E
+Goldfish,0x50008EF,Waterbreathing,0x3AC2D,30,0,5,0,1,1,0,1,0,0,1,MagicAlchBeneficial;MagicAlchDurationBased,0x3AC2D,0x3AC2D
+Goldfish,0x50008EF,Resist Frost,0x3EAEB,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFrost;MagicAlchBeneficial,0x3EAEB,0x3EAEB
+Grass Pod,0x83E64,Resist Poison,0x90041,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistPoison;MagicAlchBeneficial,0x90041,0x90041
+Grass Pod,0x83E64,Ravage Magicka,0x73F27,1,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F27,0x73F27
+Grass Pod,0x83E64,Fortify Alteration,0x3EB24,0.2,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyAlteration;MagicAlchBeneficial,0x3EB24,0x3EB24
+Grass Pod,0x83E64,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Green Butterfly Wing,0x6059151,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Green Butterfly Wing,0x6059151,Fear,0x73F20,5,1,30,1,0,0,0,0,1,1,0,MagicInfluenceFear;MagicAlchHarmful;MagicInfluence,0x73F20,0x73F20
+Green Butterfly Wing,0x6059151,Slow,0x73F25,1,5,30,0,1,0,0,0,1,1,1,MagicAlchHarmful;MagicSlow,0x73F25,0x73F25
+Green Butterfly Wing,0x6059151,Invisibility,0x3EB3D,100,0,4,0,1,1,0,1,0,0,1,MagicInvisibility;MagicAlchBeneficial;MagicAlchDurationBased,0x3EB3D,0x3EB3D
+Hackle-Lo Leaf,0xFE00482E,Restore Stamina,0x3EB16,0.6,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Hackle-Lo Leaf,0xFE00482E,Paralysis,0x73F30,500,0,2,0,1,1,0,0,1,1,1,MagicParalysis;MagicAlchHarmful,0x73F30,0x73F30
+Hackle-Lo Leaf,0xFE00482E,Waterbreathing,0x3AC2D,30,0,8,0,1,1,0,1,0,0,1,MagicAlchBeneficial;MagicAlchDurationBased,0x3AC2D,0x3AC2D
+Hackle-Lo Leaf,0xFE00482E,Fortify Restoration,0x3EB28,0.5,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyRestoration;MagicAlchBeneficial,0x3EB28,0x3EB28
+Hagraven Claw,0x6B689,Resist Magic,0x39E51,1,1,60,1,0,0,0,1,0,0,0,MagicAlchResistMagic;MagicAlchBeneficial,0x39E51,0x39E51
+Hagraven Claw,0x6B689,Lingering Damage Magicka,0x10DE5F,10,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10DE5F,0x10DE5F
+Hagraven Claw,0x6B689,Fortify Enchanting,0x3EB29,0.6,1,30,1,0,0,0,1,0,0,0,MagicAlchFortifyEnchanting;MagicAlchBeneficial,0x3EB29,0x3EB29
+Hagraven Claw,0x6B689,Fortify Barter,0x3EB23,2,1,30,1,0,0,0,1,0,0,0,MagicAlchFortifySpeechcraft;MagicAlchBeneficial,0x3EB23,0x3EB23
+Hagraven Feathers,0x3AD66,Damage Magicka,0x3A2B6,2.2,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2B6,0x3A2B6
+Hagraven Feathers,0x3AD66,Fortify Conjuration,0x3EB25,0.25,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyConjuration;MagicAlchBeneficial,0x3EB25,0x3EB25
+Hagraven Feathers,0x3AD66,Frenzy,0x73F29,15,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicInfluence;MagicInfluenceFrenzy,0x73F29,0x73F29
+Hagraven Feathers,0x3AD66,Weakness to Shock,0x73F2F,0.7,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessShock,0x73F2F,0x73F2F
+Hanging Moss,0x57F91,Damage Magicka,0x3A2B6,2.2,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2B6,0x3A2B6
+Hanging Moss,0x57F91,Fortify Health,0x3EAF3,0.35,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyHealth;MagicAlchBeneficial,0x3EAF3,0x3EAF3
+Hanging Moss,0x57F91,Damage Magicka Regen,0x73F2B,0.5,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Hanging Moss,0x57F91,Fortify One-handed,0x3EB19,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyOneHanded;MagicAlchBeneficial,0x3EB19,0x3EB19
+Hawk Beak,0xE7EBC,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Hawk Beak,0xE7EBC,Resist Frost,0x3EAEB,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFrost;MagicAlchBeneficial,0x3EAEB,0x3EAEB
+Hawk Beak,0xE7EBC,Fortify Carry Weight,0x3EB01,0.15,4,300,1,0,0,0,1,0,0,0,MagicAlchFortifyCarryWeight;MagicAlchBeneficial,0x3EB01,0x3EB01
+Hawk Beak,0xE7EBC,Resist Shock,0x3EAEC,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistShock;MagicAlchBeneficial,0x3EAEC,0x3EAEC
+Hawk Feathers,0xE7ED0,Cure Disease,0xAE722,0.5,2,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0xAE722,0xAE722
+Hawk Feathers,0xE7ED0,Fortify Light Armor,0x3EB1F,0.5,2,60,1,0,0,0,1,0,0,0,MagicAlchFortifyLightArmor;MagicAlchBeneficial,0x3EB1F,0x3EB1F
+Hawk Feathers,0xE7ED0,Fortify One-handed,0x3EB19,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyOneHanded;MagicAlchBeneficial,0x3EB19,0x3EB19
+Hawk Feathers,0xE7ED0,Fortify Sneak,0x3EB22,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifySneak;MagicAlchBeneficial,0x3EB22,0x3EB22
+Hawk's Egg,0x300F1CC,Resist Magic,0x39E51,1,1,60,1,0,0,0,1,0,0,0,MagicAlchResistMagic;MagicAlchBeneficial,0x39E51,0x39E51
+Hawk's Egg,0x300F1CC,Damage Magicka Regen,0x73F2B,0.5,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Hawk's Egg,0x300F1CC,Waterbreathing,0x3AC2D,30,0,5,0,1,1,0,1,0,0,1,MagicAlchBeneficial;MagicAlchDurationBased,0x3AC2D,0x3AC2D
+Hawk's Egg,0x300F1CC,Lingering Damage Stamina,0x10DE5E,1.8,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10DE5E,0x10DE5E
+Heart of Order,0xFE004851,Restore Health,0x3EB15,0.5,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Heart of Order,0xFE004851,Fortify Health,0x3EAF3,0.35,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealth;MagicAlchBeneficial,0x3EAF3,0x3EAF3
+Heart of Order,0xFE004851,Fortify One-handed,0x3EB19,0.5,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyOneHanded;MagicAlchBeneficial,0x3EB19,0x3EB19
+Heart of Order,0xFE004851,Fortify Two-handed,0x3EB1A,0.5,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyTwoHanded;MagicAlchBeneficial,0x3EB1A,0x3EB1A
+Histcarp,0x106E18,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Histcarp,0x106E18,Fortify Magicka,0x3EAF8,0.3,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMagicka;MagicAlchBeneficial,0x3EAF8,0x3EAF8
+Histcarp,0x106E18,Damage Stamina Regen,0x73F2C,0.3,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2C,0x73F2C
+Histcarp,0x106E18,Waterbreathing,0x3AC2D,30,0,5,0,1,1,0,1,0,0,1,MagicAlchBeneficial;MagicAlchDurationBased,0x3AC2D,0x3AC2D
+Honeycomb,0xB08C5,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Honeycomb,0xB08C5,Fortify Block,0x3EB1C,0.5,2,60,1,0,0,0,1,0,0,0,MagicAlchFortifyBlock;MagicAlchBeneficial,0x3EB1C,0x3EB1C
+Honeycomb,0xB08C5,Fortify Light Armor,0x3EB1F,0.5,2,60,1,0,0,0,1,0,0,0,MagicAlchFortifyLightArmor;MagicAlchBeneficial,0x3EB1F,0x3EB1F
+Honeycomb,0xB08C5,Ravage Stamina,0x73F23,1.6,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F23,0x73F23
+Human Flesh,0x1016B3,Damage Health,0x3EB42,3,2,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Human Flesh,0x1016B3,Paralysis,0x73F30,500,0,1,0,1,1,0,0,1,1,1,MagicParalysis;MagicAlchHarmful,0x73F30,0x73F30
+Human Flesh,0x1016B3,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Human Flesh,0x1016B3,Fortify Sneak,0x3EB22,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifySneak;MagicAlchBeneficial,0x3EB22,0x3EB22
+Human Heart,0xB18CD,Damage Health,0x3EB42,3,2,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Human Heart,0xB18CD,Damage Magicka,0x3A2B6,2.2,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2B6,0x3A2B6
+Human Heart,0xB18CD,Damage Magicka Regen,0x73F2B,0.5,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Human Heart,0xB18CD,Frenzy,0x73F29,15,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicInfluence;MagicInfluenceFrenzy,0x73F29,0x73F29
+Hunger Tongue,0xFE00480C,Weakness to Fire,0x73F2D,0.6,4,60,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFire,0x73F2D,0x73F2D
+Hunger Tongue,0xFE00480C,Cure Disease,0xAE722,0.5,2,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0xAE722,0xAE722
+Hunger Tongue,0xFE00480C,Cure Poison,0x109ADD,0.2,2,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0x109ADD,0x109ADD
+Hunger Tongue,0xFE00480C,Fortify Magicka,0x3EAF8,0.3,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMagicka;MagicAlchBeneficial,0x3EAF8,0x3EAF8
+Hydnum Azure Giant Spore,0xFE00480D,Resist Frost,0x3EAEB,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistFrost;MagicAlchBeneficial,0x3EAEB,0x3EAEB
+Hydnum Azure Giant Spore,0xFE00480D,Fortify Health,0x3EAF3,0.35,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealth;MagicAlchBeneficial,0x3EAF3,0x3EAF3
+Hydnum Azure Giant Spore,0xFE00480D,Regenerate Health,0x3EB06,0.1,6,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Hydnum Azure Giant Spore,0xFE00480D,Light,0xFE004846,0.5,0,60,0,1,0,0,1,0,0,1,WISpellColorful;MagicAlchBeneficial,0xFE004846,0xFE004846
+Hypha Facia,0xFE00480E,Weakness to Poison,0x90042,1,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;USKPMagicAlchWeaknessPoison,0x90042,0x90042
+Hypha Facia,0xFE00480E,Frenzy,0x73F29,15,1,20,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicInfluence;MagicInfluenceFrenzy,0x73F29,0x73F29
+Hypha Facia,0xFE00480E,Ravage Stamina,0x73F23,1.6,3,20,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F23,0x73F23
+Hypha Facia,0xFE00480E,Resist Magic,0x39E51,1,2,60,1,0,0,0,1,0,0,0,MagicAlchResistMagic;MagicAlchBeneficial,0x39E51,0x39E51
+Ice Wraith Teeth,0x3AD6A,Weakness to Frost,0x73F2E,0.5,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFrost,0x73F2E,0x73F2E
+Ice Wraith Teeth,0x3AD6A,Fortify Heavy Armor,0x3EB1E,0.5,2,60,1,0,0,0,1,0,0,0,MagicAlchFortifyHeavyArmor;MagicAlchBeneficial,0x3EB1E,0x3EB1E
+Ice Wraith Teeth,0x3AD6A,Invisibility,0x3EB3D,100,0,4,0,1,1,0,1,0,0,1,MagicInvisibility;MagicAlchBeneficial;MagicAlchDurationBased,0x3EB3D,0x3EB3D
+Ice Wraith Teeth,0x3AD6A,Weakness to Fire,0x73F2D,0.6,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFire,0x73F2D,0x73F2D
+Imp Gall,0xFE00480F,Damage Health,0x3EB42,3,3,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Imp Gall,0xFE00480F,Weakness to Fire,0x73F2D,0.6,4,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFire,0x73F2D,0x73F2D
+Imp Gall,0xFE00480F,Fortify Barter,0x3EB23,2,2,30,1,0,0,0,1,0,0,0,MagicAlchFortifySpeechcraft;MagicAlchBeneficial,0x3EB23,0x3EB23
+Imp Gall,0xFE00480F,Cure Poison,0x109ADD,0.2,2,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0x109ADD,0x109ADD
+Imp Stool,0x4DA23,Damage Health,0x3EB42,3,2,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Imp Stool,0x4DA23,Lingering Damage Health,0x10AA4A,12,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10AA4A,0x10AA4A
+Imp Stool,0x4DA23,Paralysis,0x73F30,500,0,1,0,1,1,0,0,1,1,1,MagicParalysis;MagicAlchHarmful,0x73F30,0x73F30
+Imp Stool,0x4DA23,Restore Health,0x3EB15,0.5,3,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Jarrin Root,0x1BCBC,Damage Health,0x3EB42,3,200,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Jarrin Root,0x1BCBC,Damage Magicka,0x3A2B6,2.2,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2B6,0x3A2B6
+Jarrin Root,0x1BCBC,Damage Stamina,0x3A2C6,1.8,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2C6,0x3A2C6
+Jarrin Root,0x1BCBC,Damage Magicka Regen,0x73F2B,0.5,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Jazbay Grapes,0x6AC4A,Weakness to Magic,0x73F51,1,2,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessMagic,0x73F51,0x73F51
+Jazbay Grapes,0x6AC4A,Fortify Magicka,0x3EAF8,0.3,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMagicka;MagicAlchBeneficial,0x3EAF8,0x3EAF8
+Jazbay Grapes,0x6AC4A,Regenerate Magicka,0x3EB07,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyMagickaRate;MagicAlchBeneficial,0x3EB07,0x3EB07
+Jazbay Grapes,0x6AC4A,Ravage Health,0x73F26,0.4,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F26,0x73F26
+Juniper Berries,0x5076E,Weakness to Fire,0x73F2D,0.6,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFire,0x73F2D,0x73F2D
+Juniper Berries,0x5076E,Fortify Archery,0x3EB1B,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMarksman;MagicAlchBeneficial,0x3EB1B,0x3EB1B
+Juniper Berries,0x5076E,Regenerate Health,0x3EB06,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Juniper Berries,0x5076E,Damage Stamina Regen,0x73F2C,0.3,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2C,0x73F2C
+Juvenile Mudcrab,0x50008F2,Regenerate Stamina,0x3EB08,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyStaminaRate;MagicAlchBeneficial,0x3EB08,0x3EB08
+Juvenile Mudcrab,0x50008F2,Fortify Carry Weight,0x3EB01,0.15,4,300,1,0,0,0,1,0,0,0,MagicAlchFortifyCarryWeight;MagicAlchBeneficial,0x3EB01,0x3EB01
+Juvenile Mudcrab,0x50008F2,Cure Disease,0xAE722,0.5,5,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0xAE722,0xAE722
+Juvenile Mudcrab,0x50008F2,Fortify Two-handed,0x3EB1A,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyTwoHanded;MagicAlchBeneficial,0x3EB1A,0x3EB1A
+Kagouti Hide,0xFE004810,Lingering Damage Stamina,0x10DE5E,1.8,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10DE5E,0x10DE5E
+Kagouti Hide,0xFE004810,Night Eye,0xFE004803,0.75,0,60,0,1,0,0,1,0,0,1,MagicNightEye,0xFE004803,0xFE004803
+Kagouti Hide,0xFE004810,Fortify Carry Weight,0x3EB01,0.15,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyCarryWeight;MagicAlchBeneficial,0x3EB01,0x3EB01
+Kagouti Hide,0xFE004810,Resist Shock,0x3EAEC,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistShock;MagicAlchBeneficial,0x3EAEC,0x3EAEC
+Kresh Fiber,0xFE004811,Weakness to Magic,0x73F51,1,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessMagic,0x73F51,0x73F51
+Kresh Fiber,0xFE004811,Slow,0x73F25,1,50,10,0,1,0,0,0,1,1,1,MagicAlchHarmful;MagicSlow,0x73F25,0x73F25
+Kresh Fiber,0xFE004811,Fortify Sneak,0x3EB22,0.5,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifySneak;MagicAlchBeneficial,0x3EB22,0x3EB22
+Kresh Fiber,0xFE004811,Fortify Pickpocket,0x3EB20,0.5,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyPickPocket;MagicAlchBeneficial,0x3EB20,0x3EB20
+Large Antlers,0x6BC0A,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Large Antlers,0x6BC0A,Fortify Stamina,0x3EAF9,0.3,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyStamina;MagicAlchBeneficial,0x3EAF9,0x3EAF9
+Large Antlers,0x6BC0A,Slow,0x73F25,1,50,5,0,1,0,0,0,1,1,1,MagicAlchHarmful;MagicSlow,0x73F25,0x73F25
+Large Antlers,0x6BC0A,Damage Stamina Regen,0x73F2C,0.3,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2C,0x73F2C
+Lavender,0x45C28,Resist Magic,0x39E51,1,1,60,1,0,0,0,1,0,0,0,MagicAlchResistMagic;MagicAlchBeneficial,0x39E51,0x39E51
+Lavender,0x45C28,Fortify Stamina,0x3EAF9,0.3,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyStamina;MagicAlchBeneficial,0x3EAF9,0x3EAF9
+Lavender,0x45C28,Ravage Magicka,0x73F27,1,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F27,0x73F27
+Lavender,0x45C28,Fortify Conjuration,0x3EB25,0.25,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyConjuration;MagicAlchBeneficial,0x3EB25,0x3EB25
+Lichor,0xFE004837,Restore Magicka,0x3EB17,0.6,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Lichor,0xFE004837,Regenerate Magicka,0x3EB07,0.1,6,300,1,0,0,0,1,0,0,0,MagicAlchFortifyMagickaRate;MagicAlchBeneficial,0x3EB07,0x3EB07
+Lichor,0xFE004837,Fortify Magicka,0x3EAF8,0.3,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMagicka;MagicAlchBeneficial,0x3EAF8,0x3EAF8
+Lichor,0xFE004837,Spell Absorption,0xFE004812,0.1,50,60,0,1,0,0,1,0,0,1,MagicAlchBeneficial,0xFE004812,0xFE004812
+Luminous Russula,0xFE004813,Lingering Damage Stamina,0x10DE5E,1.8,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10DE5E,0x10DE5E
+Luminous Russula,0xFE004813,Lingering Damage Health,0x10AA4A,12,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10AA4A,0x10AA4A
+Luminous Russula,0xFE004813,Waterbreathing,0x3AC2D,30,0,8,0,1,1,0,1,0,0,1,MagicAlchBeneficial;MagicAlchDurationBased,0x3AC2D,0x3AC2D
+Luminous Russula,0xFE004813,Fear,0x73F20,5,2,30,1,0,0,0,0,1,1,0,MagicInfluenceFear;MagicAlchHarmful;MagicInfluence,0x73F20,0x73F20
+Luna Moth Wing,0x727DF,Damage Magicka,0x3A2B6,2.2,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2B6,0x3A2B6
+Luna Moth Wing,0x727DF,Fortify Light Armor,0x3EB1F,0.5,2,60,1,0,0,0,1,0,0,0,MagicAlchFortifyLightArmor;MagicAlchBeneficial,0x3EB1F,0x3EB1F
+Luna Moth Wing,0x727DF,Regenerate Health,0x3EB06,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Luna Moth Wing,0x727DF,Invisibility,0x3EB3D,100,0,4,0,1,1,0,1,0,0,1,MagicInvisibility;MagicAlchBeneficial;MagicAlchDurationBased,0x3EB3D,0x3EB3D
+Lyretail Anthias,0x50008F1,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Lyretail Anthias,0x50008F1,Fortify Alteration,0x3EB24,0.2,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyAlteration;MagicAlchBeneficial,0x3EB24,0x3EB24
+Lyretail Anthias,0x50008F1,Fortify Conjuration,0x3EB25,0.25,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyConjuration;MagicAlchBeneficial,0x3EB25,0x3EB25
+Lyretail Anthias,0x50008F1,Fortify Carry Weight,0x3EB01,0.15,4,300,1,0,0,0,1,0,0,0,MagicAlchFortifyCarryWeight;MagicAlchBeneficial,0x3EB01,0x3EB01
+Marshmerrow,0xFE004814,Restore Health,0x3EB15,0.5,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Marshmerrow,0xFE004814,Fortify Carry Weight,0x3EB01,0.15,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyCarryWeight;MagicAlchBeneficial,0x3EB01,0x3EB01
+Marshmerrow,0xFE004814,Weakness to Magic,0x73F51,1,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessMagic,0x73F51,0x73F51
+Marshmerrow,0xFE004814,Damage Stamina,0x3A2C6,1.8,4,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2C6,0x3A2C6
+Minotaur Horn,0xFE004815,Resist Poison,0x90041,0.5,5,60,1,0,0,0,1,0,0,0,MagicAlchResistPoison;MagicAlchBeneficial,0x90041,0x90041
+Minotaur Horn,0xFE004815,Damage Magicka Regen,0x73F2B,0.5,100,10,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Minotaur Horn,0xFE004815,Regenerate Health,0x3EB06,0.1,6,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Minotaur Horn,0xFE004815,Regenerate Magicka,0x3EB07,0.1,6,300,1,0,0,0,1,0,0,0,MagicAlchFortifyMagickaRate;MagicAlchBeneficial,0x3EB07,0x3EB07
+Moon Sugar,0xD8E3F,Weakness to Fire,0x73F2D,0.6,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFire,0x73F2D,0x73F2D
+Moon Sugar,0xD8E3F,Resist Frost,0x3EAEB,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFrost;MagicAlchBeneficial,0x3EAEB,0x3EAEB
+Moon Sugar,0xD8E3F,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Moon Sugar,0xD8E3F,Regenerate Magicka,0x3EB07,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyMagickaRate;MagicAlchBeneficial,0x3EB07,0x3EB07
+Mora Tapinella,0xEC870,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Mora Tapinella,0xEC870,Lingering Damage Health,0x10AA4A,12,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10AA4A,0x10AA4A
+Mora Tapinella,0xEC870,Regenerate Stamina,0x3EB08,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyStaminaRate;MagicAlchBeneficial,0x3EB08,0x3EB08
+Mora Tapinella,0xEC870,Fortify Illusion,0x3EB27,0.4,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyIllusion;MagicAlchBeneficial,0x3EB27,0x3EB27
+Mudcrab Chitin,0x6BC00,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Mudcrab Chitin,0x6BC00,Cure Disease,0xAE722,0.5,5,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0xAE722,0xAE722
+Mudcrab Chitin,0x6BC00,Resist Poison,0x90041,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistPoison;MagicAlchBeneficial,0x90041,0x90041
+Mudcrab Chitin,0x6BC00,Resist Fire,0x3EAEA,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFire;MagicAlchBeneficial,0x3EAEA,0x3EAEA
+Namira's Rot,0x4DA24,Damage Magicka,0x3A2B6,2.2,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2B6,0x3A2B6
+Namira's Rot,0x4DA24,Fortify Lockpicking,0x3EB21,0.5,2,30,1,0,0,0,1,0,0,0,MagicAlchFortifyLockpicking;MagicAlchBeneficial,0x3EB21,0x3EB21
+Namira's Rot,0x4DA24,Fear,0x73F20,5,1,30,1,0,0,0,0,1,1,0,MagicInfluenceFear;MagicAlchHarmful;MagicInfluence,0x73F20,0x73F20
+Namira's Rot,0x4DA24,Regenerate Health,0x3EB06,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Netch Jelly,0x401CD72,Paralysis,0x73F30,500,0,1,0,1,1,0,0,1,1,1,MagicParalysis;MagicAlchHarmful,0x73F30,0x73F30
+Netch Jelly,0x401CD72,Fortify Carry Weight,0x3EB01,0.15,4,300,1,0,0,0,1,0,0,0,MagicAlchFortifyCarryWeight;MagicAlchBeneficial,0x3EB01,0x3EB01
+Netch Jelly,0x401CD72,Restore Stamina,0x3EB16,0.6,10,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Netch Jelly,0x401CD72,Fear,0x73F20,5,1,30,1,0,0,0,0,1,1,0,MagicInfluenceFear;MagicAlchHarmful;MagicInfluence,0x73F20,0x73F20
+Nightshade,0x2F44C,Damage Health,0x3EB42,3,2,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Nightshade,0x2F44C,Damage Magicka Regen,0x73F2B,0.5,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Nightshade,0x2F44C,Lingering Damage Stamina,0x10DE5E,1.8,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10DE5E,0x10DE5E
+Nightshade,0x2F44C,Fortify Destruction,0x3EB26,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyDestruction;MagicAlchBeneficial,0x3EB26,0x3EB26
+Nirnroot,0x59B86,Damage Health,0x3EB42,3,2,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Nirnroot,0x59B86,Damage Stamina,0x3A2C6,1.8,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2C6,0x3A2C6
+Nirnroot,0x59B86,Invisibility,0x3EB3D,100,0,4,0,1,1,0,1,0,0,1,MagicInvisibility;MagicAlchBeneficial;MagicAlchDurationBased,0x3EB3D,0x3EB3D
+Nirnroot,0x59B86,Resist Magic,0x39E51,1,1,60,1,0,0,0,1,0,0,0,MagicAlchResistMagic;MagicAlchBeneficial,0x39E51,0x39E51
+Nordic Barnacle,0x7EDF5,Damage Magicka,0x3A2B6,2.2,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2B6,0x3A2B6
+Nordic Barnacle,0x7EDF5,Waterbreathing,0x3AC2D,30,0,5,0,1,1,0,1,0,0,1,MagicAlchBeneficial;MagicAlchDurationBased,0x3AC2D,0x3AC2D
+Nordic Barnacle,0x7EDF5,Regenerate Health,0x3EB06,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Nordic Barnacle,0x7EDF5,Fortify Pickpocket,0x3EB20,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyPickPocket;MagicAlchBeneficial,0x3EB20,0x3EB20
+Ogre's Teeth,0xFE004816,Weakness to Shock,0x73F2F,0.7,4,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessShock,0x73F2F,0x73F2F
+Ogre's Teeth,0xFE004816,Resist Poison,0x90041,0.5,5,60,1,0,0,0,1,0,0,0,MagicAlchResistPoison;MagicAlchBeneficial,0x90041,0x90041
+Ogre's Teeth,0xFE004816,Lingering Damage Magicka,0x10DE5F,10,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10DE5F,0x10DE5F
+Ogre's Teeth,0xFE004816,Regenerate Health,0x3EB06,0.1,6,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Orange Dartwing,0xBB956,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Orange Dartwing,0xBB956,Ravage Magicka,0x73F27,1,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F27,0x73F27
+Orange Dartwing,0xBB956,Fortify Pickpocket,0x3EB20,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyPickPocket;MagicAlchBeneficial,0x3EB20,0x3EB20
+Orange Dartwing,0xBB956,Lingering Damage Health,0x10AA4A,12,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10AA4A,0x10AA4A
+Pearl,0x854FE,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Pearl,0x854FE,Fortify Block,0x3EB1C,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyBlock;MagicAlchBeneficial,0x3EB1C,0x3EB1C
+Pearl,0x854FE,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Pearl,0x854FE,Resist Shock,0x3EAEC,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistShock;MagicAlchBeneficial,0x3EAEC,0x3EAEC
+Pearlfish,0x50008EC,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Pearlfish,0x50008EC,Resist Frost,0x3EAEB,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFrost;MagicAlchBeneficial,0x3EAEB,0x3EAEB
+Pearlfish,0x50008EC,Fortify Smithing,0x3EB1D,0.75,4,30,1,0,0,0,1,0,0,0,MagicAlchFortifySmithing;MagicAlchBeneficial,0x3EB1D,0x3EB1D
+Pearlfish,0x50008EC,Fortify One-handed,0x3EB19,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyOneHanded;MagicAlchBeneficial,0x3EB19,0x3EB19
+Pine Thrush Egg,0x23D6F,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Pine Thrush Egg,0x23D6F,Fortify Lockpicking,0x3EB21,0.5,2,30,1,0,0,0,1,0,0,0,MagicAlchFortifyLockpicking;MagicAlchBeneficial,0x3EB21,0x3EB21
+Pine Thrush Egg,0x23D6F,Weakness to Poison,0x90042,1,2,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;USKPMagicAlchWeaknessPoison,0x90042,0x90042
+Pine Thrush Egg,0x23D6F,Resist Shock,0x3EAEC,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistShock;MagicAlchBeneficial,0x3EAEC,0x3EAEC
+Poison Bloom,0x20185FB,Damage Health,0x3EB42,3,3,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Poison Bloom,0x20185FB,Slow,0x73F25,1,50,5,0,1,0,0,0,1,1,1,MagicAlchHarmful;MagicSlow,0x73F25,0x73F25
+Poison Bloom,0x20185FB,Fortify Carry Weight,0x3EB01,0.15,4,300,1,0,0,0,1,0,0,0,MagicAlchFortifyCarryWeight;MagicAlchBeneficial,0x3EB01,0x3EB01
+Poison Bloom,0x20185FB,Fear,0x73F20,5,1,30,1,0,0,0,0,1,1,0,MagicInfluenceFear;MagicAlchHarmful;MagicInfluence,0x73F20,0x73F20
+Powdered Mammoth Tusk,0x6BC10,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Powdered Mammoth Tusk,0x6BC10,Fortify Sneak,0x3EB22,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifySneak;MagicAlchBeneficial,0x3EB22,0x3EB22
+Powdered Mammoth Tusk,0x6BC10,Weakness to Fire,0x73F2D,0.6,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFire,0x73F2D,0x73F2D
+Powdered Mammoth Tusk,0x6BC10,Fear,0x73F20,5,1,30,1,0,0,0,0,1,1,0,MagicInfluenceFear;MagicAlchHarmful;MagicInfluence,0x73F20,0x73F20
+Purple Butterfly Wing,0x6059153,Regenerate Health,0x3EB06,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Purple Butterfly Wing,0x6059153,Regenerate Magicka,0x3EB07,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyMagickaRate;MagicAlchBeneficial,0x3EB07,0x3EB07
+Purple Butterfly Wing,0x6059153,Regenerate Stamina,0x3EB08,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyStaminaRate;MagicAlchBeneficial,0x3EB08,0x3EB08
+Purple Butterfly Wing,0x6059153,Paralysis,0x73F30,500,0,1,0,1,1,0,0,1,1,1,MagicParalysis;MagicAlchHarmful,0x73F30,0x73F30
+Purple Mountain Flower,0x77E1E,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Purple Mountain Flower,0x77E1E,Fortify Sneak,0x3EB22,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifySneak;MagicAlchBeneficial,0x3EB22,0x3EB22
+Purple Mountain Flower,0x77E1E,Lingering Damage Magicka,0x10DE5F,10,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10DE5F,0x10DE5F
+Purple Mountain Flower,0x77E1E,Resist Frost,0x3EAEB,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFrost;MagicAlchBeneficial,0x3EAEB,0x3EAEB
+Pygmy Sunfish,0x50008ED,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Pygmy Sunfish,0x50008ED,Lingering Damage Magicka,0x10DE5F,10,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10DE5F,0x10DE5F
+Pygmy Sunfish,0x50008ED,Damage Magicka Regen,0x73F2B,0.5,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Pygmy Sunfish,0x50008ED,Fortify Restoration,0x3EB28,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyRestoration;MagicAlchBeneficial,0x3EB28,0x3EB28
+Red Kelp Gas Bladder,0xFE004817,Regenerate Stamina,0x3EB08,0.1,6,300,1,0,0,0,1,0,0,0,MagicAlchFortifyStaminaRate;MagicAlchBeneficial,0x3EB08,0x3EB08
+Red Kelp Gas Bladder,0xFE004817,Waterbreathing,0x3AC2D,30,0,8,0,1,1,0,1,0,0,1,MagicAlchBeneficial;MagicAlchDurationBased,0x3AC2D,0x3AC2D
+Red Kelp Gas Bladder,0xFE004817,Cure Disease,0xAE722,0.5,2,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0xAE722,0xAE722
+Red Kelp Gas Bladder,0xFE004817,Fortify Magicka,0x3EAF8,0.3,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMagicka;MagicAlchBeneficial,0x3EAF8,0x3EAF8
+Red Mountain Flower,0x77E1D,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Red Mountain Flower,0x77E1D,Ravage Magicka,0x73F27,1,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F27,0x73F27
+Red Mountain Flower,0x77E1D,Fortify Magicka,0x3EAF8,0.3,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMagicka;MagicAlchBeneficial,0x3EAF8,0x3EAF8
+Red Mountain Flower,0x77E1D,Damage Health,0x3EB42,3,2,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Redwort Flower,0xFE004818,Resist Frost,0x3EAEB,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistFrost;MagicAlchBeneficial,0x3EAEB,0x3EAEB
+Redwort Flower,0xFE004818,Cure Poison,0x109ADD,0.2,2,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0x109ADD,0x109ADD
+Redwort Flower,0xFE004818,Damage Health,0x3EB42,3,3,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Redwort Flower,0xFE004818,Invisibility,0x3EB3D,100,0,6,0,1,1,0,1,0,0,1,MagicInvisibility;MagicAlchBeneficial;MagicAlchDurationBased,0x3EB3D,0x3EB3D
+River Betty,0x106E1A,Damage Health,0x3EB42,3,5,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+River Betty,0x106E1A,Fortify Alteration,0x3EB24,0.2,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyAlteration;MagicAlchBeneficial,0x3EB24,0x3EB24
+River Betty,0x106E1A,Slow,0x73F25,1,50,5,0,1,0,0,0,1,1,1,MagicAlchHarmful;MagicSlow,0x73F25,0x73F25
+River Betty,0x106E1A,Fortify Carry Weight,0x3EB01,0.15,4,300,1,0,0,0,1,0,0,0,MagicAlchFortifyCarryWeight;MagicAlchBeneficial,0x3EB01,0x3EB01
+Rock Warbler Egg,0x7E8C8,Restore Health,0x3EB15,0.5,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Rock Warbler Egg,0x7E8C8,Fortify One-handed,0x3EB19,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyOneHanded;MagicAlchBeneficial,0x3EB19,0x3EB19
+Rock Warbler Egg,0x7E8C8,Damage Stamina,0x3A2C6,1.8,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2C6,0x3A2C6
+Rock Warbler Egg,0x7E8C8,Weakness to Magic,0x73F51,1,2,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessMagic,0x73F51,0x73F51
+Roobrush,0xFE004819,Weakness to Magic,0x73F51,1,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessMagic,0x73F51,0x73F51
+Roobrush,0xFE004819,Fortify Sneak,0x3EB22,0.5,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifySneak;MagicAlchBeneficial,0x3EB22,0x3EB22
+Roobrush,0xFE004819,Lingering Damage Health,0x10AA4A,12,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10AA4A,0x10AA4A
+Roobrush,0xFE004819,Cure Poison,0x109ADD,0.2,2,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0x109ADD,0x109ADD
+Rot Scale,0x100306D,Slow,0x73F25,1,5,30,0,1,0,0,0,1,1,1,MagicAlchHarmful;MagicSlow,0x73F25,0x73F25
+Rot Scale,0x100306D,Lingering Damage Health,0x10AA4A,12,1,30,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10AA4A,0x10AA4A
+Rot Scale,0x100306D,Fear,0x73F20,5,1,5,1,0,0,0,0,1,1,0,MagicInfluenceFear;MagicAlchHarmful;MagicInfluence,0x73F20,0x73F20
+Rot Scale,0x100306D,Paralysis,0x73F30,500,0,1,0,1,1,0,0,1,1,1,MagicParalysis;MagicAlchHarmful,0x73F30,0x73F30
+Sabre Cat Tooth,0x6BC04,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Sabre Cat Tooth,0x6BC04,Fortify Heavy Armor,0x3EB1E,0.5,2,60,1,0,0,0,1,0,0,0,MagicAlchFortifyHeavyArmor;MagicAlchBeneficial,0x3EB1E,0x3EB1E
+Sabre Cat Tooth,0x6BC04,Fortify Smithing,0x3EB1D,0.75,4,30,1,0,0,0,1,0,0,0,MagicAlchFortifySmithing;MagicAlchBeneficial,0x3EB1D,0x3EB1D
+Sabre Cat Tooth,0x6BC04,Weakness to Poison,0x90042,1,2,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;USKPMagicAlchWeaknessPoison,0x90042,0x90042
+Salmon Roe,0x3003545,Restore Stamina,0x3EB16,0.6,2,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Salmon Roe,0x3003545,Waterbreathing,0x3AC2D,30,0,60,0,1,1,0,1,0,0,1,MagicAlchBeneficial;MagicAlchDurationBased,0x3AC2D,0x3AC2D
+Salmon Roe,0x3003545,Fortify Magicka,0x3EAF8,0.3,50,5,1,0,0,0,1,0,0,0,MagicAlchFortifyMagicka;MagicAlchBeneficial,0x3EAF8,0x3EAF8
+Salmon Roe,0x3003545,Regenerate Magicka,0x3EB07,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyMagickaRate;MagicAlchBeneficial,0x3EB07,0x3EB07
+Salt Pile,0x74A19,Weakness to Magic,0x73F51,1,2,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessMagic,0x73F51,0x73F51
+Salt Pile,0x74A19,Fortify Restoration,0x3EB28,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyRestoration;MagicAlchBeneficial,0x3EB28,0x3EB28
+Salt Pile,0x74A19,Slow,0x73F25,1,50,5,0,1,0,0,0,1,1,1,MagicAlchHarmful;MagicSlow,0x73F25,0x73F25
+Salt Pile,0x74A19,Regenerate Magicka,0x3EB07,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyMagickaRate;MagicAlchBeneficial,0x3EB07,0x3EB07
+Salt Pile,0x34CDF,Weakness to Magic,0x73F51,1,2,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessMagic,0x73F51,0x73F51
+Salt Pile,0x34CDF,Fortify Restoration,0x3EB28,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyRestoration;MagicAlchBeneficial,0x3EB28,0x3EB28
+Salt Pile,0x34CDF,Slow,0x73F25,1,50,5,0,1,0,0,0,1,1,1,MagicAlchHarmful;MagicSlow,0x73F25,0x73F25
+Salt Pile,0x34CDF,Regenerate Magicka,0x3EB07,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyMagickaRate;MagicAlchBeneficial,0x3EB07,0x3EB07
+Saltrice,0xFE00481A,Restore Stamina,0x3EB16,0.6,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Saltrice,0xFE00481A,Fortify Magicka,0x3EAF8,0.3,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMagicka;MagicAlchBeneficial,0x3EAF8,0x3EAF8
+Saltrice,0xFE00481A,Damage Stamina Regen,0x73F2C,0.3,100,10,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2C,0x73F2C
+Saltrice,0xFE00481A,Restore Health,0x3EB15,0.5,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Scalon Fin,0xFE00481B,Waterbreathing,0x3AC2D,30,0,8,0,1,1,0,1,0,0,1,MagicAlchBeneficial;MagicAlchDurationBased,0x3AC2D,0x3AC2D
+Scalon Fin,0xFE00481B,Damage Health,0x3EB42,3,3,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Scalon Fin,0xFE00481B,Lingering Damage Magicka,0x10DE5F,10,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10DE5F,0x10DE5F
+Scalon Fin,0xFE00481B,Damage Magicka Regen,0x73F2B,0.5,100,10,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Scaly Pholiota,0x6F950,Weakness to Magic,0x73F51,1,2,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessMagic,0x73F51,0x73F51
+Scaly Pholiota,0x6F950,Fortify Illusion,0x3EB27,0.4,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyIllusion;MagicAlchBeneficial,0x3EB27,0x3EB27
+Scaly Pholiota,0x6F950,Regenerate Stamina,0x3EB08,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyStaminaRate;MagicAlchBeneficial,0x3EB08,0x3EB08
+Scaly Pholiota,0x6F950,Fortify Carry Weight,0x3EB01,0.15,4,300,1,0,0,0,1,0,0,0,MagicAlchFortifyCarryWeight;MagicAlchBeneficial,0x3EB01,0x3EB01
+Scathecraw,0x4017E97,Ravage Health,0x73F26,0.4,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F26,0x73F26
+Scathecraw,0x4017E97,Ravage Stamina,0x73F23,1.6,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F23,0x73F23
+Scathecraw,0x4017E97,Ravage Magicka,0x73F27,1,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F27,0x73F27
+Scathecraw,0x4017E97,Lingering Damage Health,0x10AA4A,12,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10AA4A,0x10AA4A
+Screaming Maw,0x100306E,Regenerate Magicka,0x3EB07,0.1,20,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMagickaRate;MagicAlchBeneficial,0x3EB07,0x3EB07
+Screaming Maw,0x100306E,Fortify Alteration,0x3EB24,0.2,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyAlteration;MagicAlchBeneficial,0x3EB24,0x3EB24
+Screaming Maw,0x100306E,Invisibility,0x3EB3D,100,0,1,0,1,1,0,1,0,0,1,MagicInvisibility;MagicAlchBeneficial;MagicAlchDurationBased,0x3EB3D,0x3EB3D
+Screaming Maw,0x100306E,Regenerate Health,0x3EB06,0.1,20,10,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Scrib Jelly,0xFE00481C,Regenerate Magicka,0x3EB07,0.1,6,300,1,0,0,0,1,0,0,0,MagicAlchFortifyMagickaRate;MagicAlchBeneficial,0x3EB07,0x3EB07
+Scrib Jelly,0xFE00481C,Cure Poison,0x109ADD,0.2,2,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0x109ADD,0x109ADD
+Scrib Jelly,0xFE00481C,Cure Disease,0xAE722,0.5,2,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0xAE722,0xAE722
+Scrib Jelly,0xFE00481C,Regenerate Stamina,0x3EB08,0.1,6,300,1,0,0,0,1,0,0,0,MagicAlchFortifyStaminaRate;MagicAlchBeneficial,0x3EB08,0x3EB08
+Scrib Jerky,0xFE00481D,Restore Stamina,0x3EB16,0.6,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Scrib Jerky,0xFE00481D,Fortify Stamina,0x3EAF9,0.3,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyStamina;MagicAlchBeneficial,0x3EAF9,0x3EAF9
+Scrib Jerky,0xFE00481D,Paralysis,0x73F30,500,0,2,0,1,1,0,0,1,1,1,MagicParalysis;MagicAlchHarmful,0x73F30,0x73F30
+Scrib Jerky,0xFE00481D,Waterbreathing,0x3AC2D,30,0,8,0,1,1,0,1,0,0,1,MagicAlchBeneficial;MagicAlchDurationBased,0x3AC2D,0x3AC2D
+Silverside Perch,0x106E1C,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Silverside Perch,0x106E1C,Damage Stamina Regen,0x73F2C,0.3,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2C,0x73F2C
+Silverside Perch,0x106E1C,Ravage Health,0x73F26,0.4,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F26,0x73F26
+Silverside Perch,0x106E1C,Resist Frost,0x3EAEB,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFrost;MagicAlchBeneficial,0x3EAEB,0x3EAEB
+Skeever Tail,0x3AD6F,Damage Stamina Regen,0x73F2C,0.3,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2C,0x73F2C
+Skeever Tail,0x3AD6F,Ravage Health,0x73F26,0.4,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F26,0x73F26
+Skeever Tail,0x3AD6F,Damage Health,0x3EB42,3,2,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Skeever Tail,0x3AD6F,Fortify Light Armor,0x3EB1F,0.5,2,60,1,0,0,0,1,0,0,0,MagicAlchFortifyLightArmor;MagicAlchBeneficial,0x3EB1F,0x3EB1F
+Slaughterfish Egg,0x7E8C5,Resist Poison,0x90041,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistPoison;MagicAlchBeneficial,0x90041,0x90041
+Slaughterfish Egg,0x7E8C5,Fortify Pickpocket,0x3EB20,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyPickPocket;MagicAlchBeneficial,0x3EB20,0x3EB20
+Slaughterfish Egg,0x7E8C5,Lingering Damage Health,0x10AA4A,12,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10AA4A,0x10AA4A
+Slaughterfish Egg,0x7E8C5,Fortify Stamina,0x3EAF9,0.3,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyStamina;MagicAlchBeneficial,0x3EAF9,0x3EAF9
+Slaughterfish Scales,0x3AD70,Resist Frost,0x3EAEB,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFrost;MagicAlchBeneficial,0x3EAEB,0x3EAEB
+Slaughterfish Scales,0x3AD70,Lingering Damage Health,0x10AA4A,12,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10AA4A,0x10AA4A
+Slaughterfish Scales,0x3AD70,Fortify Heavy Armor,0x3EB1E,0.5,2,60,1,0,0,0,1,0,0,0,MagicAlchFortifyHeavyArmor;MagicAlchBeneficial,0x3EB1E,0x3EB1E
+Slaughterfish Scales,0x3AD70,Fortify Block,0x3EB1C,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyBlock;MagicAlchBeneficial,0x3EB1C,0x3EB1C
+Sload Soap,0xFE00481E,Resist Fire,0x3EAEA,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistFire;MagicAlchBeneficial,0x3EAEA,0x3EAEA
+Sload Soap,0xFE00481E,Fear,0x73F20,5,2,30,1,0,0,0,0,1,1,0,MagicInfluenceFear;MagicAlchHarmful;MagicInfluence,0x73F20,0x73F20
+Sload Soap,0xFE00481E,Fortify Conjuration,0x3EB25,0.25,6,60,1,0,0,0,1,0,0,0,MagicAlchFortifyConjuration;MagicAlchBeneficial,0x3EB25,0x3EB25
+Sload Soap,0xFE00481E,Fortify Alteration,0x3EB24,0.2,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyAlteration;MagicAlchBeneficial,0x3EB24,0x3EB24
+Small Antlers,0x6BC0B,Weakness to Poison,0x90042,1,2,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;USKPMagicAlchWeaknessPoison,0x90042,0x90042
+Small Antlers,0x6BC0B,Fortify Restoration,0x3EB28,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyRestoration;MagicAlchBeneficial,0x3EB28,0x3EB28
+Small Antlers,0x6BC0B,Lingering Damage Stamina,0x10DE5E,1.8,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10DE5E,0x10DE5E
+Small Antlers,0x6BC0B,Damage Health,0x3EB42,3,2,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Small Pearl,0x85500,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Small Pearl,0x85500,Fortify One-handed,0x3EB19,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyOneHanded;MagicAlchBeneficial,0x3EB19,0x3EB19
+Small Pearl,0x85500,Fortify Restoration,0x3EB28,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyRestoration;MagicAlchBeneficial,0x3EB28,0x3EB28
+Small Pearl,0x85500,Resist Frost,0x3EAEB,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFrost;MagicAlchBeneficial,0x3EAEB,0x3EAEB
+Snowberries,0x1B3BD,Resist Fire,0x3EAEA,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFire;MagicAlchBeneficial,0x3EAEA,0x3EAEA
+Snowberries,0x1B3BD,Fortify Enchanting,0x3EB29,0.6,1,30,1,0,0,0,1,0,0,0,MagicAlchFortifyEnchanting;MagicAlchBeneficial,0x3EB29,0x3EB29
+Snowberries,0x1B3BD,Resist Frost,0x3EAEB,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFrost;MagicAlchBeneficial,0x3EAEB,0x3EAEB
+Snowberries,0x1B3BD,Resist Shock,0x3EAEC,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistShock;MagicAlchBeneficial,0x3EAEC,0x3EAEC
+Spadefish,0x50008F3,Restore Health,0x3EB15,0.5,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Spadefish,0x50008F3,Fortify Lockpicking,0x3EB21,0.5,2,30,1,0,0,0,1,0,0,0,MagicAlchFortifyLockpicking;MagicAlchBeneficial,0x3EB21,0x3EB21
+Spadefish,0x50008F3,Fortify Pickpocket,0x3EB20,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyPickPocket;MagicAlchBeneficial,0x3EB20,0x3EB20
+Spadefish,0x50008F3,Cure Disease,0xAE722,0.5,5,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0xAE722,0xAE722
+Spawn Ash,0x401CD6D,Ravage Stamina,0x73F23,1.6,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F23,0x73F23
+Spawn Ash,0x401CD6D,Resist Fire,0x3EAEA,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFire;MagicAlchBeneficial,0x3EAEA,0x3EAEA
+Spawn Ash,0x401CD6D,Fortify Enchanting,0x3EB29,0.6,1,30,1,0,0,0,1,0,0,0,MagicAlchFortifyEnchanting;MagicAlchBeneficial,0x3EB29,0x3EB29
+Spawn Ash,0x401CD6D,Ravage Magicka,0x73F27,1,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F27,0x73F27
+Spider Egg,0x9151B,Damage Stamina,0x3A2C6,1.8,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2C6,0x3A2C6
+Spider Egg,0x9151B,Damage Magicka Regen,0x73F2B,0.5,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Spider Egg,0x9151B,Fortify Lockpicking,0x3EB21,0.5,2,30,1,0,0,0,1,0,0,0,MagicAlchFortifyLockpicking;MagicAlchBeneficial,0x3EB21,0x3EB21
+Spider Egg,0x9151B,Fortify Archery,0x3EB1B,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMarksman;MagicAlchBeneficial,0x3EB1B,0x3EB1B
+Spriggan Sap,0x63B5F,Damage Magicka Regen,0x73F2B,0.5,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2B,0x73F2B
+Spriggan Sap,0x63B5F,Fortify Enchanting,0x3EB29,0.6,1,30,1,0,0,0,1,0,0,0,MagicAlchFortifyEnchanting;MagicAlchBeneficial,0x3EB29,0x3EB29
+Spriggan Sap,0x63B5F,Fortify Smithing,0x3EB1D,0.75,4,30,1,0,0,0,1,0,0,0,MagicAlchFortifySmithing;MagicAlchBeneficial,0x3EB1D,0x3EB1D
+Spriggan Sap,0x63B5F,Fortify Alteration,0x3EB24,0.2,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyAlteration;MagicAlchBeneficial,0x3EB24,0x3EB24
+Stoneflower Petals,0xFE00481F,Weakness to Shock,0x73F2F,0.7,4,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessShock,0x73F2F,0x73F2F
+Stoneflower Petals,0xFE00481F,Fortify One-handed,0x3EB19,0.5,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyOneHanded;MagicAlchBeneficial,0x3EB19,0x3EB19
+Stoneflower Petals,0xFE00481F,Fortify Magicka,0x3EAF8,0.3,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMagicka;MagicAlchBeneficial,0x3EAF8,0x3EAF8
+Stoneflower Petals,0xFE00481F,Fortify Enchanting,0x3EB29,0.6,2,30,1,0,0,0,1,0,0,0,MagicAlchFortifyEnchanting;MagicAlchBeneficial,0x3EB29,0x3EB29
+Swamp Fungal Pod,0x7E8B7,Resist Shock,0x3EAEC,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistShock;MagicAlchBeneficial,0x3EAEC,0x3EAEC
+Swamp Fungal Pod,0x7E8B7,Lingering Damage Magicka,0x10DE5F,10,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10DE5F,0x10DE5F
+Swamp Fungal Pod,0x7E8B7,Paralysis,0x73F30,500,0,1,0,1,1,0,0,1,1,1,MagicParalysis;MagicAlchHarmful,0x73F30,0x73F30
+Swamp Fungal Pod,0x7E8B7,Restore Health,0x3EB15,0.5,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Taproot,0x3AD71,Weakness to Magic,0x73F51,1,2,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessMagic,0x73F51,0x73F51
+Taproot,0x3AD71,Fortify Illusion,0x3EB27,0.4,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyIllusion;MagicAlchBeneficial,0x3EB27,0x3EB27
+Taproot,0x3AD71,Regenerate Magicka,0x3EB07,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyMagickaRate;MagicAlchBeneficial,0x3EB07,0x3EB07
+Taproot,0x3AD71,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Thistle Branch,0x134AA,Resist Frost,0x3EAEB,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchResistFrost;MagicAlchBeneficial,0x3EAEB,0x3EAEB
+Thistle Branch,0x134AA,Ravage Stamina,0x73F23,1.6,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F23,0x73F23
+Thistle Branch,0x134AA,Resist Poison,0x90041,0.5,3,0,1,0,0,0,1,0,0,0,MagicAlchResistPoison;MagicAlchBeneficial,0x90041,0x90041
+Thistle Branch,0x134AA,Fortify Heavy Armor,0x3EB1E,0.5,2,60,1,0,0,0,1,0,0,0,MagicAlchFortifyHeavyArmor;MagicAlchBeneficial,0x3EB1E,0x3EB1E
+Thorn Hook,0x100306F,Lingering Damage Health,0x10AA4A,12,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10AA4A,0x10AA4A
+Thorn Hook,0x100306F,Paralysis,0x73F30,500,0,1,0,1,1,0,0,1,1,1,MagicParalysis;MagicAlchHarmful,0x73F30,0x73F30
+Thorn Hook,0x100306F,Regenerate Magicka,0x3EB07,0.1,3,180,1,0,0,0,1,0,0,0,MagicAlchFortifyMagickaRate;MagicAlchBeneficial,0x3EB07,0x3EB07
+Thorn Hook,0x100306F,Regenerate Health,0x3EB06,0.1,3,180,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Torchbug Thorax,0x4DA73,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Torchbug Thorax,0x4DA73,Lingering Damage Magicka,0x10DE5F,10,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10DE5F,0x10DE5F
+Torchbug Thorax,0x4DA73,Weakness to Magic,0x73F51,1,2,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessMagic,0x73F51,0x73F51
+Torchbug Thorax,0x4DA73,Fortify Stamina,0x3EAF9,0.3,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyStamina;MagicAlchBeneficial,0x3EAF9,0x3EAF9
+Trama Root,0x4017008,Weakness to Shock,0x73F2F,0.7,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessShock,0x73F2F,0x73F2F
+Trama Root,0x4017008,Fortify Carry Weight,0x3EB01,0.15,4,300,1,0,0,0,1,0,0,0,MagicAlchFortifyCarryWeight;MagicAlchBeneficial,0x3EB01,0x3EB01
+Trama Root,0x4017008,Damage Magicka,0x3A2B6,2.2,3,0,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3A2B6,0x3A2B6
+Trama Root,0x4017008,Slow,0x73F25,1,50,5,0,1,0,0,0,1,1,1,MagicAlchHarmful;MagicSlow,0x73F25,0x73F25
+Troll Fat,0x3AD72,Resist Poison,0x90041,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistPoison;MagicAlchBeneficial,0x90041,0x90041
+Troll Fat,0x3AD72,Fortify Two-handed,0x3EB1A,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyTwoHanded;MagicAlchBeneficial,0x3EB1A,0x3EB1A
+Troll Fat,0x3AD72,Frenzy,0x73F29,15,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicInfluence;MagicInfluenceFrenzy,0x73F29,0x73F29
+Troll Fat,0x3AD72,Damage Health,0x3EB42,3,2,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Tundra Cotton,0x3F7F8,Resist Magic,0x39E51,1,1,60,1,0,0,0,1,0,0,0,MagicAlchResistMagic;MagicAlchBeneficial,0x39E51,0x39E51
+Tundra Cotton,0x3F7F8,Fortify Magicka,0x3EAF8,0.3,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMagicka;MagicAlchBeneficial,0x3EAF8,0x3EAF8
+Tundra Cotton,0x3F7F8,Fortify Block,0x3EB1C,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyBlock;MagicAlchBeneficial,0x3EB1C,0x3EB1C
+Tundra Cotton,0x3F7F8,Fortify Barter,0x3EB23,2,1,30,1,0,0,0,1,0,0,0,MagicAlchFortifySpeechcraft;MagicAlchBeneficial,0x3EB23,0x3EB23
+Vampire Dust,0x3AD76,Invisibility,0x3EB3D,100,0,4,0,1,1,0,1,0,0,1,MagicInvisibility;MagicAlchBeneficial;MagicAlchDurationBased,0x3EB3D,0x3EB3D
+Vampire Dust,0x3AD76,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Vampire Dust,0x3AD76,Regenerate Health,0x3EB06,0.1,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Vampire Dust,0x3AD76,Cure Disease,0xAE722,0.5,5,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0xAE722,0xAE722
+Void Essence,0xFE004820,Restore Health,0x3EB15,0.5,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Void Essence,0xFE004820,Fortify Health,0x3EAF3,0.35,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealth;MagicAlchBeneficial,0x3EAF3,0x3EAF3
+Void Essence,0xFE004820,Fortify Stamina,0x3EAF9,0.3,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyStamina;MagicAlchBeneficial,0x3EAF9,0x3EAF9
+Void Essence,0xFE004820,Regenerate Health,0x3EB06,0.1,6,300,1,0,0,0,1,0,0,0,MagicAlchFortifyHealRate;MagicAlchBeneficial,0x3EB06,0x3EB06
+Void Salts,0x3AD60,Weakness to Shock,0x73F2F,0.7,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessShock,0x73F2F,0x73F2F
+Void Salts,0x3AD60,Resist Magic,0x39E51,1,1,60,1,0,0,0,1,0,0,0,MagicAlchResistMagic;MagicAlchBeneficial,0x39E51,0x39E51
+Void Salts,0x3AD60,Damage Health,0x3EB42,3,2,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Void Salts,0x3AD60,Fortify Magicka,0x3EAF8,0.3,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMagicka;MagicAlchBeneficial,0x3EAF8,0x3EAF8
+Watcher's Eye,0xFE004821,Night Eye,0xFE004803,0.75,0,60,0,1,0,0,1,0,0,1,MagicNightEye,0xFE004803,0xFE004803
+Watcher's Eye,0xFE004821,Fortify Magicka,0x3EAF8,0.3,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyMagicka;MagicAlchBeneficial,0x3EAF8,0x3EAF8
+Watcher's Eye,0xFE004821,Fortify Illusion,0x3EB27,0.4,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyIllusion;MagicAlchBeneficial,0x3EB27,0x3EB27
+Watcher's Eye,0xFE004821,Spell Absorption,0xFE004812,0.1,50,60,0,1,0,0,1,0,0,1,MagicAlchBeneficial,0xFE004812,0xFE004812
+Wheat,0x4B0BA,Restore Health,0x3EB15,0.5,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreHealth;MagicAlchBeneficial,0x3EB15,0x3EB15
+Wheat,0x4B0BA,Fortify Health,0x3EAF3,0.35,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyHealth;MagicAlchBeneficial,0x3EAF3,0x3EAF3
+Wheat,0x4B0BA,Damage Stamina Regen,0x73F2C,0.3,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2C,0x73F2C
+Wheat,0x4B0BA,Lingering Damage Magicka,0x10DE5F,10,1,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x10DE5F,0x10DE5F
+White Cap,0x4DA22,Weakness to Frost,0x73F2E,0.5,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicAlchWeaknessFrost,0x73F2E,0x73F2E
+White Cap,0x4DA22,Fortify Heavy Armor,0x3EB1E,0.5,2,60,1,0,0,0,1,0,0,0,MagicAlchFortifyHeavyArmor;MagicAlchBeneficial,0x3EB1E,0x3EB1E
+White Cap,0x4DA22,Restore Magicka,0x3EB17,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+White Cap,0x4DA22,Ravage Magicka,0x73F27,1,2,10,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x73F27,0x73F27
+Wisp Stalk Caps,0xFE004823,Damage Health,0x3EB42,3,3,1,1,0,0,0,0,1,1,0,MagicAlchHarmful,0x3EB42,0x3EB42
+Wisp Stalk Caps,0xFE004823,Weakness to Poison,0x90042,1,3,30,1,0,0,0,0,1,1,0,MagicAlchHarmful;USKPMagicAlchWeaknessPoison,0x90042,0x90042
+Wisp Stalk Caps,0xFE004823,Frenzy,0x73F29,15,1,20,1,0,0,0,0,1,1,0,MagicAlchHarmful;MagicInfluence;MagicInfluenceFrenzy,0x73F29,0x73F29
+Wisp Stalk Caps,0xFE004823,Regenerate Stamina,0x3EB08,0.1,6,300,1,0,0,0,1,0,0,0,MagicAlchFortifyStaminaRate;MagicAlchBeneficial,0x3EB08,0x3EB08
+Wisp Wrappings,0x6BC0E,Restore Stamina,0x3EB16,0.6,5,0,1,0,0,1,1,0,0,0,MagicAlchRestoreStamina;MagicAlchBeneficial,0x3EB16,0x3EB16
+Wisp Wrappings,0x6BC0E,Fortify Destruction,0x3EB26,0.5,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyDestruction;MagicAlchBeneficial,0x3EB26,0x3EB26
+Wisp Wrappings,0x6BC0E,Fortify Carry Weight,0x3EB01,0.15,4,300,1,0,0,0,1,0,0,0,MagicAlchFortifyCarryWeight;MagicAlchBeneficial,0x3EB01,0x3EB01
+Wisp Wrappings,0x6BC0E,Resist Magic,0x39E51,1,1,60,1,0,0,0,1,0,0,0,MagicAlchResistMagic;MagicAlchBeneficial,0x39E51,0x39E51
+Withering Moon,0xFE004824,Restore Magicka,0x3EB17,0.6,6,0,1,0,0,1,1,0,0,0,MagicAlchRestoreMagicka;MagicAlchBeneficial,0x3EB17,0x3EB17
+Withering Moon,0xFE004824,Spell Absorption,0xFE004812,0.1,50,60,0,1,0,0,1,0,0,1,MagicAlchBeneficial,0xFE004812,0xFE004812
+Withering Moon,0xFE004824,Fortify Light Armor,0x3EB1F,0.5,3,60,1,0,0,0,1,0,0,0,MagicAlchFortifyLightArmor;MagicAlchBeneficial,0x3EB1F,0x3EB1F
+Withering Moon,0xFE004824,Cure Disease,0xAE722,0.5,2,0,1,0,0,1,1,0,0,0,MagicAlchBeneficial,0xAE722,0xAE722
+Worm's Head Cap,0xFE004825,Fortify Lockpicking,0x3EB21,0.5,3,30,1,0,0,0,1,0,0,0,MagicAlchFortifyLockpicking;MagicAlchBeneficial,0x3EB21,0x3EB21
+Worm's Head Cap,0xFE004825,Night Eye,0xFE004803,0.75,0,60,0,1,0,0,1,0,0,1,MagicNightEye,0xFE004803,0xFE004803
+Worm's Head Cap,0xFE004825,Fortify Carry Weight,0x3EB01,0.15,5,300,1,0,0,0,1,0,0,0,MagicAlchFortifyCarryWeight;MagicAlchBeneficial,0x3EB01,0x3EB01
+Worm's Head Cap,0xFE004825,Slow,0x73F25,1,50,10,0,1,0,0,0,1,1,1,MagicAlchHarmful;MagicSlow,0x73F25,0x73F25
+Yellow Mountain Flower,0x2002A78,Resist Poison,0x90041,0.5,4,60,1,0,0,0,1,0,0,0,MagicAlchResistPoison;MagicAlchBeneficial,0x90041,0x90041
+Yellow Mountain Flower,0x2002A78,Fortify Restoration,0x3EB28,0.5,5,60,1,0,0,0,1,0,0,0,MagicAlchFortifyRestoration;MagicAlchBeneficial,0x3EB28,0x3EB28
+Yellow Mountain Flower,0x2002A78,Fortify Health,0x3EAF3,0.35,4,60,1,0,0,0,1,0,0,0,MagicAlchFortifyHealth;MagicAlchBeneficial,0x3EAF3,0x3EAF3
+Yellow Mountain Flower,0x2002A78,Damage Stamina Regen,0x73F2C,0.3,100,5,0,1,0,0,0,1,1,1,MagicAlchHarmful,0x73F2C,0x73F2C
