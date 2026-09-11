@@ -3,6 +3,7 @@
 #include "DeveloperTestHub.h"
 #include "MenuHandler.h"
 #include "RenderHook.h"
+#include "Localization.h"
 #include "main.h"
 
 #include "REX/REX/INI.h"
@@ -18,7 +19,9 @@
 #include <cmath>
 #include <chrono>
 #include <cstring>
+#include <mutex>
 #include <string_view>
+#include <vector>
 
 namespace alchemist::ui {
 	namespace {
@@ -39,6 +42,8 @@ namespace alchemist::ui {
 		std::array<bool, 256> previousKeyboardState{};
 		std::chrono::steady_clock::time_point backspaceRepeatAt;
 		std::atomic_bool cursorOverWindow = false;
+		std::mutex pendingTextInputMutex;
+		std::vector<std::uint32_t> pendingTextInput;
 		bool previousLeftMouseButtonDown = false;
 		bool draggingWindow = false;
 		bool resizingWindow = false;
@@ -53,7 +58,7 @@ namespace alchemist::ui {
 		ImVec2 searchRectMax(-1.0f, -1.0f);
 		bool focusSearch = false;
 		std::atomic_bool searchInputFocused = false;
-		char searchText[128]{};
+		char searchText[512]{};
 		int sortMode = 0;
 		int currentPage = 1;
 		std::string lastSearchText;
@@ -149,40 +154,108 @@ namespace alchemist::ui {
 		bool developerTestHubOpen = false;
 		bool settingsBuffersInitialized = false;
 		bool focusProtectedIngredientSearch = false;
-		char potionPrefix[128]{};
-		char poisonPrefix[128]{};
+		char potionPrefix[512]{};
+		char poisonPrefix[512]{};
 		struct ProtectedIngredientEntry {
 			std::string name;
 			int count = -1;
 			int previousCount = 1;
 		};
 		std::vector<ProtectedIngredientEntry> protectedIngredients;
-		char protectedIngredientSearch[128]{};
+		char protectedIngredientSearch[512]{};
+
+		std::string Text(std::string_view a_key, std::string_view a_fallback)
+		{
+			return localization::Translate(a_key, a_fallback);
+		}
+
+		std::string FormatText(
+			std::string_view a_key,
+			std::string_view a_fallback,
+			std::initializer_list<localization::FormatArgument> a_arguments)
+		{
+			return localization::Format(a_key, a_fallback, a_arguments);
+		}
+
+		std::wstring Utf8ToWide(std::string_view a_text)
+		{
+			if (a_text.empty()) {
+				return {};
+			}
+			const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, a_text.data(), static_cast<int>(a_text.size()), nullptr, 0);
+			if (length <= 0) {
+				return {};
+			}
+			std::wstring result(static_cast<std::size_t>(length), L'\0');
+			if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, a_text.data(), static_cast<int>(a_text.size()), result.data(), length) <= 0) {
+				return {};
+			}
+			return result;
+		}
+
+		std::string WideToUtf8(std::wstring_view a_text)
+		{
+			if (a_text.empty()) {
+				return {};
+			}
+			const int length = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, a_text.data(), static_cast<int>(a_text.size()), nullptr, 0, nullptr, nullptr);
+			if (length <= 0) {
+				return {};
+			}
+			std::string result(static_cast<std::size_t>(length), '\0');
+			if (WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, a_text.data(), static_cast<int>(a_text.size()), result.data(), length, nullptr, nullptr) <= 0) {
+				return {};
+			}
+			return result;
+		}
+
+		std::string FoldForSearch(std::string_view a_text)
+		{
+			const auto wideText = Utf8ToWide(a_text);
+			if (wideText.empty()) {
+				return std::string(a_text);
+			}
+			const int foldedLength = LCMapStringEx(
+				LOCALE_NAME_INVARIANT,
+				LCMAP_LOWERCASE,
+				wideText.data(),
+				static_cast<int>(wideText.size()),
+				nullptr,
+				0,
+				nullptr,
+				nullptr,
+				static_cast<LPARAM>(0));
+			if (foldedLength <= 0) {
+				return std::string(a_text);
+			}
+			std::wstring folded(static_cast<std::size_t>(foldedLength), L'\0');
+			if (LCMapStringEx(
+					LOCALE_NAME_INVARIANT,
+					LCMAP_LOWERCASE,
+					wideText.data(),
+					static_cast<int>(wideText.size()),
+					folded.data(),
+					foldedLength,
+					nullptr,
+					nullptr,
+					static_cast<LPARAM>(0)) <= 0) {
+				return std::string(a_text);
+			}
+			const auto result = WideToUtf8(folded);
+			return result.empty() ? std::string(a_text) : result;
+		}
 
 		bool ContainsInsensitive(std::string_view value, std::string_view query)
 		{
 			if (query.empty()) {
 				return true;
 			}
-			if (query.size() > value.size()) {
+			const auto foldedValue = FoldForSearch(value);
+			const auto foldedQuery = FoldForSearch(query);
+			if (foldedQuery.size() > foldedValue.size()) {
 				return false;
 			}
-
-			for (std::size_t i = 0; i <= value.size() - query.size(); ++i) {
-				bool match = true;
-				for (std::size_t j = 0; j < query.size(); ++j) {
-					const auto left = static_cast<unsigned char>(value[i + j]);
-					const auto right = static_cast<unsigned char>(query[j]);
-					if (std::tolower(left) != std::tolower(right)) {
-						match = false;
-						break;
-					}
-				}
-				if (match) {
-					return true;
-				}
-			}
-			return false;
+			return foldedValue.find(foldedQuery) != std::string::npos;
 		}
 
 		void TextWrappedInCell(const char* a_text)
@@ -261,8 +334,12 @@ namespace alchemist::ui {
 		template <std::size_t Size>
 		void CopySettingText(char (&a_buffer)[Size], const std::string& a_value)
 		{
-			std::strncpy(a_buffer, a_value.c_str(), Size - 1);
-			a_buffer[Size - 1] = '\0';
+			std::size_t length = (std::min)(Size - 1, a_value.size());
+			while (length > 0 && (static_cast<unsigned char>(a_value[length]) & 0xC0) == 0x80) {
+				--length;
+			}
+			std::memcpy(a_buffer, a_value.data(), length);
+			a_buffer[length] = '\0';
 		}
 
 		void LoadProtectedIngredients();
@@ -361,14 +438,8 @@ namespace alchemist::ui {
 
 		int IngredientMatchScore(std::string_view a_name, std::string_view a_query)
 		{
-			std::string name(a_name);
-			std::string query(a_query);
-			std::transform(name.begin(), name.end(), name.begin(), [](unsigned char character) {
-				return static_cast<char>(std::tolower(character));
-			});
-			std::transform(query.begin(), query.end(), query.begin(), [](unsigned char character) {
-				return static_cast<char>(std::tolower(character));
-			});
+			const auto name = FoldForSearch(a_name);
+			const auto query = FoldForSearch(a_query);
 			const auto position = name.find(query);
 			if (position == std::string::npos) {
 				return -1;
@@ -401,35 +472,101 @@ namespace alchemist::ui {
 
 		void DrawDeveloperToggle()
 		{
-			if (ImGui::Button("Test")) {
+			const auto label = Text("ui.test", "Test") + "##DeveloperTest";
+			if (ImGui::Button(label.c_str())) {
 				ToggleDeveloperTestHub();
 			}
+		}
+
+		std::string LocalizedProgressPhase(std::string_view a_phase)
+		{
+			if (a_phase == "Starting calculation") {
+				return Text("progress.starting", "Starting calculation");
+			}
+			if (a_phase == "Starting recalculation...") {
+				return Text("progress.startingRecalculation", "Starting recalculation...");
+			}
+			if (a_phase == "Evaluating 2-ingredient recipes") {
+				return Text("progress.evaluatingTwoIngredient", "Evaluating 2-ingredient recipes");
+			}
+			if (a_phase == "Finding 3-ingredient combinations") {
+				return Text("progress.findingThreeIngredient", "Finding 3-ingredient combinations");
+			}
+			if (a_phase == "Evaluating 3-ingredient recipes") {
+				return Text("progress.evaluatingThreeIngredient", "Evaluating 3-ingredient recipes");
+			}
+			if (a_phase == "Collecting recipes...") {
+				return Text("progress.collecting", "Collecting recipes...");
+			}
+			if (a_phase == "Preparing recipes for sorting...") {
+				return Text("progress.preparingSort", "Preparing recipes for sorting...");
+			}
+			if (a_phase == "Re-evaluating recipes...") {
+				return Text("progress.reevaluating", "Re-evaluating recipes...");
+			}
+			if (a_phase == "Recalculating recipes...") {
+				return Text("progress.recalculatingRecipes", "Recalculating recipes...");
+			}
+			if (a_phase == "Filtering recipe cache...") {
+				return Text("progress.filteringCache", "Filtering recipe cache...");
+			}
+			if (a_phase == "Evaluating new ingredient combinations...") {
+				return Text("progress.evaluatingNewIngredients", "Evaluating new ingredient combinations...");
+			}
+			if (a_phase == "Sorting recipes...") {
+				return Text("progress.sorting", "Sorting recipes...");
+			}
+			if (a_phase == "Formatting recipes...") {
+				return Text("progress.formatting", "Formatting recipes...");
+			}
+			if (a_phase == "Finalizing potion list...") {
+				return Text("progress.finalizing", "Finalizing potion list...");
+			}
+			if (a_phase == "Completed") {
+				return Text("progress.completed", "Completed");
+			}
+			return std::string(a_phase);
+		}
+
+		std::string LocalizedStaleReason(std::string_view a_reason)
+		{
+			if (a_reason == "Alchemy level changed") {
+				return Text("stale.alchemyLevelChanged", "Alchemy level changed");
+			}
+			if (a_reason == "New ingredients available") {
+				return Text("stale.newIngredients", "New ingredients available");
+			}
+			return std::string(a_reason);
 		}
 
 		void DrawRecipes()
 		{
 			const bool developerEnabled = kDeveloper.GetValue() == 1;
 			const auto& style = ImGui::GetStyle();
-			const float settingsWidth = ImGui::CalcTextSize("Settings").x + style.FramePadding.x * 2.0f;
-			const char* const sortLabels[] = {
-				"Value \xe2\x86\x93",
-				"Value \xe2\x86\x91",
-				"Name \xe2\x86\x91",
-				"Name \xe2\x86\x93"
+			const auto settingsText = Text("ui.settings", "Settings");
+			const auto effectsText = Text("ui.effects", "Effects");
+			const auto searchHint = Text("ui.searchRecipes", "Search recipes or ingredients");
+			const std::array<std::string, 4> sortLabels = {
+				Text("sort.valueDescending", "Value ↓"),
+				Text("sort.valueAscending", "Value ↑"),
+				Text("sort.nameAscending", "Name ↑"),
+				Text("sort.nameDescending", "Name ↓")
 			};
-			const char* currentSortLabel = (sortMode >= 0 && sortMode < 4) ? sortLabels[sortMode] : sortLabels[0];
-			const float sortWidth = ImGui::CalcTextSize(currentSortLabel).x + style.FramePadding.x * 2.0f + ImGui::GetFrameHeight();
-			const float effectsCheckboxWidth = ImGui::GetFrameHeight() + style.ItemInnerSpacing.x + ImGui::CalcTextSize("Effects").x;
+			const auto& currentSortLabel = (sortMode >= 0 && sortMode < 4) ? sortLabels[sortMode] : sortLabels[0];
+			const float settingsWidth = ImGui::CalcTextSize(settingsText.c_str()).x + style.FramePadding.x * 2.0f;
+			const float sortWidth = ImGui::CalcTextSize(currentSortLabel.c_str()).x + style.FramePadding.x * 2.0f + ImGui::GetFrameHeight();
+			const float effectsCheckboxWidth = ImGui::GetFrameHeight() + style.ItemInnerSpacing.x + ImGui::CalcTextSize(effectsText.c_str()).x;
 			float searchWidth = ImGui::GetContentRegionAvail().x - settingsWidth - sortWidth - effectsCheckboxWidth - style.ItemSpacing.x * 3.0f;
 			if (developerEnabled) {
-				searchWidth -= ImGui::CalcTextSize("Test").x + style.FramePadding.x * 2.0f + style.ItemSpacing.x;
+				const auto testText = Text("ui.test", "Test");
+				searchWidth -= ImGui::CalcTextSize(testText.c_str()).x + style.FramePadding.x * 2.0f + style.ItemSpacing.x;
 			}
 			ImGui::SetNextItemWidth((std::max)(1.0f, searchWidth));
 			if (focusSearch) {
 				ImGui::SetKeyboardFocusHere();
 				focusSearch = false;
 			}
-			ImGui::InputTextWithHint("##RecipeSearch", "Search recipes or ingredients", searchText, sizeof(searchText));
+			ImGui::InputTextWithHint("##RecipeSearch", searchHint.c_str(), searchText, sizeof(searchText));
 			searchInputFocused.store(ImGui::IsItemActive(), std::memory_order_release);
 			searchRectMin = ImGui::GetItemRectMin();
 			searchRectMax = ImGui::GetItemRectMax();
@@ -438,17 +575,23 @@ namespace alchemist::ui {
 				DrawDeveloperToggle();
 				ImGui::SameLine();
 			}
-			if (ImGui::Button("Settings")) {
+			if (ImGui::Button((settingsText + "##Settings").c_str())) {
 				settingsOpen = true;
 				settingsBuffersInitialized = false;
 				searchInputFocused.store(false, std::memory_order_release);
 				ImGui::ClearActiveID();
 			}
 			ImGui::SameLine();
-			ImGui::Checkbox("Effects", &showEffectsColumn);
+			ImGui::Checkbox((effectsText + "##EffectsColumn").c_str(), &showEffectsColumn);
 			ImGui::SameLine();
 			ImGui::SetNextItemWidth(sortWidth);
-			ImGui::Combo("##RecipeSort", &sortMode, "Value \xe2\x86\x93\0Value \xe2\x86\x91\0Name \xe2\x86\x91\0Name \xe2\x86\x93\0");
+			std::string sortItems;
+			for (const auto& sortLabel : sortLabels) {
+				sortItems += sortLabel;
+				sortItems.push_back('\0');
+			}
+			sortItems.push_back('\0');
+			ImGui::Combo("##RecipeSort", &sortMode, sortItems.c_str());
 
 			if (std::string_view(searchText) != lastSearchText) {
 				currentPage = 1;
@@ -586,17 +729,28 @@ namespace alchemist::ui {
 				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (std::max)(10.0f, (avail.y - 90.0f) * 0.35f));
 				ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (avail.x - barWidth) * 0.5f);
 				ImGui::BeginGroup();
-				ImGui::TextColored(ImVec4(1.0f, 0.84f, 0.0f, 1.0f), "Updating potion list...");
+				const auto updatingText = Text("progress.updating", "Updating potion list...");
+				ImGui::TextColored(ImVec4(1.0f, 0.84f, 0.0f, 1.0f), "%s", updatingText.c_str());
 				char overlay[128];
 				if (progress.total > 0) {
-					snprintf(overlay, sizeof(overlay), "%d%% (%zu / %zu)",
-						static_cast<int>(progress.progressFraction * 100.0f), progress.current, progress.total);
+					const auto progressText = FormatText(
+						"progress.percentWithCounts",
+						"{percent}% ({current} / {total})",
+						{{ "percent", std::to_string(static_cast<int>(progress.progressFraction * 100.0f)) },
+							{ "current", std::to_string(progress.current) },
+							{ "total", std::to_string(progress.total) }});
+					strncpy_s(overlay, progressText.c_str(), _TRUNCATE);
 				} else {
-					snprintf(overlay, sizeof(overlay), "%d%%", static_cast<int>(progress.progressFraction * 100.0f));
+					const auto progressText = FormatText(
+						"progress.percent",
+						"{percent}%",
+						{{ "percent", std::to_string(static_cast<int>(progress.progressFraction * 100.0f)) }});
+					strncpy_s(overlay, progressText.c_str(), _TRUNCATE);
 				}
 				ImGui::ProgressBar(progress.progressFraction, ImVec2(barWidth, 22.0f), overlay);
 				if (!progress.phase.empty()) {
-					ImGui::TextDisabled("%s", progress.phase.c_str());
+					const auto phaseText = LocalizedProgressPhase(progress.phase);
+					ImGui::TextDisabled("%s", phaseText.c_str());
 				}
 				ImGui::EndGroup();
 				return;
@@ -607,16 +761,33 @@ namespace alchemist::ui {
 				float fraction = progress.progressFraction;
 				if (showCompletedBanner) {
 					fraction = 1.0f;
-					snprintf(overlay, sizeof(overlay), "Recalculation complete! - 100%%");
+					const auto completeText = FormatText(
+						"progress.complete",
+						"Recalculation complete! - 100%",
+						{{ "percent", "100" }});
+					strncpy_s(overlay, completeText.c_str(), _TRUNCATE);
 				} else if (progress.total > 0) {
-					snprintf(overlay, sizeof(overlay), "%s (%zu / %zu) - %d%%",
-						progress.phase.c_str(), progress.current, progress.total, static_cast<int>(fraction * 100.0f));
+					const auto overlayText = FormatText(
+						"progress.phaseWithCounts",
+						"{phase} ({current} / {total}) - {percent}%",
+						{{ "phase", LocalizedProgressPhase(progress.phase) },
+							{ "current", std::to_string(progress.current) },
+							{ "total", std::to_string(progress.total) },
+							{ "percent", std::to_string(static_cast<int>(fraction * 100.0f)) }});
+					strncpy_s(overlay, overlayText.c_str(), _TRUNCATE);
 				} else if (!progress.phase.empty()) {
-					snprintf(overlay, sizeof(overlay), "%s - %d%%",
-						progress.phase.c_str(), static_cast<int>(fraction * 100.0f));
+					const auto overlayText = FormatText(
+						"progress.phaseWithPercent",
+						"{phase} - {percent}%",
+						{{ "phase", LocalizedProgressPhase(progress.phase) },
+							{ "percent", std::to_string(static_cast<int>(fraction * 100.0f)) }});
+					strncpy_s(overlay, overlayText.c_str(), _TRUNCATE);
 				} else {
-					snprintf(overlay, sizeof(overlay), "Recalculating... %d%%",
-						static_cast<int>(fraction * 100.0f));
+					const auto overlayText = FormatText(
+						"progress.recalculating",
+						"Recalculating... {percent}%",
+						{{ "percent", std::to_string(static_cast<int>(fraction * 100.0f)) }});
+					strncpy_s(overlay, overlayText.c_str(), _TRUNCATE);
 				}
 				ImGui::Spacing();
 				if (showCompletedBanner) {
@@ -632,12 +803,17 @@ namespace alchemist::ui {
 				ImGui::Spacing();
 				const ImVec4 amber(1.0f, 0.75f, 0.2f, 1.0f);
 				if (!reason.empty()) {
-					ImGui::TextColored(amber, "Notice: Potion list may be outdated (%s).", reason.c_str());
+					const auto noticeText = FormatText(
+						"stale.noticeWithReason",
+						"Notice: Potion list may be outdated ({reason}).",
+						{{ "reason", LocalizedStaleReason(reason) }});
+					ImGui::TextColored(amber, "%s", noticeText.c_str());
 				} else {
-					ImGui::TextColored(amber, "Notice: Potion list may be outdated.");
+					const auto noticeText = Text("stale.notice", "Notice: Potion list may be outdated.");
+					ImGui::TextColored(amber, "%s", noticeText.c_str());
 				}
 				ImGui::SameLine();
-				if (ImGui::Button("Recalculate##ManualStale")) {
+				if (ImGui::Button((Text("ui.recalculate", "Recalculate") + "##ManualStale").c_str())) {
 					engine::RequestManualRecalculate();
 				}
 				ImGui::Spacing();
@@ -674,11 +850,17 @@ namespace alchemist::ui {
 					ImGui::SetScrollY(0.0f);
 					pageChanged = false;
 				}
-				ImGui::TableSetupColumn("Recipe", ImGuiTableColumnFlags_WidthFixed, 170.0f);
-				ImGui::TableSetupColumn("Ingredients", ImGuiTableColumnFlags_WidthStretch);
-				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+				const auto recipeHeader = Text("table.recipe", "Recipe");
+				const auto ingredientsHeader = Text("table.ingredients", "Ingredients");
+				const auto valueHeader = Text("table.value", "Value");
+				const auto effectsHeader = Text("table.effects", "Effects");
+				const float recipeColumnWidth = (std::max)(170.0f, ImGui::CalcTextSize(recipeHeader.c_str()).x + 24.0f);
+				const float valueColumnWidth = (std::max)(90.0f, ImGui::CalcTextSize(valueHeader.c_str()).x + 24.0f);
+				ImGui::TableSetupColumn(recipeHeader.c_str(), ImGuiTableColumnFlags_WidthFixed, recipeColumnWidth);
+				ImGui::TableSetupColumn(ingredientsHeader.c_str(), ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableSetupColumn(valueHeader.c_str(), ImGuiTableColumnFlags_WidthFixed, valueColumnWidth);
 				if (showEffectsColumn) {
-					ImGui::TableSetupColumn("Effects", ImGuiTableColumnFlags_WidthStretch);
+					ImGui::TableSetupColumn(effectsHeader.c_str(), ImGuiTableColumnFlags_WidthStretch);
 				}
 				ImGui::TableHeadersRow();
 
@@ -746,17 +928,24 @@ namespace alchemist::ui {
 			if (ImGui::BeginChild("RecipePaginationFooter", ImVec2(0.0f, footerChildHeight), true, ImGuiWindowFlags_NoScrollbar)) {
 				if (isUpdating || (totalPotions == 0 && (progress.isUpdating || (progress.progressFraction > 0.0f && progress.progressFraction < 1.0f)))) {
 					ImGui::AlignTextToFramePadding();
-					ImGui::TextColored(ImVec4(0.92f, 0.82f, 0.45f, 1.0f), "Finalizing potion list... Loading page data");
+					const auto finalizingText = Text("pagination.finalizing", "Finalizing potion list... Loading page data");
+					ImGui::TextColored(ImVec4(0.92f, 0.82f, 0.45f, 1.0f), "%s", finalizingText.c_str());
 				} else if (totalPotions == 0) {
 					ImGui::AlignTextToFramePadding();
 					if (searchText[0] != '\0') {
-						ImGui::TextDisabled("No recipes match the search filter");
+						const auto noMatchText = Text("pagination.noSearchResults", "No recipes match the search filter");
+						ImGui::TextDisabled("%s", noMatchText.c_str());
 					} else {
-						ImGui::TextDisabled("No recipes available");
+						const auto noRecipesText = Text("pagination.noRecipes", "No recipes available");
+						ImGui::TextDisabled("%s", noRecipesText.c_str());
 					}
 				} else if (pageInfo.totalPages <= 1) {
 					ImGui::AlignTextToFramePadding();
-					ImGui::TextColored(ImVec4(0.92f, 0.82f, 0.45f, 1.0f), "%zu potions", totalPotions);
+					const auto potionCountText = FormatText(
+						"pagination.potions",
+						"{count} potions",
+						{{ "count", std::to_string(totalPotions) }});
+					ImGui::TextColored(ImVec4(0.92f, 0.82f, 0.45f, 1.0f), "%s", potionCountText.c_str());
 				} else {
 					const float btnPaddingX = 5.0f;
 					ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3.0f, style.ItemSpacing.y));
@@ -793,7 +982,13 @@ namespace alchemist::ui {
 
 					ImGui::SameLine();
 					ImGui::AlignTextToFramePadding();
-					ImGui::TextColored(ImVec4(0.92f, 0.82f, 0.45f, 1.0f), "Page %d of %d (%zu potions)", currentPage, pageInfo.totalPages, totalPotions);
+				const auto pageText = FormatText(
+					"pagination.page",
+					"Page {page} of {pages} ({count} potions)",
+					{{ "page", std::to_string(currentPage) },
+						{ "pages", std::to_string(pageInfo.totalPages) },
+						{ "count", std::to_string(totalPotions) }});
+				ImGui::TextColored(ImVec4(0.92f, 0.82f, 0.45f, 1.0f), "%s", pageText.c_str());
 
 					for (int p = currentPage + 1; p <= endNext; ++p) {
 						ImGui::SameLine();
@@ -838,18 +1033,17 @@ namespace alchemist::ui {
 
 			bool recalculate = false;
 			bool textInputActive = false;
-			if (ImGui::Button("< Back to recipes")) {
+			if (ImGui::Button((Text("settings.back", "< Back to recipes") + "##BackToRecipes").c_str())) {
 				settingsOpen = false;
 				settingsBuffersInitialized = false;
 				searchInputFocused.store(false, std::memory_order_release);
 				ImGui::ClearActiveID();
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("Reset all settings")) {
+			if (ImGui::Button((Text("settings.reset", "Reset all settings") + "##ResetSettings").c_str())) {
 				kIgnorePlayer.SetValue(kIgnorePlayer.GetValueDefault());
 				kProtectIngredients.SetValue(kProtectIngredients.GetValueDefault());
 				kSinglethreaded.SetValue(kSinglethreaded.GetValueDefault());
-				kNumberOfIngredientsToStressTest.SetValue(kNumberOfIngredientsToStressTest.GetValueDefault());
 				kProtectedIngredients.SetValue(kDefaultProtectedIngredients);
 				kPotionPoison.SetValue(kPotionPoison.GetValueDefault());
 				kCacheDurationSeconds.SetValue(kCacheDurationSeconds.GetValueDefault());
@@ -862,67 +1056,69 @@ namespace alchemist::ui {
 			}
 
 			ImGui::Separator();
-			ImGui::TextColored(ImVec4(1.0f, 0.84f, 0.0f, 1.0f), "Settings");
-			ImGui::TextDisabled("Changes are saved to alchemist.ini automatically.");
+			const auto settingsText = Text("settings.title", "Settings");
+			ImGui::TextColored(ImVec4(1.0f, 0.84f, 0.0f, 1.0f), "%s", settingsText.c_str());
+			const auto settingsSavedText = Text("settings.saved", "Changes are saved to alchemist.ini automatically.");
+			ImGui::TextDisabled("%s", settingsSavedText.c_str());
 			ImGui::BeginChild("SettingsScroll", ImVec2(0.0f, 0.0f), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
-			ImGui::SeparatorText("Calculation");
+			ImGui::SeparatorText(Text("settings.calculation", "Calculation").c_str());
 
 			bool usePlayerStats = kIgnorePlayer.GetValue() == 0;
-			if (ImGui::Checkbox("Use player's Alchemy stats", &usePlayerStats)) {
+			if (ImGui::Checkbox(Text("settings.usePlayerStats", "Use player's Alchemy stats").c_str(), &usePlayerStats)) {
 				kIgnorePlayer.SetValue(usePlayerStats ? 0 : 1);
 				SaveSettings();
 				recalculate = true;
 			}
-			ImGui::TextDisabled("Includes Alchemy skill, perks, and worn Fortify Alchemy equipment.");
+			ImGui::TextDisabled("%s", Text("settings.usePlayerStatsDescription", "Includes Alchemy skill, perks, and worn Fortify Alchemy equipment.").c_str());
 
 			bool useSingleThreadedCalculation = kSinglethreaded.GetValue() != 0;
-			if (ImGui::Checkbox("Use single-threaded calculation", &useSingleThreadedCalculation)) {
+			if (ImGui::Checkbox(Text("settings.singleThreaded", "Use single-threaded calculation").c_str(), &useSingleThreadedCalculation)) {
 				kSinglethreaded.SetValue(useSingleThreadedCalculation ? 1 : 0);
 				SaveSettings();
 				recalculate = true;
 			}
-			ImGui::TextDisabled("Disable this option to use the multithreaded calculation path.");
+			ImGui::TextDisabled("%s", Text("settings.singleThreadedDescription", "Disable this option to use the multithreaded calculation path.").c_str());
 
 			int cacheDuration = kCacheDurationSeconds.GetValue();
 			ImGui::SetNextItemWidth(120.0f);
-			if (ImGui::InputInt("Cache duration (seconds)", &cacheDuration, 10, 60)) {
+			if (ImGui::InputInt(Text("settings.cacheDuration", "Cache duration (seconds)").c_str(), &cacheDuration, 10, 60)) {
 				kCacheDurationSeconds.SetValue((std::max)(0, cacheDuration));
 				SaveSettings();
 			}
-			ImGui::TextDisabled("How long to keep master recipe cache in memory after closing the alchemy menu (default 180s).");
+			ImGui::TextDisabled("%s", Text("settings.cacheDurationDescription", "How long to keep master recipe cache in memory after closing the alchemy menu (default 180s).").c_str());
 
 			int staleThreshold = kStaleRecalculateThresholdMs.GetValue();
 			ImGui::SetNextItemWidth(120.0f);
-			if (ImGui::InputInt("Stale recalculate threshold (ms)", &staleThreshold, 50, 250)) {
+			if (ImGui::InputInt(Text("settings.staleThreshold", "Stale recalculate threshold (ms)").c_str(), &staleThreshold, 50, 250)) {
 				kStaleRecalculateThresholdMs.SetValue((std::max)(0, staleThreshold));
 				SaveSettings();
 			}
-			ImGui::TextDisabled("If calculation took longer than this, defer recalculations during crafting and show manual Recalculate button (default 500ms).");
+			ImGui::TextDisabled("%s", Text("settings.staleThresholdDescription", "If calculation took longer than this, defer recalculations during crafting and show manual Recalculate button (default 500ms).").c_str());
 
 			int debounceMs = kCraftDebounceMs.GetValue();
 			ImGui::SetNextItemWidth(120.0f);
-			if (ImGui::InputInt("Craft debounce delay (ms)", &debounceMs, 50, 100)) {
+			if (ImGui::InputInt(Text("settings.debounce", "Craft debounce delay (ms)").c_str(), &debounceMs, 50, 100)) {
 				kCraftDebounceMs.SetValue((std::max)(0, debounceMs));
 				SaveSettings();
 			}
-			ImGui::TextDisabled("Delay before running background recalculation after rapid crafting clicks (default 400ms).");
+			ImGui::TextDisabled("%s", Text("settings.debounceDescription", "Delay before running background recalculation after rapid crafting clicks (default 400ms).").c_str());
 
 			bool filterPotionsBySelectedIngredients = kFilterPotionsBySelectedIngredients.GetValue() != 0;
-			if (ImGui::Checkbox("Filter potions by selected ingredients", &filterPotionsBySelectedIngredients)) {
+			if (ImGui::Checkbox(Text("settings.filterSelected", "Filter potions by selected ingredients").c_str(), &filterPotionsBySelectedIngredients)) {
 				kFilterPotionsBySelectedIngredients.SetValue(filterPotionsBySelectedIngredients ? 1 : 0);
 				SaveSettings();
 			}
-			ImGui::TextDisabled("Show only potions made from ingredients currently selected in the Skyrim alchemy menu. With no ingredients selected, all potions are shown.");
+			ImGui::TextDisabled("%s", Text("settings.filterSelectedDescription", "Show only potions made from ingredients currently selected in the Skyrim alchemy menu. With no ingredients selected, all potions are shown.").c_str());
 
-			ImGui::SeparatorText("Ingredient protection");
+			ImGui::SeparatorText(Text("settings.ingredientProtection", "Ingredient protection").c_str());
 			bool protectIngredients = kProtectIngredients.GetValue() != 0;
-			if (ImGui::Checkbox("Protect ingredients", &protectIngredients)) {
+			if (ImGui::Checkbox(Text("settings.protectIngredients", "Protect ingredients").c_str(), &protectIngredients)) {
 				kProtectIngredients.SetValue(protectIngredients ? 1 : 0);
 				SaveSettings();
 				recalculate = true;
 			}
-			ImGui::TextDisabled("Ingredients are protected only while this option is checked.");
-			if (ImGui::Button("Add protected ingredient")) {
+			ImGui::TextDisabled("%s", Text("settings.protectIngredientsDescription", "Ingredients are protected only while this option is checked.").c_str());
+			if (ImGui::Button((Text("settings.addProtected", "Add protected ingredient") + "##AddProtectedIngredient").c_str())) {
 				protectedIngredientSearch[0] = '\0';
 				focusProtectedIngredientSearch = true;
 				const auto buttonRectMin = ImGui::GetItemRectMin();
@@ -940,7 +1136,7 @@ namespace alchemist::ui {
 					focusProtectedIngredientSearch = false;
 				}
 				ImGui::SetNextItemWidth(-1.0f);
-				ImGui::InputTextWithHint("##ProtectedIngredientSearch", "Type an ingredient to protect...", protectedIngredientSearch, sizeof(protectedIngredientSearch));
+				ImGui::InputTextWithHint("##ProtectedIngredientSearch", Text("settings.protectedSearchHint", "Type an ingredient to protect...").c_str(), protectedIngredientSearch, sizeof(protectedIngredientSearch));
 				ingredientSearchActive = ImGui::IsItemActive();
 				const std::string searchQuery(protectedIngredientSearch);
 				auto suggestions = GetIngredientNames();
@@ -955,7 +1151,7 @@ namespace alchemist::ui {
 					return leftScore == rightScore ? left < right : leftScore < rightScore;
 				});
 				if (suggestions.empty()) {
-					ImGui::TextDisabled("No available ingredients match the search.");
+					ImGui::TextDisabled("%s", Text("settings.noAvailableIngredients", "No available ingredients match the search.").c_str());
 				} else {
 					for (const auto& suggestion : suggestions) {
 						if (ImGui::Selectable(suggestion.c_str())) {
@@ -971,20 +1167,20 @@ namespace alchemist::ui {
 			}
 			textInputActive = textInputActive || ingredientSearchActive;
 
-			if (ImGui::Button("Clear all protected ingredients")) {
+			if (ImGui::Button((Text("settings.clearProtected", "Clear all protected ingredients") + "##ClearProtected").c_str())) {
 				protectedIngredients.clear();
 				SaveProtectedIngredients();
 				recalculate = true;
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("Restore default protected ingredients")) {
+			if (ImGui::Button((Text("settings.restoreProtected", "Restore default protected ingredients") + "##RestoreProtected").c_str())) {
 				kProtectedIngredients.SetValue(kDefaultProtectedIngredients);
 				LoadProtectedIngredients();
 				SaveSettings();
 				recalculate = true;
 			}
 			if (protectedIngredients.empty()) {
-				ImGui::TextDisabled("No protected ingredients added.");
+				ImGui::TextDisabled("%s", Text("settings.noProtected", "No protected ingredients added.").c_str());
 			}
 			for (std::size_t index = 0; index < protectedIngredients.size();) {
 				auto& entry = protectedIngredients[index];
@@ -992,8 +1188,8 @@ namespace alchemist::ui {
 				ImGui::TextUnformatted(entry.name.c_str());
 				ImGui::SameLine(300.0f);
 				bool protectAll = entry.count < 0;
-				const char* protectionLabel = protectAll ? "Protecting all" : "Protecting";
-				if (ImGui::Checkbox(protectionLabel, &protectAll)) {
+				const auto protectionLabel = Text(protectAll ? "settings.protectingAll" : "settings.protecting", protectAll ? "Protecting all" : "Protecting");
+				if (ImGui::Checkbox((protectionLabel + "##ProtectionMode").c_str(), &protectAll)) {
 					if (protectAll) {
 						entry.previousCount = (std::max)(1, entry.count);
 						entry.count = -1;
@@ -1014,7 +1210,7 @@ namespace alchemist::ui {
 					}
 				}
 				ImGui::SameLine();
-				if (ImGui::SmallButton("Remove")) {
+				if (ImGui::SmallButton((Text("settings.remove", "Remove") + "##RemoveProtected").c_str())) {
 					protectedIngredients.erase(protectedIngredients.begin() + static_cast<std::ptrdiff_t>(index));
 					SaveProtectedIngredients();
 					recalculate = true;
@@ -1025,9 +1221,9 @@ namespace alchemist::ui {
 				++index;
 			}
 
-			ImGui::SeparatorText("Naming");
+			ImGui::SeparatorText(Text("settings.naming", "Naming").c_str());
 			ImGui::SetNextItemWidth(-1.0f);
-			if (ImGui::InputText("Potion prefix", potionPrefix, sizeof(potionPrefix))) {
+			if (ImGui::InputText(Text("settings.potionPrefix", "Potion prefix").c_str(), potionPrefix, sizeof(potionPrefix))) {
 				kPotionPoison.SetValue(std::string(potionPrefix) + "," + poisonPrefix);
 				SaveSettings();
 			}
@@ -1037,24 +1233,15 @@ namespace alchemist::ui {
 			}
 
 			ImGui::SetNextItemWidth(-1.0f);
-			if (ImGui::InputText("Poison prefix", poisonPrefix, sizeof(poisonPrefix))) {
+			if (ImGui::InputText(Text("settings.poisonPrefix", "Poison prefix").c_str(), poisonPrefix, sizeof(poisonPrefix))) {
 				kPotionPoison.SetValue(std::string(potionPrefix) + "," + poisonPrefix);
 				SaveSettings();
 			}
 			textInputActive = textInputActive || ImGui::IsItemActive();
-			ImGui::TextDisabled("Prefixes are applied to beneficial potion and harmful poison names.");
+			ImGui::TextDisabled("%s", Text("settings.prefixDescription", "Prefixes are applied to beneficial potion and harmful poison names.").c_str());
 			if (ImGui::IsItemDeactivatedAfterEdit()) {
 				recalculate = true;
 			}
-
-			ImGui::SeparatorText("Advanced diagnostics");
-			int stressTestCount = kNumberOfIngredientsToStressTest.GetValue();
-			if (ImGui::InputInt("Stress-test ingredient count", &stressTestCount)) {
-				kNumberOfIngredientsToStressTest.SetValue(stressTestCount);
-				SaveSettings();
-				recalculate = true;
-			}
-			ImGui::TextDisabled("0 disables diagnostics, a positive value runs a stress test, and negative values behave like 0.");
 
 			ImGui::EndChild();
 			searchInputFocused.store(textInputActive, std::memory_order_release);
@@ -1115,6 +1302,15 @@ namespace alchemist::ui {
 		mouseWheelDelta.fetch_add(a_delta, std::memory_order_release);
 	}
 
+	void AddInputCharacter(std::uint32_t a_codePoint)
+	{
+		if (a_codePoint == 0 || a_codePoint > 0x10FFFF || (a_codePoint >= 0xD800 && a_codePoint <= 0xDFFF)) {
+			return;
+		}
+		std::scoped_lock lock(pendingTextInputMutex);
+		pendingTextInput.push_back(a_codePoint);
+	}
+
 	void UpdateImGuiMouseInput()
 	{
 		auto& io = ImGui::GetIO();
@@ -1147,6 +1343,8 @@ namespace alchemist::ui {
 		searchRectMax = ImVec2(-1.0f, -1.0f);
 		searchInputFocused.store(false, std::memory_order_release);
 		focusSearch = false;
+		std::scoped_lock lock(pendingTextInputMutex);
+		pendingTextInput.clear();
 	}
 
 	void ProcessKeyboardInput()
@@ -1164,13 +1362,15 @@ namespace alchemist::ui {
 
 		const bool hasTextInputFocus = searchInputFocused.load(std::memory_order_acquire) || ImGui::GetIO().WantTextInput;
 		if (IsVisible() && hasTextInputFocus) {
-			BYTE nativeKeyboardState[256]{};
-			GetKeyboardState(nativeKeyboardState);
-			for (const auto key : { VK_SHIFT, VK_LSHIFT, VK_RSHIFT, VK_CONTROL, VK_LCONTROL, VK_RCONTROL, VK_MENU, VK_LMENU, VK_RMENU }) {
-				nativeKeyboardState[key] = keyboardState[key] ? 0x80 : 0;
-			}
-			const auto keyboardLayout = GetKeyboardLayout(0);
 			auto& io = ImGui::GetIO();
+			std::vector<std::uint32_t> textInput;
+			{
+				std::scoped_lock lock(pendingTextInputMutex);
+				textInput.swap(pendingTextInput);
+			}
+			for (const auto codePoint : textInput) {
+				io.AddInputCharacter(codePoint);
+			}
 			const auto currentTime = std::chrono::steady_clock::now();
 			const auto backspaceDown = keyboardState[VK_BACK];
 			if (backspaceDown) {
@@ -1207,15 +1407,6 @@ namespace alchemist::ui {
 					io.AddKeyEvent(ImGuiKey_Delete, false);
 					continue;
 				}
-				const auto scanCode = MapVirtualKeyW(static_cast<UINT>(key), MAPVK_VK_TO_VSC);
-				WCHAR characters[4]{};
-				const auto characterCount = ToUnicodeEx(static_cast<UINT>(key), scanCode, nativeKeyboardState,
-					characters, static_cast<int>(std::size(characters)), 0, keyboardLayout);
-				if (characterCount > 0) {
-					for (int index = 0; index < characterCount; ++index) {
-						io.AddInputCharacter(static_cast<unsigned int>(characters[index]));
-					}
-				}
 			}
 		}
 		previousKeyboardState = keyboardState;
@@ -1231,6 +1422,10 @@ namespace alchemist::ui {
 		focusSearch = false;
 		focusProtectedIngredientSearch = false;
 		searchInputFocused.store(false, std::memory_order_release);
+		{
+			std::scoped_lock lock(pendingTextInputMutex);
+			pendingTextInput.clear();
+		}
 		if (ImGui::GetCurrentContext()) {
 			ImGui::ClearActiveID();
 		}
@@ -1331,7 +1526,8 @@ namespace alchemist::ui {
 			ImGui::SetNextWindowSize(expandedWindowSize, ImGuiCond_Always);
 			windowSizeIsCollapsed = false;
 		}
-		if (!ImGui::Begin("Prosperous Alchemist", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar)) {
+		const auto windowTitle = Text("window.title", "Prosperous Alchemist") + "##AlchemistWindow";
+		if (!ImGui::Begin(windowTitle.c_str(), nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar)) {
 			const auto windowPosition = ImGui::GetWindowPos();
 			const auto windowSize = ImGui::GetWindowSize();
 			cursorOverWindow.store(

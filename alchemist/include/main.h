@@ -37,7 +37,6 @@ inline REX::INI::I32<> kIgnorePlayer("General", "IgnorePlayer", 0);
 inline REX::INI::I32<> kDeveloper("General", "developer", 0);
 inline REX::INI::I32<> kProtectIngredients("General", "ProtectIngredients", 0);
 inline REX::INI::I32<> kSinglethreaded("General", "Singlethreaded", 0);
-inline REX::INI::I32<> kNumberOfIngredientsToStressTest("General", "NumberOfIngredientsToStressTest", 0);
 inline constexpr char kDefaultProtectedIngredients[] = "Berit's Ashes,Bliss Bug Thorax|11,Bone Hawk Claw,Briar Heart|3,Corkbulb Root,Corrupted Human Heart,Crimson Nirnroot|31,Daedra Heart,Deathbell|32,Dragon's Tongue|11,Ectoplasm|11,Farengar's Frost Salt,Fine-Cut Void Salts,Fire Salts|21,Frost Mirriam|11,Frost Salts|11,Giant's Toe|3,Goldfish|2,Hagraven Claw|2,Hagraven Feathers|2,Human Heart,Ice Wraith Teeth|6,Ironwood Fruit|2,Jarrin Root,Jazbay Grapes|21,Juniper Berries|2,Juvenile Mudcrab|2,Large Antlers,Mudcrab Chitin,Netch Jelly|6,Nightshade|21,Nirnroot|21,Salt Pile|11,Scathecraw|11,Simon Rodayne's Heart,Slaughterfish Scales,Taproot|4,Torchbug Abdomen|11,Torchbug Thorax|11,Troll Fat|2,Vampire Dust|3,Void Salts|12";
 inline REX::INI::Str<> kProtectedIngredients("General", "ProtectedIngredients", kDefaultProtectedIngredients);
 inline REX::INI::Str<> kPotionPoison("General", "PotionPoison", "Potion of,Poison of");
@@ -45,6 +44,7 @@ inline REX::INI::I32<> kCacheDurationSeconds("General", "CacheDurationSeconds", 
 inline REX::INI::I32<> kStaleRecalculateThresholdMs("General", "StaleRecalculateThresholdMs", 500);
 inline REX::INI::I32<> kCraftDebounceMs("General", "CraftDebounceMs", 400);
 inline REX::INI::I32<> kFilterPotionsBySelectedIngredients("General", "FilterPotionsBySelectedIngredients", 1);
+inline REX::INI::Str<> kLanguage("Localization", "Language", "");
 
 
 namespace alchemist {
@@ -1661,7 +1661,6 @@ namespace alchemist {
 
 
 	void initAlchemist();
-	void stressTest();
 	void makePotions();
 	void makePotionsST();
 }

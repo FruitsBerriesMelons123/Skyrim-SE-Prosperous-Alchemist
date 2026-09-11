@@ -5,6 +5,7 @@ from typing import Final
 
 
 CMAKE_DIR: Final = Path(r"D:\Apps\CMake\bin")
+MD2NEXUS: Final = Path(r"D:\Apps\md2nexus\md2nexus.exe")
 NINJA_DIR: Final = Path(r"D:\Apps\ninja")
 MO2_PROFILE: Final = Path(r"E:\Projects\games\skyrim\1.6.1170")
 SKSE_SOURCE: Final = Path(r"E:\Projects\games\skyrim\skse\skse64_2_03_01\src")
@@ -19,6 +20,7 @@ DLL_DEPLOY: Final = Path(
 
 PATHS: Final = {
 	"cmake_dir": CMAKE_DIR,
+	"md2nexus": MD2NEXUS,
 	"ninja_dir": NINJA_DIR,
 	"mo2_profile": MO2_PROFILE,
 	"skse_source": SKSE_SOURCE,
@@ -32,6 +34,7 @@ PATHS: Final = {
 __all__ = [
 	"CMAKE_DIR",
 	"DLL_DEPLOY",
+	"MD2NEXUS",
 	"MO2_PROFILE",
 	"NINJA_DIR",
 	"PATHS",

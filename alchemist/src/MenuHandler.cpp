@@ -89,6 +89,9 @@ namespace alchemist::menu {
 					if (!ui::IsSearchInputFocused()) {
 						return RE::BSEventNotifyControl::kContinue;
 					}
+					if (const auto* charEvent = event->AsCharEvent()) {
+						ui::AddInputCharacter(charEvent->keyCode);
+					}
 					return RE::BSEventNotifyControl::kStop;
 				}
 				if (event->GetEventType() == RE::INPUT_EVENT_TYPE::kButton) {

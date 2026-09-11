@@ -4,6 +4,7 @@
 #include "DeveloperTestHub.h"
 #include "MenuHandler.h"
 #include "RenderHook.h"
+#include "Localization.h"
 
 #include <array>
 
@@ -474,22 +475,6 @@ namespace alchemist {
 		}
 	}
 
-	void stressTest() {
-		int stressTestCount = kNumberOfIngredientsToStressTest.GetValue();
-		ingredients.clear();
-		auto* dataHandler = RE::TESDataHandler::GetSingleton();
-		if (!dataHandler) {
-			return;
-		}
-		auto& allIngredients = dataHandler->GetFormArray<IngredientItem>();
-		const auto requestedCount = stressTestCount > 0 ? static_cast<std::size_t>(stressTestCount) : 0;
-		const std::size_t availableCount = allIngredients.size();
-		const auto selectedCount = (std::min)(availableCount, requestedCount);
-		for (std::size_t i = 0; i < selectedCount; ++i) {
-			ingredients.insert(Ingredient(allIngredients[i]));
-		}
-	}
-
 }
 
 void MessageHandler(SKSE::MessagingInterface::Message* msg)
@@ -523,6 +508,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse)
 	REX::INI::SettingStore::GetSingleton()->Init("Data\\SKSE\\Plugins\\alchemist.ini", "");
 	REX::INI::SettingStore::GetSingleton()->Load();
 	REX::INI::SettingStore::GetSingleton()->Save();
+	alchemist::localization::Initialize(kLanguage.GetValue());
 
 	const auto* messaging = SKSE::GetMessagingInterface();
 	if (!messaging || messaging->Version() < SKSE::MessagingInterface::kVersion) {

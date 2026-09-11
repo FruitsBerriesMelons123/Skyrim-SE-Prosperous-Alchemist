@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.21)
 project(
 	alchemist
 	LANGUAGES CXX
-	VERSION 1.1.0.0
+	VERSION 1.2.0.0
 )
 
 set(COMMONLIBSSE_DIR "../alandtse-CommonLibSSE-NG" CACHE PATH "Path to the CommonLibSSE-NG checkout")
@@ -62,13 +62,15 @@ add_commonlibsse_plugin(
 	alchemist
 	NAME "alchemist"
 	AUTHOR "FruitsBerriesMelons123"
-	VERSION "1.1.0.0"
+	VERSION "1.2.0.0"
 	USE_ADDRESS_LIBRARY
 	SOURCES
 		AlchemyPlus/AlchemyPlus.cpp
 		AlchemyPlus/AlchemyPlus.h
 		CACO/CACO.cpp
 		CACO/CACO.h
+		src/Localization.cpp
+		src/PluginPaths.cpp
 		src/main.cpp
 		src/AlchemistEngine.cpp
 		src/AlchemistWindow.cpp

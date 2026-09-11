@@ -3,6 +3,9 @@
 ## CMake
 - `D:\Apps\CMake\bin`
 
+## Markdown to Nexus converter
+- `D:\Apps\md2nexus\md2nexus.exe`
+
 ## Ninja
 - `D:\Apps\ninja`
 

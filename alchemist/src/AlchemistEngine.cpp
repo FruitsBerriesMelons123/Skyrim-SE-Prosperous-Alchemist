@@ -218,10 +218,6 @@ namespace alchemist::engine {
 		RecalculationSnapshot CaptureSnapshot()
 		{
 			initAlchemist();
-			const auto stressTestCount = kNumberOfIngredientsToStressTest.GetValue();
-			if (stressTestCount > 0) {
-				stressTest();
-			}
 
 			RecalculationSnapshot snapshot;
 			snapshot.ingredients.assign(ingredients.begin(), ingredients.end());

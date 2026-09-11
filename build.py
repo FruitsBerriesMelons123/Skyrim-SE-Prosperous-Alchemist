@@ -2,7 +2,9 @@
 
 The wrapper is intentionally Windows/x64-focused: it configures the standalone
 ``alchemist`` CMake consumer with Ninja, validates a fresh DLL, and copies that
-DLL to the locally configured deployment path.
+DLL to the locally configured deployment path. With ``--package``, it also
+converts the user guide to a Nexus-ready BBCode text file in ``dist`` before
+creating the release archive.
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ status_file = None
 BUILD_TYPE = "Release"
 GENERATOR = "Ninja"
 TARGET = "alchemist"
+NEXUS_BBCODE_FILENAME = "Prosperous-Alchemist-NG-nexus-description.bbcode.txt"
 PLUGIN_CLEAN_RULES = (
 	"CXX_SCAN__alchemist_Release",
 	"CXX_DYNDEP__alchemist_Release",
@@ -353,10 +356,53 @@ def verify_deployment(artifact: Path, deployed: Path) -> bool:
 	return True
 
 
-def package_release(repo_root: Path, artifact: Path, package_path: Path | None = None) -> Path:
+def convert_user_readme_to_bbcode(repo_root: Path, md2nexus: Path, output_path: Path) -> Path:
+	source_path = repo_root / "docs" / "USER_README.md"
+	if not source_path.is_file():
+		raise FileNotFoundError(f"User readme does not exist: {source_path}")
+	if not md2nexus.is_file():
+		raise FileNotFoundError(f"md2nexus executable does not exist: {md2nexus}")
+
+	output_path.parent.mkdir(parents=True, exist_ok=True)
+	try:
+		output_path.unlink()
+	except FileNotFoundError:
+		pass
+
+	report(f"Generating Nexus BBCode from {source_path} to {output_path}.")
+	exit_code = run_process(
+		[
+			str(md2nexus),
+			"--input",
+			str(source_path),
+			"--output",
+			str(output_path),
+		],
+		repo_root,
+	)
+	if exit_code != 0:
+		raise RuntimeError(f"md2nexus failed with exit={exit_code}")
+	if not output_path.is_file() or output_path.stat().st_size == 0:
+		raise RuntimeError(f"md2nexus did not create a non-empty output file: {output_path}")
+	report(f"Nexus BBCode created successfully: {output_path} ({output_path.stat().st_size} bytes)")
+	return output_path
+
+
+def package_release(
+	repo_root: Path,
+	artifact: Path,
+	md2nexus: Path,
+	package_path: Path | None = None,
+) -> Path:
 	if package_path is None:
-		package_path = repo_root / "dist" / "Prosperous-Alchemist-NG-v1.1.X.zip"
+		package_path = repo_root / "dist" / "Prosperous-Alchemist-NG-v1.2.X.zip"
 	package_path.parent.mkdir(parents=True, exist_ok=True)
+
+	convert_user_readme_to_bbcode(
+		repo_root,
+		md2nexus,
+		repo_root / "dist" / NEXUS_BBCODE_FILENAME,
+	)
 
 	ini_path = repo_root / "alchemist.ini"
 
@@ -365,6 +411,13 @@ def package_release(repo_root: Path, artifact: Path, package_path: Path | None =
 		zf.write(artifact, "SKSE/Plugins/alchemist.dll")
 		if ini_path.is_file():
 			zf.write(ini_path, "SKSE/Plugins/alchemist.ini")
+		for resource_directory_name in ("locales", "fonts"):
+			resource_directory = repo_root / resource_directory_name
+			if resource_directory.is_dir():
+				for resource_path in sorted(resource_directory.rglob("*")):
+					if resource_path.is_file():
+						relative_path = resource_path.relative_to(resource_directory).as_posix()
+						zf.write(resource_path, f"SKSE/Plugins/{resource_directory_name}/{relative_path}")
 		if (repo_root / "COPYING").is_file():
 			zf.write(repo_root / "COPYING", "COPYING")
 		if (repo_root / "EXCEPTIONS.md").is_file():
@@ -398,15 +451,16 @@ def main() -> int:
 	build_dir = (repo_root / args.build_dir).resolve()
 	status_file = build_dir / ".build-status.txt"
 	try:
-		from config import CMAKE_DIR, DLL_DEPLOY, NINJA_DIR, VCPKG_STATIC_DIR
+		from config import CMAKE_DIR, DLL_DEPLOY, MD2NEXUS, NINJA_DIR, VCPKG_STATIC_DIR
 	except ImportError as error:
-		report(f"Missing config.py; copy example-config.py and set local paths: {error}")
+		report(f"Missing config.py; copy config.example.py and set local paths: {error}")
 		return 2
 	if args.cmake == "cmake" and Path(CMAKE_DIR).is_dir():
 		args.cmake = str(Path(CMAKE_DIR) / "cmake.exe")
 	os.environ["PATH"] = str(NINJA_DIR) + os.pathsep + os.environ.get("PATH", "")
 	vcpkg_static_dir = Path(VCPKG_STATIC_DIR).resolve()
 	deployed = Path(DLL_DEPLOY).resolve()
+	md2nexus = Path(MD2NEXUS).resolve()
 	artifact = build_dir / f"{TARGET}.dll"
 	if not source_dir.is_dir():
 		report(f"CMake source directory does not exist: {source_dir}")
@@ -489,7 +543,7 @@ def main() -> int:
 	if not verify_deployment(artifact, deployed):
 		return 4
 	if args.package:
-		package_release(repo_root, artifact)
+		package_release(repo_root, artifact, md2nexus)
 	report("Build completed with a fresh artifact.")
 	return 0
 
