@@ -80,23 +80,33 @@ namespace alchemist::menu {
 					return RE::BSEventNotifyControl::kContinue;
 				}
 
-				auto* event = *a_event;
-				if (event->GetEventType() == RE::INPUT_EVENT_TYPE::kMouseMove ||
-					event->GetEventType() == RE::INPUT_EVENT_TYPE::kButton) {
-					CaptureNativeCursor();
-				}
-				if (event->GetEventType() == RE::INPUT_EVENT_TYPE::kChar) {
-					if (!ui::IsSearchInputFocused()) {
-						return RE::BSEventNotifyControl::kContinue;
+				bool stopPropagation = false;
+				for (auto* event = *a_event; event; event = event->next) {
+					if (event->GetEventType() == RE::INPUT_EVENT_TYPE::kMouseMove ||
+						event->GetEventType() == RE::INPUT_EVENT_TYPE::kButton) {
+						CaptureNativeCursor();
 					}
-					if (const auto* charEvent = event->AsCharEvent()) {
-						ui::AddInputCharacter(charEvent->keyCode);
+					if (event->GetEventType() == RE::INPUT_EVENT_TYPE::kChar) {
+						if (const auto* charEvent = event->AsCharEvent()) {
+							ui::AddInputCharacter(charEvent->keyCode);
+						}
+						stopPropagation = stopPropagation || ui::IsSearchInputFocused();
+						continue;
 					}
-					return RE::BSEventNotifyControl::kStop;
-				}
-				if (event->GetEventType() == RE::INPUT_EVENT_TYPE::kButton) {
+					if (event->GetEventType() != RE::INPUT_EVENT_TYPE::kButton) {
+						continue;
+					}
+
 					auto* buttonEvent = event->AsButtonEvent();
+					if (buttonEvent && buttonEvent->GetDevice() == RE::INPUT_DEVICE::kKeyboard) {
+						ui::AddInputKey(buttonEvent->GetIDCode(), buttonEvent->IsPressed());
+						stopPropagation = stopPropagation || ui::IsSearchInputFocused();
+						continue;
+					}
 					if (buttonEvent && buttonEvent->GetDevice() == RE::INPUT_DEVICE::kMouse) {
+						if (buttonEvent->GetIDCode() == static_cast<std::uint32_t>(RE::BSWin32MouseDevice::Key::kLeftButton)) {
+							ui::SetLeftMouseButtonDown(buttonEvent->IsPressed());
+						}
 						if (buttonEvent->IsPressed()) {
 							switch (buttonEvent->GetIDCode()) {
 							case RE::BSWin32MouseDevice::Key::kWheelUp:
@@ -109,14 +119,12 @@ namespace alchemist::menu {
 								break;
 							}
 						}
-						return ui::IsCursorOverWindow() ? RE::BSEventNotifyControl::kStop : RE::BSEventNotifyControl::kContinue;
+						stopPropagation = stopPropagation || ui::IsCursorOverWindow();
+						continue;
 					}
-					if (!ui::IsSearchInputFocused()) {
-						return RE::BSEventNotifyControl::kContinue;
-					}
-					return RE::BSEventNotifyControl::kStop;
+					stopPropagation = stopPropagation || ui::IsSearchInputFocused();
 				}
-				return RE::BSEventNotifyControl::kContinue;
+				return stopPropagation ? RE::BSEventNotifyControl::kStop : RE::BSEventNotifyControl::kContinue;
 			}
 		};
 

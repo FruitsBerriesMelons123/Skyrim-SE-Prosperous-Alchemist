@@ -11,13 +11,13 @@ Prosperous Alchemist recommends the most valuable potion or poison that can be m
 - **Real-Time Calculations:** Evaluates available ingredients using a long-lived in-memory cache and incremental updates to find the highest-value recipe.
 - **Smart Filtering and Protection:** Exclude rare ingredients such as Jarrin Root or Daedra Hearts, reserve specific quantities, or filter recipes by ingredients currently selected in Skyrim's native menu.
 - **Modern UI:** Renders a Dear ImGui overlay that works alongside Skyrim's native crafting interface.
-- **Broad Compatibility:** Supports Special Edition, Anniversary Edition, GOG, and Skyrim VR through the matching SKSE and Address Library runtime files.
+- **Broad Compatibility:** Supports Special Edition, Anniversary Edition, and Skyrim VR through the matching SKSE and Address Library runtime files.
 
 ## Requirements
 
-- Skyrim Special Edition, Anniversary Edition, GOG, or VR on Windows (see the VR note below).
+- Skyrim Special Edition, Anniversary Edition, or VR on Windows (see the VR note below).
 - [**SKSE64**](https://skse.silverlock.org/) matching the installed Skyrim runtime.
-- [**Address Library for SKSE Plugins**](https://www.nexusmods.com/skyrimspecialedition/mods/32444) for SE, AE, and GOG, or [**VR Address Library for SKSE Plugins**](https://www.nexusmods.com/skyrimspecialedition/mods/58101) for Skyrim VR.
+- [**Address Library for SKSE Plugins**](https://www.nexusmods.com/skyrimspecialedition/mods/32444) for SE and AE, or [**VR Address Library for SKSE Plugins**](https://www.nexusmods.com/skyrimspecialedition/mods/58101) for Skyrim VR.
 - Skyrim's native alchemy/crafting menu; SkyUI is optional and fully supported.
 - The game must be launched through SKSE.
 
@@ -121,15 +121,18 @@ If the file does not exist, it is created with default settings when the plugin 
 
 - **`developer` (`0` / `1`):** Set to `1` to show the Developer Test Hub button and enable the in-game test controls. Leave it at `0` for normal gameplay.
 - **`IgnorePlayer` (`0` / `1`):** Uses the player's Alchemy skill, perks, and worn Fortify Alchemy equipment. Set to `1` to ignore player alchemy state.
-- **`ProtectIngredients` (`0` / `1`):** Ingredient protection is disabled by default. Set to `1` to exclude the configured protected ingredients from recommendations.
+- **`ProtectIngredients` (`0` / `1`):** Enables the unified ingredient protection and tracking system. It defaults to `0`; set it to `1` to protect the configured list, enough ingredients for two of every loaded ingredient-bearing craftable item, selected ingredient effects, and unfinished tracking requirements.
+- **`ManualProtectionOnly` (in `[Tracking]`, `0` / `1`):** Set to `1` to disable automatic quest and craftable reservations and use only manual/custom reservations plus selected protected effects. The automatic sources remain stored and return when this is set back to `0`.
 - **`Singlethreaded` (`0` / `1`):** At `0`, recipe evaluation uses worker threads; at `1`, calculation runs single-threaded on the main thread.
 - **`FilterPotionsBySelectedIngredients` (`0` / `1`):** Set to `1` to show only recipes containing every ingredient currently selected in Skyrim's native alchemy menu. With no ingredients selected, all calculated recipes are shown.
 - **`CacheDurationSeconds`:** Keep the in-memory master recipe cache after closing the alchemy menu for this many seconds (default: `180`). Set to `0` to expire it immediately; no cache file is written.
 - **`StaleRecalculateThresholdMs`:** Keep the current list visible as potentially outdated after a calculation longer than this threshold and show a manual **Recalculate** button (default: `500`). Set to `0` to disable this guard.
 - **`CraftDebounceMs`:** Delay non-forced background recalculation after rapid crafting or inventory changes so repeated requests are coalesced (default: `400`).
-- **`ProtectedIngredients`:** Comma-separated ingredient names, editor IDs, or hexadecimal FormIDs. Use `Name|Count` to reserve a specific quantity, such as `Daedra Heart|3`. An entry without a count protects all copies.
+- **`ProtectedIngredients`:** Comma-separated ingredient names, editor IDs, or hexadecimal FormIDs. The default is empty. Use `Name|Count` to reserve a specific quantity, such as `Daedra Heart|3`. An entry without a count protects all copies.
+- **`ProtectedEffects` (in `[Tracking]`):** Comma-separated loaded ingredient effects to protect. The default Fortify Enchanting and Fortify Smithing selections are applied only when those effects exist; the Track page dynamically lists every available effect.
+- **`ProtectedEffectCounts` (in `[Tracking]`):** Automatically maintained finite quantity defaults for selected effects. Use the Track page to choose protect-all or a quantity per ingredient; individual ingredient details can override a specific detected source.
 - **`PotionPoison`:** Two comma-separated prefixes applied to beneficial potion and harmful poison names (default: `Potion of,Poison of`). CACO quality and secondary-effect text remains when CACO renaming is active.
-- **`Language`:** In `[Localization]`, select a BCP 47 locale such as `fr`, `de`, `zh-CN`, `ja`, or `ko`. Empty or `auto` follows the Windows user interface locale.
+- **`Language`:** In `[Localization]`, select a BCP 47 locale such as `en`, `es`, `zh-CN`, `hi`, `ar`, `pt-BR`, `fr`, `ru`, `ja`, or `de`. Empty or `auto` follows the Windows user interface locale.
 
 Example:
 
@@ -137,7 +140,7 @@ Example:
 [General]
 developer=0
 IgnorePlayer=0
-ProtectIngredients=1
+ProtectIngredients=0
 Singlethreaded=0
 FilterPotionsBySelectedIngredients=1
 CacheDurationSeconds=180
@@ -146,17 +149,30 @@ CraftDebounceMs=400
 ProtectedIngredients=Jarrin Root,Daedra Heart|3,Blue Butterfly Wing|10
 PotionPoison=Potion of,Poison of
 
+[Tracking]
+ManualProtectionOnly=0
+ProtectedEffects=Fortify Enchanting,Fortify Smithing
+ProtectedEffectCounts=
+
 [Localization]
 Language=
 ```
 
 ### In-game settings
 
-Open the alchemy overlay and select **Settings** to change these options without editing the INI manually. Settings are grouped into calculation, ingredient protection, and naming sections. The calculation section includes the selected-ingredient filter, cache duration, stale recalculation threshold, and craft debounce delay. **Use single-threaded calculation** uses multithreaded worker-thread evaluation by default; selecting it runs recipe evaluation on the main thread. Protection remains off until **Protect ingredients** is checked. Use **Clear all protected ingredients** to remove every configured entry, or **Reset all settings** to restore the default list. Changes are saved automatically.
+Open the alchemy overlay and select **Settings** to change calculation and naming options without editing the INI manually. Select **Track** to manage the single protection/tracking setting, which is disabled by default, the **Use only manual/custom protection** mode, dynamic effect selections, per-effect protect-all or quantity controls, craftable-item reservations, and manual or detected requirements. When manual/custom mode is enabled, automatic quest and craftable protection rows are hidden and no longer reserve ingredients; selected protected effects remain visible and active. The protected-ingredient comparison shows numeric **Custom**, **Quest**, **Craftable**, and **Effect** protection columns; click an ingredient name to inspect and edit its complete breakdown. **Use single-threaded calculation** uses multithreaded worker-thread evaluation by default; selecting it runs recipe evaluation on the main thread. **Reset all settings** restores the declared defaults and removes tracker overrides. Changes are saved automatically.
+
+### Ingredient tracking
+
+Select **Track** beside **Settings** in the recipe toolbar to open the unified protection and tracking page. The page dynamically scans all loaded ingredient-bearing constructible records and reserves the quantities needed to craft at least two outputs of every detected item. It also discovers every effect on loaded ingredients; selected effects reserve all matching copies by default, with Fortify Enchanting and Fortify Smithing selected by default when available, and each selected effect can instead use a finite quantity per ingredient. Each summary ingredient is clickable and opens all craft, effect, quest, and manual detections with independent finite-quantity, protect-all, completed, and manual-remove controls. The comparison columns show the active protected quantity by category: **Custom** is the saved protected-ingredient list, while **Quest**, **Craftable**, and **Effect** are automatic detection categories. The picker and details popup scrollbars can be clicked and dragged with the custom cursor; the details popup closes with its title-bar X.
+
+The **Refresh detection** action scans every quest record currently loaded by Skyrim, including inactive future quests, and lists each quest's FormID, editor ID, status, and every objective's full display text. It also scans those objective texts for ingredient display names. Detected rows show the quest name, quest FormID, objective index and text, editor ID when available, matched ingredient, inferred quantity, completion state, and a detected label. Informational quest rows do not protect ingredients by themselves; only detected ingredient matches and manual requirements do. The quantity detector recognizes simple numbers before an ingredient or `x` quantities after it; otherwise it reserves one. Objective text is not structured requirement data, so false positives and missed requirements are possible. Editing an automatic row or marking it completed creates a clearly labeled **Manual override**; use **Clear manual overrides** beside **Add protected ingredient** to restore automatic quest, craftable, and effect values without deleting manually added requirements or custom protected ingredients. **Reset to detected** remains the broader action that removes both manual rows and all detection overrides. The list covers records available through Skyrim's runtime form data; a plugin that is not loaded cannot be inspected until Skyrim loads it.
+
+The detector also retains quest-objective matching and Atronach Forge guidance. All loaded constructible records are now included in the automatic scan, not only Atronach Forge recipes; each recipe row includes its FormID, created item, bench metadata, and the quantity needed for two outputs. **Detect requirements** is collapsed by default, appears only when `[General] developer=1`, and contains the detailed detected/manual editor, quest browser, quest debugging controls, and Atronach Forge guidance. **Reset to detected** removes manual rows and all detection overrides, then restores the current automatic scan result.
 
 ### Localization and fonts
 
-The overlay uses UTF-8 resources and supports the major Latin, Cyrillic, Greek, Hebrew, Arabic, Indic, Southeast Asian, Chinese, Japanese, and Korean writing systems when a matching font is available. The plugin first uses the Windows user interface locale, unless `[Localization] Language` in `alchemist.ini` specifies a BCP 47 tag such as `fr`, `de`, `zh-CN`, `zh-TW`, `ja`, or `ko`.
+The overlay uses UTF-8 resources and supports the major Latin, Cyrillic, Greek, Hebrew, Arabic, Indic, Southeast Asian, Chinese, Japanese, and Korean writing systems when a matching font is available. The release includes Arabic, Bulgarian, Chinese Hong Kong, Simplified and Traditional Chinese, Croatian, Czech, Danish, Dutch, English, Finnish, French and Canadian French, German, Greek, Hebrew, Hindi, Hungarian, Indonesian, Italian, Japanese, Korean, Malay, Norwegian Bokmål, Polish, Portuguese Brazil and Europe, Romanian, Russian, Slovak, Spanish, Latin American Spanish, Mexican Spanish, Swedish, Tagalog, Thai, Turkish, Ukrainian, and Vietnamese translations. The plugin first uses the Windows user interface locale, unless `[Localization] Language` in `alchemist.ini` specifies a BCP 47 tag such as `fr`, `fr-CA`, `es-419`, `es-MX`, `vi`, `th`, `he`, `zh-HK`, `zh-CN`, `zh-TW`, `ja`, or `ko`.
 
 Custom translations are loaded at startup from `SKSE/Plugins/locales/alchemist.<tag>.json`. The exact tag is tried after its base language, with English and built-in English strings as the final fallback. Files must be UTF-8 JSON and may contain only the strings being changed. See `locales/README.md` in the release archive for the schema and named formatting placeholders.
 

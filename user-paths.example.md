@@ -41,4 +41,8 @@
 
 ## Complete Alchemy and Cooking Overhaul (CACO)
 ### Scripts Source Code
-- ` E:\Projects\games\skyrim\utils\caco\scripts\source`
+- `E:\Projects\games\skyrim\utils\caco\scripts\source`
+
+## Quest Tracker NG
+### Source Code
+- `E:\Projects\games\skyrim\git\wtarking-cell-QuestTrackerNG`

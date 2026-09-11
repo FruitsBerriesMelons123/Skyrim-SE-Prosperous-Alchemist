@@ -293,7 +293,6 @@ namespace alchemist::render {
 				float cursorX = -1.0f;
 				float cursorY = -1.0f;
 				SynchronizeSkyrimCursor(cursorX, cursorY);
-				ui::SetLeftMouseButtonDown((GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0);
 				ui::UpdateImGuiMouseInput();
 				ui::ProcessKeyboardInput();
 				ImGui::NewFrame();

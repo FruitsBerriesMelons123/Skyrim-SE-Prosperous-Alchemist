@@ -8,6 +8,7 @@ namespace alchemist::ui {
 	void SetLeftMouseButtonDown(bool a_down);
 	void AddMouseWheel(float a_delta);
 	void AddInputCharacter(std::uint32_t a_codePoint);
+	void AddInputKey(std::uint32_t a_keyCode, bool a_pressed);
 	void UpdateImGuiMouseInput();
 	void ProcessKeyboardInput();
 	void ResetInputState();

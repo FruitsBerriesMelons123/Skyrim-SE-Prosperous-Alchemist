@@ -1,6 +1,7 @@
 #include "AlchemistWindow.h"
 #include "AlchemistEngine.h"
 #include "DeveloperTestHub.h"
+#include "IngredientTracker.h"
 #include "MenuHandler.h"
 #include "RenderHook.h"
 #include "Localization.h"
@@ -19,7 +20,9 @@
 #include <cmath>
 #include <chrono>
 #include <cstring>
+#include <map>
 #include <mutex>
+#include <set>
 #include <string_view>
 #include <vector>
 
@@ -30,6 +33,18 @@ namespace alchemist::ui {
 		constexpr auto minimumWindowWidth = 360.0f;
 		constexpr auto minimumWindowHeight = 220.0f;
 		constexpr auto screenMargin = 40.0f;
+		constexpr int kUnlimitedProtectionCount = 999;
+
+		int GetFiniteProtectionCount(const tracker::Requirement& a_requirement)
+		{
+			if (a_requirement.previousCount > 0 && a_requirement.previousCount < kUnlimitedProtectionCount) {
+				return a_requirement.previousCount;
+			}
+			if (a_requirement.automaticCount > 0 && a_requirement.automaticCount < kUnlimitedProtectionCount) {
+				return a_requirement.automaticCount;
+			}
+			return 1;
+		}
 
 		REX::INI::F32<> windowPositionX("Window", "PositionX", -1.0f);
 		REX::INI::F32<> windowPositionY("Window", "PositionY", -1.0f);
@@ -39,11 +54,25 @@ namespace alchemist::ui {
 		std::atomic_bool isWindowOpen = false;
 		std::atomic_bool leftMouseButtonDown = false;
 		std::atomic<float> mouseWheelDelta = 0.0f;
-		std::array<bool, 256> previousKeyboardState{};
-		std::chrono::steady_clock::time_point backspaceRepeatAt;
 		std::atomic_bool cursorOverWindow = false;
-		std::mutex pendingTextInputMutex;
-		std::vector<std::uint32_t> pendingTextInput;
+		std::atomic_bool protectedIngredientPopupInputCapture = false;
+		ImVec2 skyrimCursorPosition(-1.0f, -1.0f);
+		bool protectedIngredientWindowVisible = false;
+		ImVec2 protectedIngredientWindowMin(-1.0f, -1.0f);
+		ImVec2 protectedIngredientWindowMax(-1.0f, -1.0f);
+		enum class PendingInputType
+		{
+			kCharacter,
+			kKey
+		};
+		struct PendingInput
+		{
+			PendingInputType type = PendingInputType::kCharacter;
+			std::uint32_t value = 0;
+			bool pressed = false;
+		};
+		std::mutex pendingInputMutex;
+		std::vector<PendingInput> pendingInput;
 		bool previousLeftMouseButtonDown = false;
 		bool draggingWindow = false;
 		bool resizingWindow = false;
@@ -109,6 +138,7 @@ namespace alchemist::ui {
 						break;
 					}
 				}
+
 			}
 
 			info.totalPages = (std::max)(1, bestPages);
@@ -151,6 +181,7 @@ namespace alchemist::ui {
 
 		bool showEffectsColumn = false;
 		bool settingsOpen = false;
+		bool trackingOpen = false;
 		bool developerTestHubOpen = false;
 		bool settingsBuffersInitialized = false;
 		bool focusProtectedIngredientSearch = false;
@@ -161,8 +192,48 @@ namespace alchemist::ui {
 			int count = -1;
 			int previousCount = 1;
 		};
+		enum class ProtectionCategory : std::size_t {
+			kCustom,
+			kQuest,
+			kCraftable,
+			kEffect,
+			kCount
+		};
+		struct ProtectionCategoryCounts {
+			std::array<int, static_cast<std::size_t>(ProtectionCategory::kCount)> values{};
+			bool manualOverride = false;
+		};
 		std::vector<ProtectedIngredientEntry> protectedIngredients;
 		char protectedIngredientSearch[512]{};
+		bool openProtectedIngredientWindow = false;
+		bool positionProtectedIngredientWindow = false;
+		bool trackingBuffersInitialized = false;
+		struct RequirementEditBuffers
+		{
+			char source[512]{};
+			char detail[1024]{};
+			char ingredient[512]{};
+		};
+		std::map<std::string, RequirementEditBuffers> trackingRequirementBuffers;
+		char trackingSource[512]{};
+		char trackingDetail[1024]{};
+		char trackingIngredient[512]{};
+		char trackingDetectionSearch[512]{};
+		int trackingCount = 1;
+		int trackingQuestGroupMode = 0;
+		bool trackingOnlyRunning = false;
+		std::string selectedTrackingIngredient;
+		bool openTrackingIngredientDetails = false;
+		std::uint32_t selectedTrackingQuestFormID = 0;
+		char trackingStageInput[16]{};
+		bool trackingStageForce = false;
+
+		bool IsCursorOverProtectedIngredientWindow(const ImVec2& a_position)
+		{
+			return protectedIngredientWindowVisible &&
+				a_position.x >= protectedIngredientWindowMin.x && a_position.x <= protectedIngredientWindowMax.x &&
+				a_position.y >= protectedIngredientWindowMin.y && a_position.y <= protectedIngredientWindowMax.y;
+		}
 
 		std::string Text(std::string_view a_key, std::string_view a_fallback)
 		{
@@ -175,6 +246,36 @@ namespace alchemist::ui {
 			std::initializer_list<localization::FormatArgument> a_arguments)
 		{
 			return localization::Format(a_key, a_fallback, a_arguments);
+		}
+
+		ProtectionCategory GetProtectionCategory(std::string_view a_key)
+		{
+			if (a_key.starts_with("quest:")) {
+				return ProtectionCategory::kQuest;
+			}
+			if (a_key.starts_with("constructible:")) {
+				return ProtectionCategory::kCraftable;
+			}
+			if (a_key.starts_with("effect:")) {
+				return ProtectionCategory::kEffect;
+			}
+			return ProtectionCategory::kCustom;
+		}
+
+		bool IsTrackingRequirementVisible(const tracker::Requirement& a_requirement, bool a_manualProtectionOnly)
+		{
+			return !a_manualProtectionOnly || !a_requirement.automatic || a_requirement.key.starts_with("effect:");
+		}
+
+		void AddProtectionCount(ProtectionCategoryCounts& a_counts, ProtectionCategory a_category, int a_count)
+		{
+			a_count = (std::max)(1, a_count);
+			auto& total = a_counts.values[static_cast<std::size_t>(a_category)];
+			if (total == 999 || a_count == 999) {
+				total = 999;
+			} else {
+				total = (std::min)(999, total + a_count);
+			}
 		}
 
 		std::wstring Utf8ToWide(std::string_view a_text)
@@ -258,6 +359,65 @@ namespace alchemist::ui {
 			return foldedValue.find(foldedQuery) != std::string::npos;
 		}
 
+		std::string QuestTypeLabel(const tracker::QuestInfo& a_quest)
+		{
+			switch (a_quest.typeID) {
+			case 0: return Text("tracking.questTypeNone", "None");
+			case 1: return Text("tracking.questTypeMain", "Main Quest");
+			case 2: return Text("tracking.questTypeMages", "Mages Guild");
+			case 3: return Text("tracking.questTypeThieves", "Thieves Guild");
+			case 4: return Text("tracking.questTypeDarkBrotherhood", "Dark Brotherhood");
+			case 5: return Text("tracking.questTypeCompanions", "Companions");
+			case 6: return Text("tracking.questTypeMiscellaneous", "Miscellaneous");
+			case 7: return Text("tracking.questTypeDaedric", "Daedric");
+			case 8: return Text("tracking.questTypeSide", "Side Quest");
+			case 9: return Text("tracking.questTypeCivilWar", "Civil War");
+			case 10: return Text("tracking.questTypeDawnguard", "Dawnguard");
+			case 11: return Text("tracking.questTypeDragonborn", "Dragonborn");
+			default: return Text("tracking.questTypeUnknown", "Unknown");
+			}
+		}
+
+		std::string QuestStatusLabel(const tracker::QuestInfo& a_quest)
+		{
+			return a_quest.completed ? Text("tracking.questCompleted", "Completed") :
+				a_quest.active ? Text("tracking.questActive", "Active") : Text("tracking.questFuture", "Inactive / future");
+		}
+
+		bool QuestMatchesSearch(const tracker::QuestInfo& a_quest, std::string_view a_query)
+		{
+			const auto title = a_quest.title.empty() ? Text("tracking.unnamedQuest", "<unnamed quest>") : a_quest.title;
+			const auto editorID = a_quest.editorID.empty() ? Text("tracking.noneValue", "none") : a_quest.editorID;
+			const auto modName = a_quest.modName.empty() ? Text("tracking.noneValue", "none") : a_quest.modName;
+			const auto questStatus = QuestStatusLabel(a_quest);
+			const auto questType = QuestTypeLabel(a_quest);
+			const auto runningStatus = a_quest.running ? Text("tracking.questRunning", "Running") : Text("tracking.questStopped", "Stopped");
+			if (a_query.empty() || ContainsInsensitive(title, a_query) || ContainsInsensitive(a_quest.key, a_query) ||
+				ContainsInsensitive(a_quest.formID, a_query) || ContainsInsensitive(std::to_string(a_quest.formIDValue), a_query) ||
+				ContainsInsensitive(editorID, a_query) || ContainsInsensitive(modName, a_query) ||
+				ContainsInsensitive(questType, a_query) || ContainsInsensitive(questStatus, a_query) ||
+				ContainsInsensitive(runningStatus, a_query) || ContainsInsensitive(std::to_string(a_quest.currentStage), a_query)) {
+				return true;
+			}
+			return std::any_of(a_quest.objectives.begin(), a_quest.objectives.end(), [a_query](const auto& objective) {
+				const auto objectiveStatus = objective.completed ? Text("tracking.objectiveCompleted", "Completed") :
+					objective.dormant ? Text("tracking.objectiveDormant", "Dormant") : Text("tracking.objectiveDisplayed", "Displayed");
+				return ContainsInsensitive(objective.text, a_query) || ContainsInsensitive(std::to_string(objective.index), a_query) ||
+					ContainsInsensitive(std::to_string(objective.state), a_query) || ContainsInsensitive(objectiveStatus, a_query);
+			});
+		}
+
+		bool RequirementMatchesSearch(const tracker::Requirement& a_requirement, std::string_view a_query)
+		{
+			const auto typeText = Text(a_requirement.automatic ? "tracking.detected" : "tracking.manualLabel", a_requirement.automatic ? "Detected" : "Manual");
+			const auto sourceText = a_requirement.source.empty() ? Text("tracking.unknownSource", "Unspecified source") : a_requirement.source;
+			const auto completionText = a_requirement.completed ? Text("tracking.completed", "Completed") : Text("tracking.incomplete", "Incomplete");
+			return a_query.empty() || ContainsInsensitive(a_requirement.key, a_query) || ContainsInsensitive(typeText, a_query) ||
+				ContainsInsensitive(a_requirement.source, a_query) || ContainsInsensitive(sourceText, a_query) ||
+				ContainsInsensitive(a_requirement.detail, a_query) || ContainsInsensitive(a_requirement.ingredient, a_query) ||
+				ContainsInsensitive(std::to_string(a_requirement.count), a_query) || ContainsInsensitive(completionText, a_query);
+		}
+
 		void TextWrappedInCell(const char* a_text)
 		{
 			ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + (std::max)(0.0f, ImGui::GetContentRegionAvail().x));
@@ -289,8 +449,6 @@ namespace alchemist::ui {
 			style.Colors[ImGuiCol_FrameBg] = ImVec4(0.13f, 0.11f, 0.08f, 1.0f);
 			style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.23f, 0.18f, 0.10f, 1.0f);
 		}
-
-	ImVec2 skyrimCursorPosition(-1.0f, -1.0f);
 
 		bool IsValidSavedValue(float a_value)
 		{
@@ -326,6 +484,7 @@ namespace alchemist::ui {
 					changed = true;
 				}
 			}
+
 			if (changed) {
 				REX::INI::SettingStore::GetSingleton()->Save();
 			}
@@ -342,16 +501,49 @@ namespace alchemist::ui {
 			a_buffer[length] = '\0';
 		}
 
+		RequirementEditBuffers& GetRequirementEditBuffers(const tracker::Requirement& a_requirement)
+		{
+			auto [iterator, inserted] = trackingRequirementBuffers.try_emplace(a_requirement.key);
+			if (inserted) {
+				CopySettingText(iterator->second.source, a_requirement.source);
+				CopySettingText(iterator->second.detail, a_requirement.detail);
+				CopySettingText(iterator->second.ingredient, a_requirement.ingredient);
+			}
+			return iterator->second;
+		}
+
 		void LoadProtectedIngredients();
 
 		void LoadSettingsBuffers()
 		{
-			LoadProtectedIngredients();
-
 			const auto prefixes = getPotionPrefixes();
 			CopySettingText(potionPrefix, prefixes.potion);
 			CopySettingText(poisonPrefix, prefixes.poison);
 			settingsBuffersInitialized = true;
+		}
+
+		void LoadTrackingBuffers()
+		{
+			LoadProtectedIngredients();
+			trackingRequirementBuffers.clear();
+			openProtectedIngredientWindow = false;
+			positionProtectedIngredientWindow = false;
+			protectedIngredientWindowVisible = false;
+			protectedIngredientWindowMin = ImVec2(-1.0f, -1.0f);
+			protectedIngredientWindowMax = ImVec2(-1.0f, -1.0f);
+			focusProtectedIngredientSearch = false;
+			protectedIngredientSearch[0] = '\0';
+			trackingSource[0] = '\0';
+			trackingDetail[0] = '\0';
+			trackingIngredient[0] = '\0';
+			trackingDetectionSearch[0] = '\0';
+			trackingCount = 1;
+			trackingOnlyRunning = false;
+			selectedTrackingIngredient.clear();
+			selectedTrackingQuestFormID = 0;
+			trackingStageInput[0] = '\0';
+			trackingStageForce = false;
+			trackingBuffersInitialized = true;
 		}
 
 		void SaveSettings()
@@ -457,6 +649,33 @@ namespace alchemist::ui {
 			}
 		}
 
+		void OpenTrackingIngredientDetails(std::string_view a_name)
+		{
+			selectedTrackingIngredient = a_name;
+			openTrackingIngredientDetails = true;
+		}
+
+		void SetProtectedIngredient(std::string_view a_name, int a_count, bool a_protectAll)
+		{
+			const auto found = std::find_if(protectedIngredients.begin(), protectedIngredients.end(), [a_name](const auto& entry) {
+				return entry.name == a_name;
+			});
+			if (found == protectedIngredients.end()) {
+				protectedIngredients.push_back(ProtectedIngredientEntry{
+					.name = std::string(a_name),
+					.count = a_protectAll ? -1 : (std::max)(1, a_count),
+					.previousCount = (std::max)(1, a_count)
+				});
+			} else if (a_protectAll) {
+				found->previousCount = (std::max)(1, a_count);
+				found->count = -1;
+			} else {
+				found->count = (std::max)(1, a_count);
+				found->previousCount = found->count;
+			}
+			SaveProtectedIngredients();
+		}
+
 		void ToggleDeveloperTestHub()
 		{
 			if (developerTestHubOpen) {
@@ -543,6 +762,7 @@ namespace alchemist::ui {
 		{
 			const bool developerEnabled = kDeveloper.GetValue() == 1;
 			const auto& style = ImGui::GetStyle();
+			const auto trackText = Text("ui.track", "Track");
 			const auto settingsText = Text("ui.settings", "Settings");
 			const auto effectsText = Text("ui.effects", "Effects");
 			const auto searchHint = Text("ui.searchRecipes", "Search recipes or ingredients");
@@ -553,10 +773,11 @@ namespace alchemist::ui {
 				Text("sort.nameDescending", "Name ↓")
 			};
 			const auto& currentSortLabel = (sortMode >= 0 && sortMode < 4) ? sortLabels[sortMode] : sortLabels[0];
+			const float trackWidth = ImGui::CalcTextSize(trackText.c_str()).x + style.FramePadding.x * 2.0f;
 			const float settingsWidth = ImGui::CalcTextSize(settingsText.c_str()).x + style.FramePadding.x * 2.0f;
 			const float sortWidth = ImGui::CalcTextSize(currentSortLabel.c_str()).x + style.FramePadding.x * 2.0f + ImGui::GetFrameHeight();
 			const float effectsCheckboxWidth = ImGui::GetFrameHeight() + style.ItemInnerSpacing.x + ImGui::CalcTextSize(effectsText.c_str()).x;
-			float searchWidth = ImGui::GetContentRegionAvail().x - settingsWidth - sortWidth - effectsCheckboxWidth - style.ItemSpacing.x * 3.0f;
+			float searchWidth = ImGui::GetContentRegionAvail().x - trackWidth - settingsWidth - sortWidth - effectsCheckboxWidth - style.ItemSpacing.x * 4.0f;
 			if (developerEnabled) {
 				const auto testText = Text("ui.test", "Test");
 				searchWidth -= ImGui::CalcTextSize(testText.c_str()).x + style.FramePadding.x * 2.0f + style.ItemSpacing.x;
@@ -575,8 +796,19 @@ namespace alchemist::ui {
 				DrawDeveloperToggle();
 				ImGui::SameLine();
 			}
+			if (ImGui::Button((trackText + "##Track").c_str())) {
+				trackingOpen = true;
+				settingsOpen = false;
+				trackingBuffersInitialized = false;
+				tracker::RefreshDetection();
+				menu::RequestRecalculation(true);
+				searchInputFocused.store(false, std::memory_order_release);
+				ImGui::ClearActiveID();
+			}
+			ImGui::SameLine();
 			if (ImGui::Button((settingsText + "##Settings").c_str())) {
 				settingsOpen = true;
+				trackingOpen = false;
 				settingsBuffersInitialized = false;
 				searchInputFocused.store(false, std::memory_order_release);
 				ImGui::ClearActiveID();
@@ -763,7 +995,7 @@ namespace alchemist::ui {
 					fraction = 1.0f;
 					const auto completeText = FormatText(
 						"progress.complete",
-						"Recalculation complete! - 100%",
+						"Recalculation complete! - {percent}%",
 						{{ "percent", "100" }});
 					strncpy_s(overlay, completeText.c_str(), _TRUNCATE);
 				} else if (progress.total > 0) {
@@ -1042,14 +1274,14 @@ namespace alchemist::ui {
 			ImGui::SameLine();
 			if (ImGui::Button((Text("settings.reset", "Reset all settings") + "##ResetSettings").c_str())) {
 				kIgnorePlayer.SetValue(kIgnorePlayer.GetValueDefault());
-				kProtectIngredients.SetValue(kProtectIngredients.GetValueDefault());
 				kSinglethreaded.SetValue(kSinglethreaded.GetValueDefault());
-				kProtectedIngredients.SetValue(kDefaultProtectedIngredients);
 				kPotionPoison.SetValue(kPotionPoison.GetValueDefault());
 				kCacheDurationSeconds.SetValue(kCacheDurationSeconds.GetValueDefault());
 				kStaleRecalculateThresholdMs.SetValue(kStaleRecalculateThresholdMs.GetValueDefault());
 				kCraftDebounceMs.SetValue(kCraftDebounceMs.GetValueDefault());
 				kFilterPotionsBySelectedIngredients.SetValue(kFilterPotionsBySelectedIngredients.GetValueDefault());
+				kProtectIngredients.SetValue(kProtectIngredients.GetValueDefault());
+				kManualProtectionOnly.SetValue(kManualProtectionOnly.GetValueDefault());
 				LoadSettingsBuffers();
 				SaveSettings();
 				recalculate = true;
@@ -1110,117 +1342,6 @@ namespace alchemist::ui {
 			}
 			ImGui::TextDisabled("%s", Text("settings.filterSelectedDescription", "Show only potions made from ingredients currently selected in the Skyrim alchemy menu. With no ingredients selected, all potions are shown.").c_str());
 
-			ImGui::SeparatorText(Text("settings.ingredientProtection", "Ingredient protection").c_str());
-			bool protectIngredients = kProtectIngredients.GetValue() != 0;
-			if (ImGui::Checkbox(Text("settings.protectIngredients", "Protect ingredients").c_str(), &protectIngredients)) {
-				kProtectIngredients.SetValue(protectIngredients ? 1 : 0);
-				SaveSettings();
-				recalculate = true;
-			}
-			ImGui::TextDisabled("%s", Text("settings.protectIngredientsDescription", "Ingredients are protected only while this option is checked.").c_str());
-			if (ImGui::Button((Text("settings.addProtected", "Add protected ingredient") + "##AddProtectedIngredient").c_str())) {
-				protectedIngredientSearch[0] = '\0';
-				focusProtectedIngredientSearch = true;
-				const auto buttonRectMin = ImGui::GetItemRectMin();
-				const auto buttonRectMax = ImGui::GetItemRectMax();
-				const auto popupWidth = (std::max)(360.0f, buttonRectMax.x - buttonRectMin.x);
-				const auto popupHeight = ImGui::GetTextLineHeightWithSpacing() * 9.0f + ImGui::GetStyle().WindowPadding.y * 2.0f;
-				ImGui::SetNextWindowPos(ImVec2(buttonRectMin.x, buttonRectMax.y), ImGuiCond_Always);
-				ImGui::SetNextWindowSize(ImVec2(popupWidth, popupHeight), ImGuiCond_Always);
-				ImGui::OpenPopup("ProtectedIngredientSuggestions");
-			}
-			bool ingredientSearchActive = false;
-			if (ImGui::BeginPopup("ProtectedIngredientSuggestions")) {
-				if (focusProtectedIngredientSearch) {
-					ImGui::SetKeyboardFocusHere();
-					focusProtectedIngredientSearch = false;
-				}
-				ImGui::SetNextItemWidth(-1.0f);
-				ImGui::InputTextWithHint("##ProtectedIngredientSearch", Text("settings.protectedSearchHint", "Type an ingredient to protect...").c_str(), protectedIngredientSearch, sizeof(protectedIngredientSearch));
-				ingredientSearchActive = ImGui::IsItemActive();
-				const std::string searchQuery(protectedIngredientSearch);
-				auto suggestions = GetIngredientNames();
-				suggestions.erase(std::remove_if(suggestions.begin(), suggestions.end(), [&searchQuery](const auto& name) {
-					return IngredientMatchScore(name, searchQuery) < 0 || std::any_of(protectedIngredients.begin(), protectedIngredients.end(), [&name](const auto& entry) {
-						return entry.name == name;
-					});
-				}), suggestions.end());
-				std::sort(suggestions.begin(), suggestions.end(), [&searchQuery](const auto& left, const auto& right) {
-					const auto leftScore = IngredientMatchScore(left, searchQuery);
-					const auto rightScore = IngredientMatchScore(right, searchQuery);
-					return leftScore == rightScore ? left < right : leftScore < rightScore;
-				});
-				if (suggestions.empty()) {
-					ImGui::TextDisabled("%s", Text("settings.noAvailableIngredients", "No available ingredients match the search.").c_str());
-				} else {
-					for (const auto& suggestion : suggestions) {
-						if (ImGui::Selectable(suggestion.c_str())) {
-							AddProtectedIngredient(suggestion);
-							protectedIngredientSearch[0] = '\0';
-							ingredientSearchActive = false;
-							recalculate = true;
-							ImGui::CloseCurrentPopup();
-						}
-					}
-				}
-				ImGui::EndPopup();
-			}
-			textInputActive = textInputActive || ingredientSearchActive;
-
-			if (ImGui::Button((Text("settings.clearProtected", "Clear all protected ingredients") + "##ClearProtected").c_str())) {
-				protectedIngredients.clear();
-				SaveProtectedIngredients();
-				recalculate = true;
-			}
-			ImGui::SameLine();
-			if (ImGui::Button((Text("settings.restoreProtected", "Restore default protected ingredients") + "##RestoreProtected").c_str())) {
-				kProtectedIngredients.SetValue(kDefaultProtectedIngredients);
-				LoadProtectedIngredients();
-				SaveSettings();
-				recalculate = true;
-			}
-			if (protectedIngredients.empty()) {
-				ImGui::TextDisabled("%s", Text("settings.noProtected", "No protected ingredients added.").c_str());
-			}
-			for (std::size_t index = 0; index < protectedIngredients.size();) {
-				auto& entry = protectedIngredients[index];
-				ImGui::PushID(static_cast<int>(index));
-				ImGui::TextUnformatted(entry.name.c_str());
-				ImGui::SameLine(300.0f);
-				bool protectAll = entry.count < 0;
-				const auto protectionLabel = Text(protectAll ? "settings.protectingAll" : "settings.protecting", protectAll ? "Protecting all" : "Protecting");
-				if (ImGui::Checkbox((protectionLabel + "##ProtectionMode").c_str(), &protectAll)) {
-					if (protectAll) {
-						entry.previousCount = (std::max)(1, entry.count);
-						entry.count = -1;
-					} else {
-						entry.count = (std::max)(1, entry.previousCount);
-					}
-					SaveProtectedIngredients();
-					recalculate = true;
-				}
-				if (!protectAll) {
-					ImGui::SameLine();
-					ImGui::SetNextItemWidth(90.0f);
-					if (ImGui::InputInt("##ProtectedCount", &entry.count, 1, 10)) {
-						entry.count = (std::max)(1, entry.count);
-						entry.previousCount = entry.count;
-						SaveProtectedIngredients();
-						recalculate = true;
-					}
-				}
-				ImGui::SameLine();
-				if (ImGui::SmallButton((Text("settings.remove", "Remove") + "##RemoveProtected").c_str())) {
-					protectedIngredients.erase(protectedIngredients.begin() + static_cast<std::ptrdiff_t>(index));
-					SaveProtectedIngredients();
-					recalculate = true;
-					ImGui::PopID();
-					continue;
-				}
-				ImGui::PopID();
-				++index;
-			}
-
 			ImGui::SeparatorText(Text("settings.naming", "Naming").c_str());
 			ImGui::SetNextItemWidth(-1.0f);
 			if (ImGui::InputText(Text("settings.potionPrefix", "Potion prefix").c_str(), potionPrefix, sizeof(potionPrefix))) {
@@ -1245,6 +1366,840 @@ namespace alchemist::ui {
 
 			ImGui::EndChild();
 			searchInputFocused.store(textInputActive, std::memory_order_release);
+			return recalculate;
+		}
+
+		bool DrawTracking()
+		{
+			if (!trackingBuffersInitialized) {
+				LoadTrackingBuffers();
+			}
+			protectedIngredientWindowVisible = false;
+			protectedIngredientWindowMin = ImVec2(-1.0f, -1.0f);
+			protectedIngredientWindowMax = ImVec2(-1.0f, -1.0f);
+
+			bool recalculate = false;
+			bool textInputActive = false;
+			const bool developerEnabled = kDeveloper.GetValue() == 1;
+			if (ImGui::Button((Text("tracking.back", "< Back to recipes") + "##BackToRecipesFromTracking").c_str())) {
+				trackingOpen = false;
+				trackingBuffersInitialized = false;
+				openProtectedIngredientWindow = false;
+				positionProtectedIngredientWindow = false;
+				protectedIngredientWindowVisible = false;
+				protectedIngredientWindowMin = ImVec2(-1.0f, -1.0f);
+				protectedIngredientWindowMax = ImVec2(-1.0f, -1.0f);
+				focusProtectedIngredientSearch = false;
+				selectedTrackingIngredient.clear();
+				ImGui::CloseCurrentPopup();
+				searchInputFocused.store(false, std::memory_order_release);
+				ImGui::ClearActiveID();
+			}
+			textInputActive = textInputActive || ImGui::GetIO().WantTextInput;
+
+			ImGui::Separator();
+			const auto trackingTitle = Text("tracking.title", "Ingredient protection and tracking");
+			ImGui::TextColored(ImVec4(1.0f, 0.84f, 0.0f, 1.0f), "%s", trackingTitle.c_str());
+			bool protectIngredients = kProtectIngredients.GetValue() != 0;
+			if (ImGui::Checkbox(Text("tracking.enableProtection", "Enable ingredient protection and tracking").c_str(), &protectIngredients)) {
+				kProtectIngredients.SetValue(protectIngredients ? 1 : 0);
+				SaveSettings();
+				recalculate = true;
+			}
+			ImGui::TextDisabled("%s", Text("tracking.enableProtectionDescription", "Static reservations, craftable-item requirements, selected effects, and unfinished tracking requirements are used while this is enabled.").c_str());
+			bool manualProtectionOnly = kManualProtectionOnly.GetValue() != 0;
+			if (ImGui::Checkbox(Text("tracking.manualProtectionOnly", "Use only manual/custom protection (keep protected effects)").c_str(), &manualProtectionOnly)) {
+				kManualProtectionOnly.SetValue(manualProtectionOnly ? 1 : 0);
+				SaveSettings();
+				recalculate = true;
+			}
+			ImGui::TextDisabled("%s", Text("tracking.manualProtectionOnlyDescription", "Disable automatic quest and craftable reservations. Selected protected effects remain active and visible.").c_str());
+			const bool trackingEnabled = kProtectIngredients.GetValue() != 0;
+			ImGui::TextDisabled("%s", Text(trackingEnabled ? "tracking.enabled" : "tracking.disabled",
+				trackingEnabled ? "Tracking protection is enabled in this window." : "Tracking protection is disabled in this window.").c_str());
+			if (developerEnabled) {
+				ImGui::TextWrapped("%s", Text("tracking.description", "All loaded quests are listed below, including future inactive quests. Quest matching uses objective text, so verify detected ingredient rows and edit or mark them complete when needed.").c_str());
+			}
+			ImGui::TextDisabled("%s", Text("tracking.questCompletionNotice", "Completed quests are automatically marked complete and excluded from the protected ingredient list.").c_str());
+
+			ImGui::BeginChild("TrackingScroll", ImVec2(0.0f, 0.0f), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+			ImGui::SetNextItemOpen(false, ImGuiCond_Once);
+			if (ImGui::CollapsingHeader((Text("tracking.effects", "Ingredient effects to protect") + "##TrackingEffects").c_str())) {
+				ImGui::TextDisabled("%s", Text("tracking.effectsDescription", "Select effects to reserve every ingredient that provides them. Set each selected effect to protect all copies or a finite quantity per ingredient; open an ingredient below to adjust an individual detection.").c_str());
+				const auto effects = tracker::GetEffects();
+				if (effects.empty()) {
+					ImGui::TextDisabled("%s", Text("tracking.noEffects", "No ingredient effects are available from loaded records.").c_str());
+				} else {
+					if (ImGui::Button((Text("tracking.addEffect", "Add effect") + "##AddTrackingEffect").c_str())) {
+						ImGui::OpenPopup("TrackingEffectSuggestions");
+					}
+					if (ImGui::BeginPopup("TrackingEffectSuggestions")) {
+						bool availableEffect = false;
+						for (const auto& effect : effects) {
+							if (effect.selected) {
+								continue;
+							}
+							availableEffect = true;
+							ImGui::PushID(effect.key.c_str());
+							if (ImGui::Selectable(effect.name.c_str())) {
+								tracker::SetEffectSelected(effect.key, true);
+								tracker::RefreshDetection();
+								recalculate = true;
+								ImGui::CloseCurrentPopup();
+							}
+							if (!effect.editorID.empty()) {
+								ImGui::SameLine();
+								ImGui::TextDisabled("[%s]", effect.editorID.c_str());
+							}
+							ImGui::PopID();
+						}
+						if (!availableEffect) {
+							ImGui::TextDisabled("%s", Text("tracking.noAvailableEffects", "All available effects are already protected.").c_str());
+						}
+						ImGui::EndPopup();
+					}
+
+					bool selectedEffect = false;
+					for (const auto& effect : effects) {
+						if (!effect.selected) {
+							continue;
+						}
+						selectedEffect = true;
+						ImGui::PushID(effect.key.c_str());
+						ImGui::TextUnformatted(effect.name.c_str());
+						if (!effect.editorID.empty()) {
+							ImGui::SameLine();
+							ImGui::TextDisabled("[%s]", effect.editorID.c_str());
+						}
+						ImGui::SameLine();
+						bool protectAll = effect.protectedCount >= 999;
+						if (ImGui::Checkbox((Text("tracking.effectProtectAll", "Protect all") + "##ProtectAllTrackingEffect").c_str(), &protectAll)) {
+							tracker::SetEffectProtectionCount(effect.key, protectAll ? 999 : 1);
+							tracker::RefreshDetection();
+							recalculate = true;
+						}
+						if (!protectAll) {
+							ImGui::SameLine();
+							int protectedCount = (std::clamp)(effect.protectedCount, 1, 998);
+							ImGui::SetNextItemWidth(120.0f);
+							if (ImGui::InputInt((Text("tracking.effectQuantity", "Quantity per ingredient") + "##TrackingEffectQuantity").c_str(), &protectedCount, 1, 10)) {
+								tracker::SetEffectProtectionCount(effect.key, (std::clamp)(protectedCount, 1, 998));
+								tracker::RefreshDetection();
+								recalculate = true;
+							}
+						}
+						ImGui::SameLine();
+						if (ImGui::SmallButton((Text("tracking.remove", "Remove") + "##RemoveTrackingEffect").c_str())) {
+							tracker::SetEffectSelected(effect.key, false);
+							tracker::RefreshDetection();
+							recalculate = true;
+						}
+						ImGui::PopID();
+					}
+					if (!selectedEffect) {
+						ImGui::TextDisabled("%s", Text("tracking.noSelectedEffects", "No ingredient effects selected.").c_str());
+					}
+				}
+			}
+
+			const auto requirements = tracker::GetRequirements();
+			const auto manualOverrideCount = static_cast<std::size_t>(std::count_if(requirements.begin(), requirements.end(), [](const auto& requirement) {
+				return requirement.automatic && requirement.overridden && requirement.completionOverridden;
+			}));
+			std::map<std::string, ProtectionCategoryCounts> protectionCounts;
+			for (const auto& requirement : requirements) {
+				if (!IsTrackingRequirementVisible(requirement, manualProtectionOnly) || requirement.ingredient.empty()) {
+					continue;
+				}
+				auto& counts = protectionCounts[requirement.ingredient];
+				if (requirement.automatic && requirement.overridden) {
+					counts.manualOverride = true;
+				}
+				if (requirement.completed) {
+					continue;
+				}
+				const auto count = (std::max)(1, requirement.count);
+				AddProtectionCount(counts, GetProtectionCategory(requirement.key), count);
+			}
+			for (const auto& entry : protectedIngredients) {
+				AddProtectionCount(protectionCounts[entry.name], ProtectionCategory::kCustom, entry.count < 0 ? 999 : entry.count);
+			}
+
+			ImGui::SetNextItemOpen(false, ImGuiCond_Once);
+			if (ImGui::CollapsingHeader((Text("tracking.ingredients", "Protected ingredients") + "##TrackingIngredients").c_str())) {
+				const bool addProtectedButtonReleased = ImGui::Button((Text("tracking.addProtected", "Add protected ingredient") + "##AddProtectedIngredient").c_str());
+				const bool addProtectedButtonPressed = ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+				if (addProtectedButtonReleased || addProtectedButtonPressed) {
+					protectedIngredientSearch[0] = '\0';
+					focusProtectedIngredientSearch = true;
+					openProtectedIngredientWindow = true;
+					positionProtectedIngredientWindow = true;
+				}
+				if (developerEnabled) {
+					if (ImGui::Button((Text("tracking.refresh", "Refresh detection") + "##RefreshTracking").c_str())) {
+						if (tracker::RefreshDetection()) {
+							recalculate = true;
+						}
+					}
+					ImGui::TextWrapped("%s", Text("tracking.refreshDescription", "Rebuilds automatic requirements from currently loaded quest objectives, constructible records, and selected ingredient effects. Use it after a quest objective changes or new records are loaded; manual tracking rows and saved overrides are not removed.").c_str());
+				}
+				if (ImGui::Button((Text("tracking.reset", "Reset to detected") + "##ResetTracking").c_str())) {
+					tracker::ResetToDetected();
+					tracker::RefreshDetection();
+					recalculate = true;
+				}
+				ImGui::TextWrapped("%s", Text("tracking.resetDescription", "Deletes manually added tracking rows and all saved overrides on automatic rows, then rescans currently loaded data. Custom protected ingredients and selected protected effects are not changed. Use it when you want every detected row to return to its current automatic values.").c_str());
+				ImGui::BeginDisabled(manualOverrideCount == 0);
+				if (ImGui::Button((Text("tracking.clearOverrides", "Clear manual overrides") + "##ClearTrackingOverrides").c_str())) {
+					tracker::ClearOverrides();
+					tracker::RefreshDetection();
+					recalculate = true;
+				}
+				ImGui::EndDisabled();
+				ImGui::TextWrapped("%s", Text("tracking.manualOverrideDescription", "Clears manual completion overrides only. This resets automatic rows whose Completed checkbox you changed, including user-marked complete rows, to their current automatically detected source, ingredient, quantity, and completion state. It does not clear automatic detections, manually added tracking rows, or custom protected ingredients.").c_str());
+
+				ImGui::TextDisabled("%s", FormatText("tracking.protectionSummaryText", "{count} ingredients have active protection requirements or manual overrides.",
+					{ { "count", std::to_string(protectionCounts.size()) } }).c_str());
+				if (protectionCounts.empty()) {
+					ImGui::TextDisabled("%s", Text("tracking.noProtectionComparison", "No detected ingredients or protected-list entries to compare.").c_str());
+				} else if (ImGui::BeginTable("TrackingProtectionComparison", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp)) {
+				const auto ingredientHeader = Text("tracking.comparisonIngredient", "Ingredient");
+				const auto customHeader = Text("tracking.comparisonCustom", "Custom");
+				const auto questHeader = Text("tracking.comparisonQuest", "Quest");
+				const auto craftableHeader = Text("tracking.comparisonCraftable", "Craftable");
+				const auto effectHeader = Text("tracking.comparisonEffect", "Effect");
+				const auto overrideHeader = Text("tracking.comparisonOverride", "Override");
+				ImGui::TableSetupColumn(ingredientHeader.c_str());
+				ImGui::TableSetupColumn(customHeader.c_str(), ImGuiTableColumnFlags_WidthFixed, 90.0f);
+				ImGui::TableSetupColumn(questHeader.c_str(), ImGuiTableColumnFlags_WidthFixed, 90.0f);
+				ImGui::TableSetupColumn(craftableHeader.c_str(), ImGuiTableColumnFlags_WidthFixed, 90.0f);
+				ImGui::TableSetupColumn(effectHeader.c_str(), ImGuiTableColumnFlags_WidthFixed, 90.0f);
+				ImGui::TableSetupColumn(overrideHeader.c_str(), ImGuiTableColumnFlags_WidthFixed, 110.0f);
+				ImGui::TableHeadersRow();
+				for (const auto& [name, categoryCounts] : protectionCounts) {
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0);
+					ImGui::PushID(name.c_str());
+					const auto& ingredientButtonIO = ImGui::GetIO();
+					const auto ingredientButtonLabel = name + "##TrackingComparisonIngredientDetails";
+					const bool ingredientButtonClicked = ImGui::SmallButton(ingredientButtonLabel.c_str());
+					const auto ingredientButtonMin = ImGui::GetItemRectMin();
+					const auto ingredientButtonMax = ImGui::GetItemRectMax();
+					const bool ingredientButtonHovered = ImGui::IsItemHovered();
+					const bool ingredientCursorInButton = ingredientButtonIO.MousePos.x >= ingredientButtonMin.x && ingredientButtonIO.MousePos.x <= ingredientButtonMax.x &&
+						ingredientButtonIO.MousePos.y >= ingredientButtonMin.y && ingredientButtonIO.MousePos.y <= ingredientButtonMax.y;
+					const bool ingredientInputEdge = ingredientButtonIO.MouseClicked[ImGuiMouseButton_Left] || ingredientButtonIO.MouseReleased[ImGuiMouseButton_Left];
+					if (ingredientButtonClicked || (ingredientInputEdge && (ingredientButtonHovered || ingredientCursorInButton))) {
+					}
+					ImGui::PopID();
+					if (ingredientButtonClicked) {
+						OpenTrackingIngredientDetails(name);
+					}
+					for (std::size_t category = 0; category < static_cast<std::size_t>(ProtectionCategory::kCount); ++category) {
+						ImGui::TableSetColumnIndex(static_cast<int>(category + 1));
+						const auto count = categoryCounts.values[category];
+						if (count == 0) {
+							ImGui::TextUnformatted("-");
+						} else if (count == 999) {
+							ImGui::TextUnformatted(Text("tracking.protectAllValue", "All").c_str());
+						} else {
+							ImGui::Text("%d", count);
+						}
+					}
+					ImGui::TableSetColumnIndex(5);
+					if (categoryCounts.manualOverride) {
+						ImGui::TextUnformatted(Text("tracking.manualOverrideLabel", "Manual override").c_str());
+					} else {
+						ImGui::TextUnformatted("-");
+					}
+				}
+					ImGui::EndTable();
+				}
+			}
+
+			std::size_t detectedCount = 0;
+			std::size_t detectedActiveCount = 0;
+			std::size_t activeCount = 0;
+			for (const auto& requirement : requirements) {
+				if (!IsTrackingRequirementVisible(requirement, manualProtectionOnly)) {
+					continue;
+				}
+				detectedCount += requirement.automatic ? 1 : 0;
+				detectedActiveCount += requirement.automatic && !requirement.completed ? 1 : 0;
+				activeCount += !requirement.completed ? 1 : 0;
+			}
+
+			const auto drawRequirement = [&](const tracker::Requirement& original) {
+				auto requirement = original;
+				auto& editBuffers = GetRequirementEditBuffers(requirement);
+				ImGui::PushID(requirement.key.c_str());
+				const bool manualOverride = requirement.automatic && requirement.overridden;
+				const auto typeText = Text(manualOverride ? "tracking.manualOverrideLabel" : (requirement.automatic ? "tracking.detected" : "tracking.manualLabel"),
+					manualOverride ? "Manual override" : (requirement.automatic ? "Detected" : "Manual"));
+				ImGui::TextColored(manualOverride ? ImVec4(1.0f, 0.75f, 0.35f, 1.0f) : (requirement.automatic ? ImVec4(0.55f, 0.8f, 1.0f, 1.0f) : ImVec4(0.65f, 1.0f, 0.65f, 1.0f)), "%s", typeText.c_str());
+				ImGui::SameLine();
+				ImGui::TextWrapped("%s", requirement.source.empty() ? Text("tracking.unknownSource", "Unspecified source").c_str() : requirement.source.c_str());
+
+				if (ImGui::InputText((Text("tracking.editSource", "Source") + "##EditSource").c_str(), editBuffers.source, sizeof(editBuffers.source))) {
+					requirement.source = editBuffers.source;
+					tracker::UpdateRequirement(requirement);
+				}
+				textInputActive = textInputActive || ImGui::IsItemActive();
+				if (ImGui::InputText((Text("tracking.editDetail", "Quest or recipe details") + "##EditDetail").c_str(), editBuffers.detail, sizeof(editBuffers.detail))) {
+					requirement.detail = editBuffers.detail;
+					tracker::UpdateRequirement(requirement);
+				}
+				textInputActive = textInputActive || ImGui::IsItemActive();
+				if (ImGui::InputText((Text("tracking.editIngredient", "Ingredient") + "##EditIngredient").c_str(), editBuffers.ingredient, sizeof(editBuffers.ingredient))) {
+					requirement.ingredient = editBuffers.ingredient;
+					tracker::UpdateRequirement(requirement);
+					recalculate = true;
+				}
+				textInputActive = textInputActive || ImGui::IsItemActive();
+				ImGui::SetNextItemWidth(100.0f);
+				if (ImGui::InputInt((Text("tracking.editCount", "Quantity") + "##EditCount").c_str(), &requirement.count, 1, 10)) {
+					requirement.count = (std::clamp)(requirement.count, 1, 999);
+					tracker::UpdateRequirement(requirement);
+					recalculate = true;
+				}
+				bool completed = requirement.completed;
+				if (ImGui::Checkbox((Text("tracking.completed", "Completed") + "##Completed").c_str(), &completed)) {
+					requirement.completed = completed;
+					requirement.completionOverridden = true;
+					tracker::UpdateRequirement(requirement);
+					recalculate = true;
+				}
+				if (!requirement.automatic) {
+					ImGui::SameLine();
+					if (ImGui::SmallButton((Text("tracking.remove", "Remove") + "##RemoveTracking").c_str())) {
+						tracker::RemoveManual(requirement.key);
+						recalculate = true;
+					}
+				}
+				if (!requirement.detail.empty()) {
+					ImGui::TextWrapped("%s", requirement.detail.c_str());
+				}
+				ImGui::Separator();
+				ImGui::PopID();
+			};
+
+			if (kDeveloper.GetValue() == 1) {
+				ImGui::SetNextItemOpen(false, ImGuiCond_Once);
+				if (ImGui::CollapsingHeader((Text("tracking.detectRequirements", "Detect requirements") + "##DetectRequirements").c_str())) {
+				ImGui::SetNextItemWidth(-1.0f);
+				ImGui::InputTextWithHint("##TrackingDetectionSearch", Text("tracking.detectionSearchHint", "Filter detected requirements, ingredients, and quests...").c_str(), trackingDetectionSearch, sizeof(trackingDetectionSearch));
+				textInputActive = textInputActive || ImGui::IsItemActive();
+				const std::string detectionQuery(trackingDetectionSearch);
+
+				ImGui::SetNextItemOpen(false, ImGuiCond_Once);
+				if (ImGui::CollapsingHeader((Text("tracking.detectedRequirements", "Detected requirements") + "##DetectedRequirementsList").c_str())) {
+					ImGui::TextDisabled("%s", FormatText("tracking.detectedSummary", "{detected} detected rows, {active} unfinished rows currently contribute to protection.",
+						{ { "detected", std::to_string(detectedCount) }, { "active", std::to_string(detectedActiveCount) } }).c_str());
+					for (const auto& requirement : requirements) {
+						if (IsTrackingRequirementVisible(requirement, manualProtectionOnly) && requirement.automatic && RequirementMatchesSearch(requirement, detectionQuery)) {
+							drawRequirement(requirement);
+						}
+					}
+				}
+
+				ImGui::SetNextItemOpen(false, ImGuiCond_Once);
+				if (ImGui::CollapsingHeader((Text("tracking.manual", "Add manual requirement") + "##ManualRequirement").c_str())) {
+					ImGui::SetNextItemWidth(-1.0f);
+					if (ImGui::InputText(Text("tracking.source", "Source").c_str(), trackingSource, sizeof(trackingSource))) {
+						textInputActive = true;
+					}
+					textInputActive = textInputActive || ImGui::IsItemActive();
+					ImGui::TextDisabled("%s", Text("tracking.sourceDescription", "Quest, activity, station, or any other reason to reserve the ingredient.").c_str());
+					ImGui::SetNextItemWidth(-1.0f);
+					if (ImGui::InputText(Text("tracking.detail", "Details").c_str(), trackingDetail, sizeof(trackingDetail))) {
+						textInputActive = true;
+					}
+					textInputActive = textInputActive || ImGui::IsItemActive();
+					ImGui::SetNextItemWidth(-1.0f);
+					if (ImGui::InputText(Text("tracking.ingredient", "Ingredient").c_str(), trackingIngredient, sizeof(trackingIngredient))) {
+						textInputActive = true;
+					}
+					textInputActive = textInputActive || ImGui::IsItemActive();
+					ImGui::SetNextItemWidth(100.0f);
+					ImGui::InputInt(Text("tracking.count", "Quantity").c_str(), &trackingCount, 1, 10);
+					trackingCount = (std::clamp)(trackingCount, 1, 999);
+					if (ImGui::Button((Text("tracking.add", "Add requirement") + "##AddTrackingRequirement").c_str()) && trackingIngredient[0] != '\0') {
+						tracker::AddManual(trackingSource, trackingDetail, trackingIngredient, trackingCount);
+						trackingSource[0] = '\0';
+						trackingDetail[0] = '\0';
+						trackingIngredient[0] = '\0';
+						trackingCount = 1;
+						recalculate = true;
+					}
+				}
+
+				ImGui::SetNextItemOpen(false, ImGuiCond_Once);
+				if (ImGui::CollapsingHeader((Text("tracking.requirements", "Tracked requirements") + "##TrackedRequirements").c_str())) {
+					ImGui::TextDisabled("%s", FormatText("tracking.summary", "{detected} detected, {manual} manual, {active} protecting",
+						{
+							{ "detected", std::to_string(detectedCount) },
+							{ "manual", std::to_string(requirements.size() - detectedCount) },
+							{ "active", std::to_string(activeCount) }
+						}).c_str());
+					if (requirements.empty()) {
+						ImGui::TextDisabled("%s", Text("tracking.none", "No detected or manual requirements are currently tracked.").c_str());
+					}
+
+					for (const auto& requirement : requirements) {
+						if (IsTrackingRequirementVisible(requirement, manualProtectionOnly) && !requirement.automatic && RequirementMatchesSearch(requirement, detectionQuery)) {
+							drawRequirement(requirement);
+						}
+					}
+				}
+
+				ImGui::SetNextItemOpen(false, ImGuiCond_Once);
+				if (ImGui::CollapsingHeader((Text("tracking.atronachForge", "Atronach Forge") + "##AtronachForgeInfo").c_str())) {
+					ImGui::TextWrapped("%s", Text("tracking.atronachForgeLocation", "Location: The Midden, beneath the College of Winterhold.").c_str());
+					ImGui::TextWrapped("%s", Text("tracking.atronachForgeDirections", "In-game, enter the College of Winterhold and use the trapdoor to The Midden, then follow the tunnels to the forge chamber.").c_str());
+					ImGui::TextDisabled("%s", Text("tracking.atronachForgeSource", "Recipe detection comes from loaded constructible records whose crafting keyword identifies the Atronach Forge.").c_str());
+				}
+
+			const auto quests = tracker::GetQuests();
+			std::set<std::uint32_t> detectedQuestIDs;
+			for (const auto& requirement : requirements) {
+				if (!IsTrackingRequirementVisible(requirement, manualProtectionOnly) || !requirement.automatic || requirement.key.rfind("quest:", 0) != 0) {
+					continue;
+				}
+				const auto end = requirement.key.find(':', 6);
+				if (end == std::string::npos) {
+					continue;
+				}
+				try {
+					detectedQuestIDs.insert(static_cast<std::uint32_t>(std::stoul(requirement.key.substr(6, end - 6))));
+				} catch (...) {}
+			}
+
+			const auto drawQuest = [&](const tracker::QuestInfo& quest, std::string_view a_prefix) {
+				ImGui::PushID((std::string(a_prefix) + quest.key).c_str());
+				const auto title = quest.title.empty() ? Text("tracking.unnamedQuest", "<unnamed quest>") : quest.title;
+				ImGui::SetNextItemOpen(false, ImGuiCond_Once);
+				if (ImGui::TreeNodeEx((title + "##Quest").c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
+					const auto status = QuestStatusLabel(quest);
+					const auto running = quest.running ? Text("tracking.questRunning", "Running") : Text("tracking.questStopped", "Stopped");
+					ImGui::TextDisabled("%s", FormatText("tracking.questMetadata", "Form ID: {formID} | Editor ID: {editorID} | Status: {status}",
+						{
+							{ "formID", quest.formID },
+							{ "editorID", quest.editorID.empty() ? Text("tracking.noneValue", "none") : quest.editorID },
+							{ "status", status }
+						}).c_str());
+					ImGui::TextDisabled("%s", FormatText("tracking.questDebugMetadata", "Plugin: {plugin} | Type: {type} | Stage: {stage} | Runtime: {runtime}",
+						{
+							{ "plugin", quest.modName.empty() ? Text("tracking.noneValue", "none") : quest.modName },
+							{ "type", QuestTypeLabel(quest) },
+							{ "stage", std::to_string(quest.currentStage) },
+							{ "runtime", running }
+						}).c_str());
+					if (ImGui::SmallButton((Text("tracking.selectQuest", "Select for debugging") + "##SelectQuest").c_str())) {
+						selectedTrackingQuestFormID = quest.formIDValue;
+						CopySettingText(trackingStageInput, std::to_string(quest.currentStage));
+					}
+					if (quest.objectives.empty()) {
+						ImGui::TextDisabled("%s", Text("tracking.noObjectives", "No objectives are present in this quest record.").c_str());
+					}
+					for (const auto& objective : quest.objectives) {
+						ImGui::PushID(static_cast<int>(objective.index));
+						const auto objectiveStatus = objective.completed ? Text("tracking.objectiveCompleted", "Completed") :
+							objective.dormant ? Text("tracking.objectiveDormant", "Dormant") : Text("tracking.objectiveDisplayed", "Displayed");
+						const auto objectiveLabel = FormatText("tracking.objectiveHeader", "Objective {index} ({status})",
+							{ { "index", std::to_string(objective.index) }, { "status", objectiveStatus } });
+						ImGui::SetNextItemOpen(false, ImGuiCond_Once);
+						if (ImGui::TreeNodeEx((objectiveLabel + "##Objective").c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
+							ImGui::TextDisabled("%s", Text("tracking.objectiveText", "Full objective text").c_str());
+							ImGui::TextWrapped("%s", objective.text.empty() ? Text("tracking.emptyObjective", "(no display text)").c_str() : objective.text.c_str());
+							ImGui::TextDisabled("%s", FormatText("tracking.objectiveState", "State: {state}", { { "state", std::to_string(objective.state) } }).c_str());
+							ImGui::TreePop();
+						}
+						ImGui::PopID();
+					}
+					ImGui::TreePop();
+				}
+				ImGui::PopID();
+			};
+
+			auto questMatchesDetection = [&requirements, &detectionQuery, manualProtectionOnly](const tracker::QuestInfo& quest) {
+				if (QuestMatchesSearch(quest, detectionQuery)) {
+					return true;
+				}
+				const auto prefix = "quest:" + std::to_string(quest.formIDValue) + ":";
+				return std::any_of(requirements.begin(), requirements.end(), [&prefix, &detectionQuery, manualProtectionOnly](const auto& requirement) {
+					return IsTrackingRequirementVisible(requirement, manualProtectionOnly) && requirement.automatic && requirement.key.rfind(prefix, 0) == 0 && RequirementMatchesSearch(requirement, detectionQuery);
+				});
+			};
+
+			ImGui::SetNextItemOpen(false, ImGuiCond_Once);
+			if (ImGui::CollapsingHeader((Text("tracking.detectedQuests", "Detected quests") + "##DetectedQuests").c_str())) {
+				ImGui::TextDisabled("%s", FormatText("tracking.detectedQuestSummary", "{count} quests have unfinished or overridden ingredient matches.",
+					{ { "count", std::to_string(detectedQuestIDs.size()) } }).c_str());
+				if (detectedQuestIDs.empty()) {
+					ImGui::TextDisabled("%s", Text("tracking.noDetectedQuests", "No quest objectives currently match a loaded ingredient.").c_str());
+				} else {
+					for (const auto& quest : quests) {
+						if (detectedQuestIDs.contains(quest.formIDValue) && questMatchesDetection(quest)) {
+							drawQuest(quest, "detected:");
+						}
+					}
+				}
+			}
+			ImGui::SetNextItemOpen(false, ImGuiCond_Once);
+			if (ImGui::CollapsingHeader((Text("tracking.quests", "All loaded quests") + "##AllLoadedQuests").c_str())) {
+				ImGui::TextDisabled("%s", FormatText("tracking.questSummary", "{count} quests loaded; informational rows do not protect ingredients by themselves.",
+					{ { "count", std::to_string(quests.size()) } }).c_str());
+				ImGui::SameLine();
+				ImGui::Checkbox(Text("tracking.onlyRunning", "Only running").c_str(), &trackingOnlyRunning);
+				ImGui::SameLine();
+				ImGui::SetNextItemWidth(140.0f);
+				const char* questGroupingItems = "No grouping\0By type\0By mod\0";
+				ImGui::Combo("##TrackingQuestGroup", &trackingQuestGroupMode, questGroupingItems);
+				std::size_t matchingQuestCount = 0;
+				for (const auto& quest : quests) {
+					matchingQuestCount += (!trackingOnlyRunning || quest.running) && questMatchesDetection(quest) ? 1 : 0;
+				}
+				if (!detectionQuery.empty()) {
+					ImGui::TextDisabled("%s", FormatText("tracking.questSearchSummary", "Showing {shown} of {count} loaded quests.",
+						{ { "shown", std::to_string(matchingQuestCount) }, { "count", std::to_string(quests.size()) } }).c_str());
+				}
+				if (quests.empty()) {
+					ImGui::TextDisabled("%s", Text("tracking.noQuests", "No quest records are currently available from the game.").c_str());
+				} else if (matchingQuestCount == 0) {
+					ImGui::TextDisabled("%s", Text("tracking.noQuestMatches", "No loaded quests match the search filter.").c_str());
+				}
+				if (trackingQuestGroupMode == 0) {
+					for (const auto& quest : quests) {
+						if ((!trackingOnlyRunning || quest.running) && questMatchesDetection(quest)) {
+							drawQuest(quest, "all:");
+						}
+					}
+				} else {
+					std::vector<std::string> groups;
+					for (const auto& quest : quests) {
+						if ((!trackingOnlyRunning || quest.running) && questMatchesDetection(quest)) {
+							groups.push_back(trackingQuestGroupMode == 1 ? QuestTypeLabel(quest) : quest.modName.empty() ? Text("tracking.noneValue", "none") : quest.modName);
+						}
+					}
+					std::sort(groups.begin(), groups.end());
+					groups.erase(std::unique(groups.begin(), groups.end()), groups.end());
+					for (const auto& group : groups) {
+						ImGui::SetNextItemOpen(false, ImGuiCond_Once);
+						if (!ImGui::TreeNodeEx((group + "##QuestGroup").c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
+							continue;
+						}
+						for (const auto& quest : quests) {
+							const auto questGroup = trackingQuestGroupMode == 1 ? QuestTypeLabel(quest) : quest.modName.empty() ? Text("tracking.noneValue", "none") : quest.modName;
+							if (questGroup == group && (!trackingOnlyRunning || quest.running) && questMatchesDetection(quest)) {
+								drawQuest(quest, "group:");
+							}
+						}
+						ImGui::TreePop();
+					}
+				}
+			}
+			textInputActive = textInputActive || ImGui::GetIO().WantTextInput;
+
+			ImGui::SetNextItemOpen(false, ImGuiCond_Once);
+			if (ImGui::CollapsingHeader((Text("tracking.questEditor", "Quest debugging") + "##QuestDebugging").c_str())) {
+				const auto selectedQuest = std::find_if(quests.begin(), quests.end(), [](const auto& quest) {
+					return quest.formIDValue == selectedTrackingQuestFormID;
+				});
+				if (selectedQuest == quests.end()) {
+					ImGui::TextDisabled("%s", Text("tracking.noSelectedQuest", "Select a loaded quest above to inspect stages and control objectives.").c_str());
+				} else {
+				ImGui::TextWrapped("%s", FormatText("tracking.selectedQuest", "Selected: {title} [{formID}] | Current stage: {stage}",
+					{ { "title", selectedQuest->title }, { "formID", selectedQuest->formID }, { "stage", std::to_string(selectedQuest->currentStage) } }).c_str());
+				if (selectedQuest->stages.empty()) {
+					ImGui::TextDisabled("%s", Text("tracking.noStages", "No stage data is available for this quest record.").c_str());
+				} else {
+					if (ImGui::BeginListBox("##TrackingStageList", ImVec2(230.0f, 140.0f))) {
+						for (const auto& stage : selectedQuest->stages) {
+							const bool current = stage.index == selectedQuest->currentStage;
+							const auto stageLabel = std::to_string(stage.index) + (current ? " (" + Text("tracking.stageCurrent", "current") + ")" : stage.executed ? " (" + Text("tracking.stageExecuted", "executed") + ")" : " (" + Text("tracking.stageWaiting", "waiting") + ")") +
+								(stage.startUp ? " [" + Text("tracking.stageStart", "start") + "]" : "") + (stage.shutDown ? " [" + Text("tracking.stageFinish", "finish") + "]" : "");
+							if (ImGui::Selectable(stageLabel.c_str(), std::string_view(trackingStageInput) == std::to_string(stage.index))) {
+								CopySettingText(trackingStageInput, std::to_string(stage.index));
+							}
+						}
+						ImGui::EndListBox();
+					}
+				}
+				ImGui::SetNextItemWidth(90.0f);
+				ImGui::InputText("##TrackingStageInput", trackingStageInput, sizeof(trackingStageInput), ImGuiInputTextFlags_CharsDecimal);
+				textInputActive = textInputActive || ImGui::IsItemActive();
+				ImGui::SameLine();
+				ImGui::Checkbox(Text("tracking.force", "Force").c_str(), &trackingStageForce);
+				ImGui::SameLine();
+				if (ImGui::Button((Text("tracking.setStage", "Set stage") + "##TrackingSetStage").c_str())) {
+					try {
+						std::size_t consumed = 0;
+						const auto parsedStage = std::stoul(trackingStageInput, &consumed);
+						if (parsedStage <= 0xFFFF && trackingStageInput[0] != '\0' && consumed == std::strlen(trackingStageInput)) {
+							tracker::RequestQuestStage(selectedQuest->formIDValue, static_cast<std::uint16_t>(parsedStage), trackingStageForce);
+							recalculate = true;
+						}
+					} catch (...) {}
+				}
+				ImGui::TextDisabled("%s", Text("tracking.stageWarning", "Stage regressions and stopped quests require Force; make a hard save before changing quest state.").c_str());
+					ImGui::SetNextItemOpen(false, ImGuiCond_Once);
+					if (ImGui::CollapsingHeader((Text("tracking.objectiveActions", "Objective actions") + "##ObjectiveActions").c_str())) {
+						if (selectedQuest->objectives.empty()) {
+							ImGui::TextDisabled("%s", Text("tracking.noObjectives", "No objectives are present in this quest record.").c_str());
+						}
+						for (const auto& objective : selectedQuest->objectives) {
+					ImGui::PushID(static_cast<int>(objective.index));
+					if (ImGui::SmallButton((Text("tracking.showObjective", "Show") + "##ShowObjective").c_str())) {
+						tracker::RequestQuestObjective(selectedQuest->formIDValue, static_cast<std::uint16_t>(objective.index), tracker::ObjectiveAction::kShow);
+						recalculate = true;
+					}
+					ImGui::SameLine();
+					if (ImGui::SmallButton((Text("tracking.hideObjective", "Hide") + "##HideObjective").c_str())) {
+						tracker::RequestQuestObjective(selectedQuest->formIDValue, static_cast<std::uint16_t>(objective.index), tracker::ObjectiveAction::kHide);
+						recalculate = true;
+					}
+					ImGui::SameLine();
+					if (ImGui::SmallButton((Text("tracking.completeObjective", "Done") + "##CompleteObjective").c_str())) {
+						tracker::RequestQuestObjective(selectedQuest->formIDValue, static_cast<std::uint16_t>(objective.index), tracker::ObjectiveAction::kComplete);
+						recalculate = true;
+					}
+					ImGui::SameLine();
+					if (ImGui::SmallButton((Text("tracking.failObjective", "Fail") + "##FailObjective").c_str())) {
+						tracker::RequestQuestObjective(selectedQuest->formIDValue, static_cast<std::uint16_t>(objective.index), tracker::ObjectiveAction::kFail);
+						recalculate = true;
+					}
+					ImGui::SameLine();
+					ImGui::TextWrapped("%s", objective.text.empty() ? Text("tracking.emptyObjective", "(no display text)").c_str() : objective.text.c_str());
+					ImGui::PopID();
+						}
+					}
+				}
+				}
+			}
+			}
+			const auto trackerStatus = tracker::GetStatus();
+			if (!trackerStatus.empty()) {
+				ImGui::TextWrapped("%s", trackerStatus.c_str());
+			}
+
+			ImGui::EndChild();
+			bool ingredientSearchActive = false;
+			if (openProtectedIngredientWindow) {
+				bool pickerOpen = true;
+				const auto displaySize = ImGui::GetIO().DisplaySize;
+				const auto maximumPickerHeight = (std::max)(ImGui::GetFrameHeight() * 4.0f, displaySize.y - ImGui::GetFrameHeight() * 2.0f);
+				ImGui::SetNextWindowSize(ImVec2(420.0f, 0.0f), ImGuiCond_FirstUseEver);
+				ImGui::SetNextWindowSizeConstraints(ImVec2(360.0f, 0.0f), ImVec2(420.0f, maximumPickerHeight));
+				const auto pickerTitle = Text("tracking.addProtected", "Add protected ingredient") + "###TrackingProtectedIngredientWindow";
+				const auto& io = ImGui::GetIO();
+				if (positionProtectedIngredientWindow) {
+					const auto parentPosition = ImGui::GetWindowPos();
+					const auto parentSize = ImGui::GetWindowSize();
+					constexpr float pickerWidth = 420.0f;
+					const auto maximumX = (std::max)(0.0f, io.DisplaySize.x - pickerWidth);
+					const auto maximumY = (std::max)(0.0f, io.DisplaySize.y - ImGui::GetFrameHeight());
+					const auto pickerX = (std::clamp)(parentPosition.x + (parentSize.x - pickerWidth) * 0.5f, 0.0f, maximumX);
+					const auto pickerY = (std::clamp)(parentPosition.y + ImGui::GetFrameHeight(), 0.0f, maximumY);
+					ImGui::SetNextWindowPos(ImVec2(pickerX, pickerY), ImGuiCond_Always);
+				}
+				const bool pickerBeginResult = ImGui::Begin(pickerTitle.c_str(), &pickerOpen, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_NoCollapse);
+				const auto* pickerWindow = ImGui::GetCurrentWindow();
+				const auto pickerWindowPosition = ImGui::GetWindowPos();
+				const auto pickerWindowSize = ImGui::GetWindowSize();
+				positionProtectedIngredientWindow = false;
+			if (pickerBeginResult) {
+				const bool focusRequested = focusProtectedIngredientSearch;
+				if (focusRequested) {
+					ImGui::SetKeyboardFocusHere();
+					focusProtectedIngredientSearch = false;
+				}
+				ImGui::SetNextItemWidth(-1.0f);
+				ImGui::InputTextWithHint("##TrackingProtectedIngredientSearch", Text("tracking.protectedSearchHint", "Type an ingredient to protect...").c_str(), protectedIngredientSearch, sizeof(protectedIngredientSearch));
+				ingredientSearchActive = ImGui::IsItemActive();
+				const std::string searchQuery(protectedIngredientSearch);
+				auto suggestions = GetIngredientNames();
+				suggestions.erase(std::remove_if(suggestions.begin(), suggestions.end(), [&searchQuery](const auto& name) {
+					return IngredientMatchScore(name, searchQuery) < 0 || std::any_of(protectedIngredients.begin(), protectedIngredients.end(), [&name](const auto& entry) {
+						return entry.name == name;
+					});
+				}), suggestions.end());
+				std::sort(suggestions.begin(), suggestions.end(), [&searchQuery](const auto& left, const auto& right) {
+					const auto leftScore = IngredientMatchScore(left, searchQuery);
+					const auto rightScore = IngredientMatchScore(right, searchQuery);
+					return leftScore == rightScore ? left < right : leftScore < rightScore;
+				});
+				if (suggestions.empty()) {
+					ImGui::TextDisabled("%s", Text("tracking.noAvailableIngredients", "No available ingredients match the search.").c_str());
+				} else {
+					for (const auto& suggestion : suggestions) {
+						if (ImGui::Selectable(suggestion.c_str())) {
+							AddProtectedIngredient(suggestion);
+							protectedIngredientSearch[0] = '\0';
+							ingredientSearchActive = false;
+							recalculate = true;
+							pickerOpen = false;
+						}
+					}
+				}
+			}
+			ImGui::End();
+			openProtectedIngredientWindow = pickerOpen;
+			if (pickerOpen) {
+				cursorOverWindow.store(true, std::memory_order_release);
+				protectedIngredientWindowVisible = true;
+				protectedIngredientWindowMin = pickerWindowPosition;
+				protectedIngredientWindowMax = ImVec2(
+					pickerWindowPosition.x + pickerWindowSize.x,
+					pickerWindowPosition.y + pickerWindowSize.y);
+			} else {
+				protectedIngredientWindowVisible = false;
+				protectedIngredientWindowMin = ImVec2(-1.0f, -1.0f);
+				protectedIngredientWindowMax = ImVec2(-1.0f, -1.0f);
+			}
+			if (!pickerOpen) {
+				focusProtectedIngredientSearch = false;
+				ImGui::ClearActiveID();
+			}
+			}
+			textInputActive = textInputActive || ingredientSearchActive;
+			if (!selectedTrackingIngredient.empty()) {
+				const bool detailsPopupRequested = openTrackingIngredientDetails;
+				const auto detailsPopupLabel = Text("tracking.ingredientDetails", "Ingredient details") + "###TrackingIngredientDetails";
+				if (detailsPopupRequested) {
+					ImGui::OpenPopup(detailsPopupLabel.c_str());
+					openTrackingIngredientDetails = false;
+				}
+				const bool detailsPopupIsOpen = ImGui::IsPopupOpen(detailsPopupLabel.c_str());
+				bool detailsWindowOpen = true;
+				if (detailsPopupIsOpen) {
+					cursorOverWindow.store(true, std::memory_order_release);
+				}
+				const auto detailsDisplaySize = ImGui::GetIO().DisplaySize;
+				const auto maximumDetailsHeight = (std::max)(ImGui::GetFrameHeight() * 6.0f, detailsDisplaySize.y - ImGui::GetFrameHeight() * 2.0f);
+				ImGui::SetNextWindowSizeConstraints(ImVec2(420.0f, 0.0f), ImVec2(560.0f, maximumDetailsHeight));
+				ImGui::SetNextWindowSize(ImVec2(560.0f, 0.0f), ImGuiCond_FirstUseEver);
+				const bool detailsPopupVisible = ImGui::BeginPopupModal(detailsPopupLabel.c_str(), &detailsWindowOpen, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_AlwaysVerticalScrollbar);
+				if (detailsPopupVisible) {
+					cursorOverWindow.store(true, std::memory_order_release);
+					ImGui::TextColored(ImVec4(1.0f, 0.84f, 0.0f, 1.0f), "%s", selectedTrackingIngredient.c_str());
+					ImGui::TextWrapped("%s", Text("tracking.ingredientDetailsDescription", "This popup shows every protection source for this ingredient. Changes are saved immediately and reduce the copies available to the potion calculator.").c_str());
+					const auto protectedEntry = std::find_if(protectedIngredients.begin(), protectedIngredients.end(), [](const auto& entry) {
+						return entry.name == selectedTrackingIngredient;
+					});
+					ImGui::SeparatorText(Text("tracking.staticProtection", "Static protection").c_str());
+					ImGui::TextWrapped("%s", Text("tracking.staticProtectionDescription", "Static protection is a manual reservation for this ingredient. It applies independently of detected quests, recipes, and selected effects.").c_str());
+					if (protectedEntry == protectedIngredients.end()) {
+						ImGui::TextDisabled("%s", Text("tracking.noStaticProtection", "This ingredient has no static protection exception.").c_str());
+						ImGui::TextWrapped("%s", Text("tracking.addStaticProtectionDescription", "Use this button to add a saved reservation before changing its quantity.").c_str());
+						if (ImGui::Button((Text("tracking.addStaticProtection", "Protect this ingredient") + "##AddStaticProtection").c_str())) {
+							AddProtectedIngredient(selectedTrackingIngredient);
+							recalculate = true;
+						}
+					} else {
+						const auto protectedIndex = static_cast<std::size_t>(std::distance(protectedIngredients.begin(), protectedEntry));
+						ImGui::PushID("StaticProtection");
+						bool protectAll = protectedEntry->count < 0;
+						if (ImGui::Checkbox(Text("tracking.protectAllStatic", "Protect all static copies").c_str(), &protectAll)) {
+							if (protectAll) {
+								protectedEntry->previousCount = (std::max)(1, protectedEntry->count);
+								protectedEntry->count = -1;
+							} else {
+								protectedEntry->count = (std::max)(1, protectedEntry->previousCount);
+							}
+							SaveProtectedIngredients();
+							recalculate = true;
+						}
+						ImGui::TextWrapped("%s", Text("tracking.protectAllStaticDescription", "When checked, reserve every copy currently available. When unchecked, reserve only the finite quantity entered below.").c_str());
+						if (!protectAll) {
+							ImGui::SetNextItemWidth(100.0f);
+							if (ImGui::InputInt(Text("tracking.staticQuantity", "Static quantity").c_str(), &protectedEntry->count, 1, 10)) {
+								protectedEntry->count = (std::max)(1, protectedEntry->count);
+								protectedEntry->previousCount = protectedEntry->count;
+								SaveProtectedIngredients();
+								recalculate = true;
+							}
+							ImGui::TextWrapped("%s", Text("tracking.staticQuantityDescription", "This is the number of copies reserved by the static protection entry; increasing it leaves fewer copies available for crafting.").c_str());
+						}
+						ImGui::TextWrapped("%s", Text("tracking.removeStaticProtectionDescription", "Remove the saved static reservation when this ingredient no longer needs a manual hold.").c_str());
+						if (ImGui::Button((Text("tracking.removeStaticProtection", "Remove static protection") + "##RemoveStaticProtection").c_str())) {
+							protectedIngredients.erase(protectedIngredients.begin() + static_cast<std::ptrdiff_t>(protectedIndex));
+							SaveProtectedIngredients();
+							recalculate = true;
+						}
+						ImGui::PopID();
+					}
+
+					ImGui::SeparatorText(Text("tracking.detectedSources", "Detected sources").c_str());
+					ImGui::TextWrapped("%s", Text("tracking.detectedSourcesDescription", "These rows were found from loaded game records or entered as tracking requirements. Each row contributes its own reservation, and all unfinished rows are combined for this ingredient.").c_str());
+					bool foundRequirement = false;
+					for (const auto& original : requirements) {
+						if (!IsTrackingRequirementVisible(original, manualProtectionOnly) || original.ingredient != selectedTrackingIngredient) {
+							continue;
+						}
+						foundRequirement = true;
+						auto requirement = original;
+						ImGui::PushID(requirement.key.c_str());
+						const bool manualOverride = requirement.automatic && requirement.overridden;
+						const auto typeText = Text(manualOverride ? "tracking.manualOverrideLabel" : (requirement.automatic ? "tracking.detected" : "tracking.manualLabel"),
+							manualOverride ? "Manual override" : (requirement.automatic ? "Detected" : "Manual"));
+						ImGui::TextColored(manualOverride ? ImVec4(1.0f, 0.75f, 0.35f, 1.0f) : (requirement.automatic ? ImVec4(0.55f, 0.8f, 1.0f, 1.0f) : ImVec4(0.65f, 1.0f, 0.65f, 1.0f)), "%s", typeText.c_str());
+						ImGui::SameLine();
+						ImGui::TextWrapped("%s", requirement.source.empty() ? Text("tracking.unknownSource", "Unspecified source").c_str() : requirement.source.c_str());
+						if (!requirement.detail.empty()) {
+							ImGui::TextWrapped("%s", requirement.detail.c_str());
+						}
+						bool protectAll = requirement.count >= 999;
+						if (ImGui::Checkbox((Text("tracking.protectAllDetection", "Protect all from this detection") + "##ProtectAllDetection").c_str(), &protectAll)) {
+							if (protectAll) {
+								requirement.previousCount = requirement.count < kUnlimitedProtectionCount ? (std::max)(1, requirement.count) : GetFiniteProtectionCount(requirement);
+								requirement.count = kUnlimitedProtectionCount;
+							} else {
+								requirement.count = GetFiniteProtectionCount(requirement);
+								requirement.previousCount = requirement.count;
+							}
+							tracker::UpdateRequirement(requirement);
+							recalculate = true;
+						}
+						ImGui::TextWrapped("%s", Text("tracking.protectAllDetectionDescription", "Reserve every available copy for this source. Clear it to use a finite protected quantity instead.").c_str());
+						if (!protectAll) {
+							ImGui::SetNextItemWidth(100.0f);
+							if (ImGui::InputInt((Text("tracking.protectQuantity", "Protected quantity") + "##ProtectQuantity").c_str(), &requirement.count, 1, 10)) {
+								requirement.count = (std::clamp)(requirement.count, 1, 998);
+								requirement.previousCount = requirement.count;
+								tracker::UpdateRequirement(requirement);
+								recalculate = true;
+							}
+							ImGui::TextWrapped("%s", Text("tracking.protectQuantityDescription", "The protected quantity for this source is combined with other active sources for the same ingredient.").c_str());
+						}
+						bool completed = requirement.completed;
+						if (ImGui::Checkbox((Text("tracking.completed", "Completed") + "##IngredientDetectionCompleted").c_str(), &completed)) {
+							requirement.completed = completed;
+							requirement.completionOverridden = true;
+							tracker::UpdateRequirement(requirement);
+							recalculate = true;
+						}
+						ImGui::TextWrapped("%s", Text("tracking.completedDescription", "Mark this requirement completed when it is fulfilled. Completed rows no longer reserve ingredient copies.").c_str());
+						if (!requirement.automatic) {
+							if (ImGui::SmallButton((Text("tracking.remove", "Remove") + "##IngredientDetectionRemove").c_str())) {
+								tracker::RemoveManual(requirement.key);
+								recalculate = true;
+							}
+							ImGui::TextWrapped("%s", Text("tracking.removeDetectionDescription", "Remove deletes this manual tracking row and its reservation; automatically detected rows cannot be removed here.").c_str());
+						}
+						ImGui::Separator();
+						ImGui::PopID();
+					}
+					if (!foundRequirement) {
+						ImGui::TextDisabled("%s", Text("tracking.noIngredientDetections", "No automatic or manual detections currently reference this ingredient.").c_str());
+					}
+					ImGui::EndPopup();
+				}
+				if (!detailsWindowOpen) {
+					selectedTrackingIngredient.clear();
+					openTrackingIngredientDetails = false;
+				}
+			}
+			searchInputFocused.store(textInputActive || ImGui::GetIO().WantTextInput, std::memory_order_release);
 			return recalculate;
 		}
 
@@ -1307,8 +2262,107 @@ namespace alchemist::ui {
 		if (a_codePoint == 0 || a_codePoint > 0x10FFFF || (a_codePoint >= 0xD800 && a_codePoint <= 0xDFFF)) {
 			return;
 		}
-		std::scoped_lock lock(pendingTextInputMutex);
-		pendingTextInput.push_back(a_codePoint);
+		std::scoped_lock lock(pendingInputMutex);
+		pendingInput.push_back(PendingInput{
+			.type = PendingInputType::kCharacter,
+			.value = a_codePoint
+		});
+	}
+
+	void AddInputKey(std::uint32_t a_keyCode, bool a_pressed)
+	{
+		std::scoped_lock lock(pendingInputMutex);
+		pendingInput.push_back(PendingInput{
+			.type = PendingInputType::kKey,
+			.value = a_keyCode,
+			.pressed = a_pressed
+		});
+	}
+
+	ImGuiKey DIKToImGuiKey(std::uint32_t a_keyCode)
+	{
+		switch (a_keyCode) {
+		case 0x01: return ImGuiKey_Escape;
+		case 0x02: return ImGuiKey_1;
+		case 0x03: return ImGuiKey_2;
+		case 0x04: return ImGuiKey_3;
+		case 0x05: return ImGuiKey_4;
+		case 0x06: return ImGuiKey_5;
+		case 0x07: return ImGuiKey_6;
+		case 0x08: return ImGuiKey_7;
+		case 0x09: return ImGuiKey_8;
+		case 0x0A: return ImGuiKey_9;
+		case 0x0B: return ImGuiKey_0;
+		case 0x0C: return ImGuiKey_Minus;
+		case 0x0D: return ImGuiKey_Equal;
+		case 0x0E: return ImGuiKey_Backspace;
+		case 0x0F: return ImGuiKey_Tab;
+		case 0x10: return ImGuiKey_Q;
+		case 0x11: return ImGuiKey_W;
+		case 0x12: return ImGuiKey_E;
+		case 0x13: return ImGuiKey_R;
+		case 0x14: return ImGuiKey_T;
+		case 0x15: return ImGuiKey_Y;
+		case 0x16: return ImGuiKey_U;
+		case 0x17: return ImGuiKey_I;
+		case 0x18: return ImGuiKey_O;
+		case 0x19: return ImGuiKey_P;
+		case 0x1A: return ImGuiKey_LeftBracket;
+		case 0x1B: return ImGuiKey_RightBracket;
+		case 0x1C: return ImGuiKey_Enter;
+		case 0x1D: return ImGuiKey_LeftCtrl;
+		case 0x1E: return ImGuiKey_A;
+		case 0x1F: return ImGuiKey_S;
+		case 0x20: return ImGuiKey_D;
+		case 0x21: return ImGuiKey_F;
+		case 0x22: return ImGuiKey_G;
+		case 0x23: return ImGuiKey_H;
+		case 0x24: return ImGuiKey_J;
+		case 0x25: return ImGuiKey_K;
+		case 0x26: return ImGuiKey_L;
+		case 0x27: return ImGuiKey_Semicolon;
+		case 0x28: return ImGuiKey_Apostrophe;
+		case 0x29: return ImGuiKey_GraveAccent;
+		case 0x2A: return ImGuiKey_LeftShift;
+		case 0x2B: return ImGuiKey_Backslash;
+		case 0x2C: return ImGuiKey_Z;
+		case 0x2D: return ImGuiKey_X;
+		case 0x2E: return ImGuiKey_C;
+		case 0x2F: return ImGuiKey_V;
+		case 0x30: return ImGuiKey_B;
+		case 0x31: return ImGuiKey_N;
+		case 0x32: return ImGuiKey_M;
+		case 0x33: return ImGuiKey_Comma;
+		case 0x34: return ImGuiKey_Period;
+		case 0x35: return ImGuiKey_Slash;
+		case 0x36: return ImGuiKey_RightShift;
+		case 0x39: return ImGuiKey_Space;
+		case 0x3A: return ImGuiKey_CapsLock;
+		case 0x47: return ImGuiKey_Keypad7;
+		case 0x48: return ImGuiKey_Keypad8;
+		case 0x49: return ImGuiKey_Keypad9;
+		case 0x4B: return ImGuiKey_Keypad4;
+		case 0x4C: return ImGuiKey_Keypad5;
+		case 0x4D: return ImGuiKey_Keypad6;
+		case 0x4F: return ImGuiKey_Keypad1;
+		case 0x50: return ImGuiKey_Keypad2;
+		case 0x51: return ImGuiKey_Keypad3;
+		case 0x52: return ImGuiKey_Keypad0;
+		case 0x53: return ImGuiKey_KeypadDecimal;
+		case 0x9C: return ImGuiKey_KeypadEnter;
+		case 0x9D: return ImGuiKey_RightCtrl;
+		case 0xC7: return ImGuiKey_Home;
+		case 0xC8: return ImGuiKey_UpArrow;
+		case 0xC9: return ImGuiKey_PageUp;
+		case 0xCB: return ImGuiKey_LeftArrow;
+		case 0xCD: return ImGuiKey_RightArrow;
+		case 0xCF: return ImGuiKey_End;
+		case 0xD0: return ImGuiKey_DownArrow;
+		case 0xD1: return ImGuiKey_PageDown;
+		case 0xD2: return ImGuiKey_Insert;
+		case 0xD3: return ImGuiKey_Delete;
+		default: return ImGuiKey_None;
+		}
 	}
 
 	void UpdateImGuiMouseInput()
@@ -1318,6 +2372,7 @@ namespace alchemist::ui {
 			io.AddMousePosEvent(-1.0f, -1.0f);
 			io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
 			mouseWheelDelta.store(0.0f, std::memory_order_release);
+			leftMouseButtonDown.store(false, std::memory_order_release);
 			return;
 		}
 
@@ -1332,84 +2387,62 @@ namespace alchemist::ui {
 			ImGui::ClearActiveID();
 		}
 		selectedRecipeIngredientDetails.clear();
+		selectedTrackingIngredient.clear();
 		mouseWheelDelta.store(0.0f, std::memory_order_release);
+		protectedIngredientPopupInputCapture.store(false, std::memory_order_release);
 		cursorOverWindow.store(false, std::memory_order_release);
+		protectedIngredientWindowVisible = false;
+		protectedIngredientWindowMin = ImVec2(-1.0f, -1.0f);
+		protectedIngredientWindowMax = ImVec2(-1.0f, -1.0f);
 		draggingWindow = false;
 		resizingWindow = false;
 		previousLeftMouseButtonDown = leftMouseButtonDown.load(std::memory_order_acquire);
-		previousKeyboardState.fill(false);
-		backspaceRepeatAt = std::chrono::steady_clock::time_point{};
 		searchRectMin = ImVec2(-1.0f, -1.0f);
 		searchRectMax = ImVec2(-1.0f, -1.0f);
 		searchInputFocused.store(false, std::memory_order_release);
 		focusSearch = false;
-		std::scoped_lock lock(pendingTextInputMutex);
-		pendingTextInput.clear();
+		{
+			std::scoped_lock lock(pendingInputMutex);
+			pendingInput.clear();
+		}
 	}
 
 	void ProcessKeyboardInput()
 	{
 		const auto gameWindow = render::GetGameWindowHandle();
 		if (!gameWindow || ::GetForegroundWindow() != gameWindow) {
-			previousKeyboardState.fill(false);
+			std::scoped_lock lock(pendingInputMutex);
+			pendingInput.clear();
 			return;
 		}
 
-		std::array<bool, 256> keyboardState{};
-		for (int key = 0; key < 256; ++key) {
-			keyboardState[key] = (GetAsyncKeyState(key) & 0x8000) != 0;
+		std::vector<PendingInput> input;
+		{
+			std::scoped_lock lock(pendingInputMutex);
+			input.swap(pendingInput);
+		}
+		if (!IsVisible()) {
+			return;
 		}
 
-		const bool hasTextInputFocus = searchInputFocused.load(std::memory_order_acquire) || ImGui::GetIO().WantTextInput;
-		if (IsVisible() && hasTextInputFocus) {
-			auto& io = ImGui::GetIO();
-			std::vector<std::uint32_t> textInput;
-			{
-				std::scoped_lock lock(pendingTextInputMutex);
-				textInput.swap(pendingTextInput);
+		auto& io = ImGui::GetIO();
+		for (const auto& pending : input) {
+			if (pending.type == PendingInputType::kCharacter) {
+				io.AddInputCharacter(pending.value);
+				continue;
 			}
-			for (const auto codePoint : textInput) {
-				io.AddInputCharacter(codePoint);
+
+			if (pending.value == 0x2A || pending.value == 0x36) {
+				io.AddKeyEvent(ImGuiMod_Shift, pending.pressed);
+			} else if (pending.value == 0x1D || pending.value == 0x9D) {
+				io.AddKeyEvent(ImGuiMod_Ctrl, pending.pressed);
+			} else if (pending.value == 0x38 || pending.value == 0xB8) {
+				io.AddKeyEvent(ImGuiMod_Alt, pending.pressed);
 			}
-			const auto currentTime = std::chrono::steady_clock::now();
-			const auto backspaceDown = keyboardState[VK_BACK];
-			if (backspaceDown) {
-				if (!previousKeyboardState[VK_BACK]) {
-					io.AddKeyEvent(ImGuiKey_Backspace, true);
-					io.AddKeyEvent(ImGuiKey_Backspace, false);
-					backspaceRepeatAt = currentTime + std::chrono::milliseconds(400);
-				} else if (backspaceRepeatAt != std::chrono::steady_clock::time_point{} && currentTime >= backspaceRepeatAt) {
-					io.AddKeyEvent(ImGuiKey_Backspace, true);
-					io.AddKeyEvent(ImGuiKey_Backspace, false);
-					backspaceRepeatAt = currentTime + std::chrono::milliseconds(50);
-				}
-			} else {
-				backspaceRepeatAt = std::chrono::steady_clock::time_point{};
-			}
-			for (int key = 0; key < 256; ++key) {
-				if (key == VK_BACK || !keyboardState[key] || previousKeyboardState[key]) {
-					continue;
-				}
-				if (key == VK_BACK) {
-					io.AddKeyEvent(ImGuiKey_Backspace, true);
-					io.AddKeyEvent(ImGuiKey_Backspace, false);
-					continue;
-				}
-				if (key == VK_RETURN) {
-					io.AddKeyEvent(ImGuiKey_Enter, true);
-					io.AddKeyEvent(ImGuiKey_Enter, false);
-					io.AddKeyEvent(ImGuiKey_KeypadEnter, true);
-					io.AddKeyEvent(ImGuiKey_KeypadEnter, false);
-					continue;
-				}
-				if (key == VK_DELETE) {
-					io.AddKeyEvent(ImGuiKey_Delete, true);
-					io.AddKeyEvent(ImGuiKey_Delete, false);
-					continue;
-				}
+			if (const auto key = DIKToImGuiKey(pending.value); key != ImGuiKey_None) {
+				io.AddKeyEvent(key, pending.pressed);
 			}
 		}
-		previousKeyboardState = keyboardState;
 	}
 
 	bool IsSearchInputFocused()
@@ -1423,8 +2456,8 @@ namespace alchemist::ui {
 		focusProtectedIngredientSearch = false;
 		searchInputFocused.store(false, std::memory_order_release);
 		{
-			std::scoped_lock lock(pendingTextInputMutex);
-			pendingTextInput.clear();
+			std::scoped_lock lock(pendingInputMutex);
+			pendingInput.clear();
 		}
 		if (ImGui::GetCurrentContext()) {
 			ImGui::ClearActiveID();
@@ -1438,7 +2471,7 @@ namespace alchemist::ui {
 
 	bool IsCursorOverWindow()
 	{
-		return cursorOverWindow.load(std::memory_order_acquire);
+		return cursorOverWindow.load(std::memory_order_acquire) || protectedIngredientPopupInputCapture.load(std::memory_order_acquire);
 	}
 
 	void DrawCursor()
@@ -1527,25 +2560,35 @@ namespace alchemist::ui {
 			windowSizeIsCollapsed = false;
 		}
 		const auto windowTitle = Text("window.title", "Prosperous Alchemist") + "##AlchemistWindow";
+		const bool popupInputCapture = !windowCollapsed && trackingOpen &&
+			(openProtectedIngredientWindow || !selectedTrackingIngredient.empty());
+		protectedIngredientPopupInputCapture.store(popupInputCapture, std::memory_order_release);
 		if (!ImGui::Begin(windowTitle.c_str(), nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar)) {
 			const auto windowPosition = ImGui::GetWindowPos();
 			const auto windowSize = ImGui::GetWindowSize();
-			cursorOverWindow.store(
+			protectedIngredientWindowVisible = false;
+			protectedIngredientWindowMin = ImVec2(-1.0f, -1.0f);
+			protectedIngredientWindowMax = ImVec2(-1.0f, -1.0f);
+			const bool cursorOverMainWindow =
 				skyrimCursorPosition.x >= windowPosition.x && skyrimCursorPosition.x <= windowPosition.x + windowSize.x &&
-					skyrimCursorPosition.y >= windowPosition.y && skyrimCursorPosition.y <= windowPosition.y + windowSize.y,
-				std::memory_order_release);
+				skyrimCursorPosition.y >= windowPosition.y && skyrimCursorPosition.y <= windowPosition.y + windowSize.y;
+			const bool cursorOverProtectedWindow = IsCursorOverProtectedIngredientWindow(skyrimCursorPosition);
+			const bool cursorCapture = popupInputCapture || cursorOverMainWindow || cursorOverProtectedWindow;
+			cursorOverWindow.store(cursorCapture, std::memory_order_release);
 			ImGui::End();
 			return;
 		}
 		const auto windowPosition = ImGui::GetWindowPos();
 		const auto windowSize = ImGui::GetWindowSize();
 		const auto mousePosition = skyrimCursorPosition;
-		cursorOverWindow.store(
+		const bool cursorOverMainWindow =
 			mousePosition.x >= windowPosition.x && mousePosition.x <= windowPosition.x + windowSize.x &&
-				mousePosition.y >= windowPosition.y && mousePosition.y <= windowPosition.y + windowSize.y,
-			std::memory_order_release);
+			mousePosition.y >= windowPosition.y && mousePosition.y <= windowPosition.y + windowSize.y;
+		const bool cursorOverProtectedWindow = IsCursorOverProtectedIngredientWindow(mousePosition);
+		const bool cursorCapture = popupInputCapture || cursorOverMainWindow || cursorOverProtectedWindow;
+		cursorOverWindow.store(cursorCapture, std::memory_order_release);
 		const auto leftButtonDown = leftMouseButtonDown.load(std::memory_order_acquire);
-		if (settingsOpen) {
+		if (settingsOpen || trackingOpen) {
 			searchRectMin = ImVec2(-1.0f, -1.0f);
 			searchRectMax = ImVec2(-1.0f, -1.0f);
 		}
@@ -1625,8 +2668,19 @@ namespace alchemist::ui {
 		if (windowCollapsed) {
 			ImGui::ClearActiveID();
 			searchInputFocused.store(false, std::memory_order_release);
+			protectedIngredientWindowVisible = false;
+			protectedIngredientWindowMin = ImVec2(-1.0f, -1.0f);
+			protectedIngredientWindowMax = ImVec2(-1.0f, -1.0f);
 			searchRectMin = ImVec2(-1.0f, -1.0f);
 			searchRectMax = ImVec2(-1.0f, -1.0f);
+			ImGui::End();
+			return;
+		}
+
+		if (trackingOpen) {
+			if (DrawTracking()) {
+				menu::RequestRecalculation(true);
+			}
 			ImGui::End();
 			return;
 		}

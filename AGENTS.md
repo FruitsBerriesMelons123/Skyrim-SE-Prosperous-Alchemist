@@ -41,7 +41,7 @@ See **user-paths.md** for paths for locations referenced in these instructions.
 - Source code location listed in **user-paths.md**.
 
 ## SSEEdit
-- Executuble location listed in **user-paths.md**.
+- Executable location listed in **user-paths.md**.
 
 ## Alchemy Plus
 - Source code location listed in **user-paths.md**.
@@ -49,6 +49,10 @@ See **user-paths.md** for paths for locations referenced in these instructions.
 ## Complete Alchemy and Cooking Overhaul (CACO)
 - Source code location listed in **user-paths.md**.
 - See also **caco.md**.
+
+## Quest Tracker NG
+- Source code location listed in **user-paths.md**.
+- To provide examples for implementing quest related code.
 
 ## Ingredients
 ### ingredient_name,form_id,editor_id,effect_name,effect_form_id,base_cost,magnitude,duration,power_affects_magnitude,power_affects_duration,no_magnitude,no_duration,beneficial,harmful,hostile

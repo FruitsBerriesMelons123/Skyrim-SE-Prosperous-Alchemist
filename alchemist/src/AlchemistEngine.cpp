@@ -866,7 +866,7 @@ namespace alchemist::engine {
 				std::lock_guard snapLock(snapshotMutex);
 				loadAllRequested = true;
 				totalAvailableRecipes = results.size();
-				cachedRecipes = std::move(results);
+				cachedRecipes = results;
 				allCachedRecipes.clear();
 				cacheGeneration.fetch_add(1, std::memory_order_release);
 				lastCompletedSnapshot = job->snapshot;

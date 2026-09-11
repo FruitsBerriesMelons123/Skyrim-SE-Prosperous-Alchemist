@@ -13,6 +13,7 @@ import argparse
 import hashlib
 import os
 import queue
+import re
 import shutil
 import subprocess
 import sys
@@ -44,6 +45,32 @@ PLUGIN_CLEAN_RULES = (
 
 def timestamp() -> str:
 	return datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+def source_public_version(repo_root: Path) -> str:
+	version_header = repo_root / "alchemist" / "include" / "version.h"
+	try:
+		version_text = version_header.read_text(encoding="utf-8")
+	except OSError as error:
+		raise RuntimeError(f"Unable to read source version header: {version_header}: {error}") from error
+
+	components = dict(
+		re.findall(
+			r"^\s*#define\s+MYFP_VERSION_(MAJOR|MINOR|PATCH)\s+([0-9]+)\s*$",
+			version_text,
+			re.MULTILINE,
+		)
+	)
+	missing = [name for name in ("MAJOR", "MINOR", "PATCH") if name not in components]
+	if missing:
+		raise RuntimeError(
+			f"Source version header is missing required public version macros ({', '.join(missing)}): {version_header}"
+		)
+	return ".".join(components[name] for name in ("MAJOR", "MINOR", "PATCH"))
+
+
+def release_package_path(repo_root: Path) -> Path:
+	return repo_root / "dist" / f"Prosperous-Alchemist-NG-v{source_public_version(repo_root)}.zip"
 
 
 def report(message: str) -> None:
@@ -395,7 +422,7 @@ def package_release(
 	package_path: Path | None = None,
 ) -> Path:
 	if package_path is None:
-		package_path = repo_root / "dist" / "Prosperous-Alchemist-NG-v1.2.X.zip"
+		package_path = release_package_path(repo_root)
 	package_path.parent.mkdir(parents=True, exist_ok=True)
 
 	convert_user_readme_to_bbcode(

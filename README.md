@@ -13,7 +13,7 @@ For installation and gameplay instructions, see the [user-facing guide](docs/USE
 - The native plugin is an **Address Library** plugin built with CommonLibSSE-NG.
 - The Release DLL is self-contained with respect to the third-party C++ libraries used by the project. It does not require `fmt.dll`, `spdlog.dll`, or the dynamic MSVC runtime beside the plugin.
 - SKSE, Address Library for SKSE Plugins, and a matching Skyrim runtime are still required. Address Library is not part of this repository or embedded in `alchemist.dll`.
-- The current plugin package consists of the native DLL; the plugin creates an optional `alchemist.ini` with defaults when it starts. It does not require an ESP/ESL.
+- The minimum runtime payload is the native DLL; the plugin creates an optional `alchemist.ini` with defaults when it starts and does not require an ESP/ESL. `python build.py --package` creates a complete release archive containing the DLL, `alchemist.ini` when present, all locale and font resources, `COPYING`, `EXCEPTIONS.md`, `docs/USER_README.md`, and the files under `licenses/`.
 - **Localization**: The overlay uses UTF-8 strings, Windows locale detection, BCP 47 locale resources, Unicode Skyrim character events, and a merged multilingual ImGui font atlas. Runtime translations are loaded from `SKSE/Plugins/locales/alchemist.<tag>.json`; optional legally redistributable fonts are loaded from `SKSE/Plugins/fonts`, with English text and Dear ImGui's default font as graceful fallbacks.
 - **UI Compatibility**: Operates seamlessly with both Skyrim's native vanilla crafting menu (`RE::CraftingMenu`) and SkyUI; SkyUI is supported but not strictly required.
 - **Skyrim VR Presentation**: Intercepts DXGI desktop swap chain present calls, rendering the ImGui overlay to the desktop mirror window. Players in VR can view the window inside their headset using SteamVR Desktop View or overlay utilities (e.g. Desktop+).
@@ -110,8 +110,8 @@ For a Release build, record the current time immediately before starting the int
 - **Potion and poison support** — Determines whether a result is a potion or poison from its dominant shared effect and displays the appropriate name.
 - **Recipe browser** — Provides search across recipe names, ingredients, and effects; four value/name sort modes; selectable recipe rows; an optional Effects column; and pagination for large result sets.
 - **Selected-ingredient filtering** — By default, shows only recipes containing every ingredient currently selected in Skyrim's native alchemy menu. The filter can be disabled in Settings and compares native ingredient FormIDs rather than display names.
-- **Ingredient protection** — Optionally excludes quest, crafting, Atronach Forge, Hearthfire, and other valuable ingredients from recommendations.
-- **Custom protection rules** — Adds custom ingredients with an optional inventory threshold and allows individual ingredients to be exempted from protection.
+- **Ingredient protection** — Optionally excludes quest, crafting, Atronach Forge, Hearthfire, and other valuable ingredients from recommendations. The tracking page is the only in-game control surface for enabling protection, ingredient tracking, and editing the protected list.
+- **Custom protection rules** — Adds custom ingredients with an optional inventory threshold and allows individual ingredients to be exempted from protection through the tracking page.
 - **Responsive recalculation** — Keeps a long-lived in-memory master recipe cache, incrementally evaluates newly available ingredient combinations, reevaluates cached recipes when player state changes, and performs expensive work on a persistent background worker by default.
 - **Safe update handling** — Coalesces rapid requests with a debounce, cancels superseded work, reports progress and completion, and retains a stale cached list with a manual Recalculate action when a slow update is intentionally deferred.
 - **Form-accurate recipe identity** — Tracks the actual ingredient forms in each recipe and protection rule so ingredients with duplicate display names remain distinct.
@@ -267,7 +267,7 @@ The plugin reads this file when it loads if it exists:
 Data/SKSE/Plugins/alchemist.ini
 ```
 
-If the file is missing, the plugin creates it with the default settings during startup. All settings are in the `[General]` section. Restart the game after editing the file so the plugin loads the new values.
+If the file is missing, the plugin creates it with the default settings during startup. Calculation and protection settings are in `[General]`; dynamic tracking data is in `[Tracking]`. Restart the game after editing the file so the plugin loads the new values.
 
 ### General settings
 
@@ -275,20 +275,22 @@ If the file is missing, the plugin creates it with the default settings during s
 | --- | ---: | --- |
 | `developer` | `0` | Set to `1` to show the Developer Test Hub controls. Keep it at `0` during normal gameplay. |
 | `IgnorePlayer` | `0` | Uses the player's skill, perks, and worn Fortify Alchemy equipment when calculating values. Set to `1` to ignore player alchemy state. The ingredient list still comes from the player's inventory. |
-| `ProtectIngredients` | `0` | Disables ingredient protection by default. Set to `1` to exclude the configured protected ingredients from recommendations. |
+| `ProtectIngredients` | `0` | Enables the unified ingredient protection and tracking system. When enabled, it protects the configured list, enough ingredients for two of every loaded craftable item, selected ingredient effects, and unfinished tracking requirements. The default is disabled; set to `1` to enable it. |
 | `Singlethreaded` | `0` | At `0`, recipe evaluation uses worker threads; at `1`, calculation runs single-threaded on the main thread. |
 | `FilterPotionsBySelectedIngredients` | `1` | Filters overlay potion rows to recipes containing every ingredient currently selected in the Skyrim alchemy menu. With no ingredients selected, all calculated potions are shown; the selected potion remains selected if the filter temporarily hides it. |
 | `CacheDurationSeconds` | `180` | Keeps the in-memory master recipe cache available after the alchemy menu closes for this many seconds. Set to `0` to expire it immediately; this does not write cache data to disk. |
 | `StaleRecalculateThresholdMs` | `500` | When the last calculation took longer than this many milliseconds, allows the existing list to remain visible as stale during subsequent requests and shows a manual **Recalculate** action. Set to `0` to disable this slow-calculation guard. |
 | `CraftDebounceMs` | `400` | Waits this many milliseconds after a non-forced recalculation request before starting background work, coalescing rapid inventory/crafting changes. |
-| `ProtectedIngredients` | default list | Comma-separated ingredient names, editor IDs, or hexadecimal FormIDs. Each entry can optionally use `entry\|count` to keep that many copies protected. An entry without a count protects all copies. |
+| `ProtectedIngredients` | empty | Comma-separated ingredient names, editor IDs, or hexadecimal FormIDs. Each entry can optionally use `entry\|count` to keep that many copies protected. An entry without a count protects all copies. |
+| `ProtectedEffects` | `Fortify Enchanting,Fortify Smithing` | In `[Tracking]`, a comma-separated list of loaded ingredient effects whose ingredients should be protected. The default names are selected only when those effects exist; the Track page lists every available effect dynamically. |
+| `ProtectedEffectCounts` | empty | In `[Tracking]`, automatically maintained finite quantity defaults for selected effects. The Track page can set each effect to protect all matching copies or a quantity per ingredient; individual ingredient details can override a specific detection. |
 | `PotionPoison` | `Potion of,Poison of` | Two comma-separated prefixes: the beneficial potion prefix followed by the harmful poison prefix. |
 
 String settings are intentionally comma-delimited. Do not add additional commas to an individual value. Ingredient names and editor IDs are matched case-insensitively; FormID entries use hexadecimal identifiers without a plugin name.
 
 ### In-game settings
 
-While the alchemy overlay is open, select **Settings** to edit the General settings through the graphical interface. Calculation, ingredient protection, naming, and advanced diagnostic options are grouped into a scrollable settings page. The page also exposes the master-cache duration, stale-recalculation threshold, craft debounce delay, and selected-ingredient filter. The **Use single-threaded calculation** option uses multithreaded worker-thread evaluation by default; selecting it runs recipe evaluation on the main thread. Changes are saved to `alchemist.ini` automatically, and **Reset all settings** restores the declared defaults.
+While the alchemy overlay is open, select **Settings** to edit calculation, naming, and advanced diagnostic options through the graphical interface. Ingredient tracking and all protection controls are on the **Track** page only. The tracking page uses one protection/tracking setting that is disabled by default, dynamically lists ingredient effects, reserves the ingredients needed to craft two of every loaded ingredient-bearing craftable item, and provides a unified clickable ingredient summary with Custom, Quest, Craftable, and Effect protection columns. Each selected effect can protect all matching copies or a finite quantity per ingredient; clicking an ingredient opens all of its craft, effect, quest, and manual detections with independent finite-quantity or protect-all controls. Completed quests are automatically marked complete and excluded from the protected ingredient list. Detailed detection, manual requirement, quest metadata, quest debugging, and Atronach Forge controls are under the closed-by-default **Detect requirements** expander, which is shown only when `[General] developer=1`. The Settings page also exposes the master-cache duration, stale-recalculation threshold, craft debounce delay, and selected-ingredient filter. The **Use single-threaded calculation** option uses multithreaded worker-thread evaluation by default; selecting it runs recipe evaluation on the main thread. Changes are saved to `alchemist.ini` automatically, and **Reset all settings** restores the declared defaults.
 
 ## Developer Test Hub
 
@@ -304,66 +306,20 @@ The **Algorithm completeness** test evaluates all loaded ingredient pairs and tr
 [General]
 developer=0
 IgnorePlayer=0
-ProtectIngredients=1
+ProtectIngredients=0
 Singlethreaded=0
 FilterPotionsBySelectedIngredients=1
 ProtectedIngredients=Jarrin Root,Daedra Heart|3,Blue Butterfly Wing|10
 PotionPoison=Potion of,Poison of
+
+[Tracking]
+ProtectedEffects=Fortify Enchanting,Fortify Smithing
+ProtectedEffectCounts=
 ```
 
 ### Default protected ingredients
 
-The default `ProtectedIngredients` value contains the following ingredients and inventory thresholds. An ingredient marked **always** is protected regardless of its count. Protection is disabled until `ProtectIngredients=1` or **Protect ingredients** is checked in the in-game Settings page. Clear the protected-ingredient list to remove all configured entries, or use **Reset all settings** to restore these defaults.
-
-<details>
-<summary>Show built-in protected ingredients</summary>
-
-| Ingredient | Protected when count is at or below |
-| --- | ---: |
-| Berit's Ashes | always |
-| Bliss Bug Thorax | 11 |
-| Bone Hawk Claw | always |
-| Briar Heart | 3 |
-| Corkbulb Root | always |
-| Corrupted Human Heart | always |
-| Crimson Nirnroot | 31 |
-| Daedra Heart | always |
-| Deathbell | 32 |
-| Dragon's Tongue | 11 |
-| Ectoplasm | 11 |
-| Farengar's Frost Salt | always |
-| Fine-Cut Void Salts | always |
-| Fire Salts | 21 |
-| Frost Mirriam | 11 |
-| Frost Salts | 11 |
-| Giant's Toe | 3 |
-| Goldfish | 2 |
-| Hagraven Claw | 2 |
-| Hagraven Feathers | 2 |
-| Human Heart | always |
-| Ice Wraith Teeth | 6 |
-| Ironwood Fruit | 2 |
-| Jarrin Root | always |
-| Jazbay Grapes | 21 |
-| Juniper Berries | 2 |
-| Juvenile Mudcrab | 2 |
-| Large Antlers | always |
-| Mudcrab Chitin | always |
-| Netch Jelly | 6 |
-| Nightshade | 21 |
-| Nirnroot | 21 |
-| Salt Pile | 11 |
-| Scathecraw | 11 |
-| Simon Rodayne's Heart | always |
-| Slaughterfish Scales | always |
-| Taproot | 4 |
-| Torchbug Abdomen | 11 |
-| Torchbug Thorax | 11 |
-| Troll Fat | 2 |
-| Vampire Dust | 3 |
-| Void Salts | 12 |
-
-</details>
+The default `ProtectedIngredients` value is empty, so no static ingredient list is protected automatically. Fortify Enchanting and Fortify Smithing remain the default selected effects under `[Tracking]`; selected effects protect all matching copies initially, and their effect rows can change the default quantity per ingredient. Each ingredient's detail window can still change an individual effect detection to a finite quantity. Protection and tracking are disabled by default through `ProtectIngredients=0`; enable the setting on the in-game **Track** page when desired. **Reset all settings** restores these defaults.
 
 ## Installation
 
@@ -488,7 +444,7 @@ build-alchemist/alchemist.dll
 
 The wrapper configures CMake with `Ninja`, sets `CMAKE_BUILD_TYPE=Release`, cleans only plugin outputs, builds it once, and deploys the DLL to the directory containing `DLL_DEPLOY`. It validates that the build artifact is newer than the recorded build start and that the deployed file has the same timestamp and SHA-256 hash. CommonLibSSE-NG and fetched dependency outputs are preserved. The native build supports only the `Release` configuration and requires an x64 MSVC toolchain.
 
-Use `python build.py --build-dir <directory>` to select a different repository-relative build directory, `python build.py --cmake <path-to-cmake>` when CMake is not on `PATH`, or `python build.py --package` to generate `dist/Prosperous-Alchemist-NG-v1.2.X.zip`. The wrapper does not accept a configuration argument; Debug, RelWithDebInfo, and MinSizeRel builds are not supported.
+Use `python build.py --build-dir <directory>` to select a different repository-relative build directory, `python build.py --cmake <path-to-cmake>` when CMake is not on `PATH`, or `python build.py --package` to generate `dist/Prosperous-Alchemist-NG-v<major>.<minor>.<patch>.zip` from `MYFP_VERSION_MAJOR`, `MYFP_VERSION_MINOR`, and `MYFP_VERSION_PATCH` in `alchemist/include/version.h`. The beta component is not included in the public archive filename. The wrapper does not accept a configuration argument; Debug, RelWithDebInfo, and MinSizeRel builds are not supported.
 
 ### CMake path settings
 

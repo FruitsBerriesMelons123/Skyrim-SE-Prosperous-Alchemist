@@ -2,6 +2,7 @@
 #include "AlchemistEngine.h"
 #include "AlchemyPlus/AlchemyPlus.h"
 #include "DeveloperTestHub.h"
+#include "IngredientTracker.h"
 #include "MenuHandler.h"
 #include "RenderHook.h"
 #include "Localization.h"
@@ -459,6 +460,14 @@ namespace alchemist {
 				}
 				else if (iParts.size() == 2) {
 					moreIngredients[iParts.at(0)] = str::toInt(iParts.at(1));
+				}
+			}
+			for (const auto& [ingredient, count] : tracker::GetProtectedIngredients()) {
+				auto found = moreIngredients.find(ingredient);
+				if (found == moreIngredients.end() || found->second == 999 || count == 999) {
+					moreIngredients[ingredient] = (found != moreIngredients.end() && found->second == 999) || count == 999 ? 999 : count;
+				} else {
+					found->second = (std::min)(999, found->second + count);
 				}
 			}
 		}
